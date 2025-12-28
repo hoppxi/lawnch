@@ -28,10 +28,8 @@ The project is built using Nix.
 # Enter development shell
 nix-shell
 
-mkdir -p build
-cd build
-cmake ..
-make
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
 
 ./lawnch -d # start the daemon
 ./lawnch -t # toggle the search window
@@ -41,4 +39,4 @@ make
 
 ## Styling
 
-You can find example style in **assets/style.css**.
+You can find example style in **assets/style.css**. Copy the style to ~/.config/lawnch/style.css.

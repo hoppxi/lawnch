@@ -12,9 +12,7 @@
 
 namespace fs = std::filesystem;
 
-SearchEngine::SearchEngine() {
-    load_config();
-}
+SearchEngine::SearchEngine() {}
 
 SearchEngine& SearchEngine::get() {
     static SearchEngine instance;
@@ -23,72 +21,6 @@ SearchEngine& SearchEngine::get() {
 
 void SearchEngine::set_async_callback(ResultsCallback callback) {
     async_callback = callback;
-}
-
-std::string SearchEngine::resolve_path(std::string path) {
-    if (path.empty()) return "";
-    if (path[0] == '~') {
-        path.replace(0, 1, Utils::get_home_dir());
-    }
-    return path;
-}
-
-void SearchEngine::load_config() {
-    std::string config_path;
-    const char* xdg_config = getenv("XDG_CONFIG_HOME");
-    if (xdg_config) {
-        config_path = std::string(xdg_config) + "/lawnch/config.json";
-    } else {
-        config_path = Utils::get_home_dir() + "/.config/lawnch/config.json";
-    }
-
-    if (!fs::exists(config_path)) return;
-
-    std::ifstream f(config_path);
-    try {
-        nlohmann::json j;
-        f >> j;
-
-        // Load Maps
-        if (j.contains("map")) {
-            for (auto& [key, entries] : j["map"].items()) {
-                for (const auto& item : entries) {
-                    mapped_builtins[key].push_back({
-                        item.value("name", "Mapped"),
-                        item.value("tigger", ""), // matching typo in user request
-                        item.value("trigger_short", ""),
-                        item.value("command", "{}"),
-                        item.value("folder", ""),
-                        item.value("exclude_type", ""),
-                        std::stoi(item.value("limit", "0"))
-                    });
-                }
-            }
-        }
-
-        // Load Extensions
-        if (j.contains("extensions")) {
-            for (const auto& item : j["extensions"]) {
-                Extension ext;
-                ext.name = item.value("name", "Extension");
-                ext.trigger = item.value("tigger", item.value("trigger", "")); // handle typo
-                ext.trigger_short = item.value("trigger_short", "");
-                ext.path = item.value("path", "");
-                ext.command = item.value("command", "");
-                ext.on_select = item.value("on_select", "");
-                ext.from_folder = item.value("from_folder", "");
-                ext.exclude_type = item.value("exclude_type", "");
-                ext.help_text = item.value("help_text", "");
-                ext.list_cmd = item.value("list", "");
-                ext.icon_cmd = item.value("icon", "");
-                ext.json_output = item.value("json", false);
-                ext.limit = std::stoi(item.value("limit", "0"));
-                extensions.push_back(ext);
-            }
-        }
-    } catch (const std::exception& e) {
-        std::cerr << "Config load error: " << e.what() << std::endl;
-    }
 }
 
 bool SearchEngine::is_trigger_match(const std::string& term, const std::string& trigger, const std::string& short_trigger, std::string& out_query) {
@@ -109,22 +41,6 @@ std::vector<SearchResult> SearchEngine::query(const std::string& term) {
 
     std::string sub_q;
     if (is_trigger_match(term, ":help", ":h", sub_q)) return get_help(sub_q);
-
-    for (auto const& [type, maps] : mapped_builtins) {
-        for (const auto& m : maps) {
-            if (is_trigger_match(term, m.trigger, m.trigger_short, sub_q)) {
-                if (type == "files") return search_files(sub_q, &m);
-                if (type == "apps") return search_apps(sub_q, &m);
-            }
-        }
-    }
-
-    for (const auto& ext : extensions) {
-        if (is_trigger_match(term, ext.trigger, ext.trigger_short, sub_q)) {
-            return search_extensions(sub_q, ext);
-        }
-    }
-
     if (is_trigger_match(term, ":bin", ":b", sub_q)) return search_bins(sub_q);
     if (is_trigger_match(term, ":clip", ":c", sub_q)) return search_clipboard(sub_q);
     if (is_trigger_match(term, ":calc", "", sub_q)) return search_calc(sub_q);
@@ -168,15 +84,10 @@ std::vector<SearchResult> SearchEngine::get_help(const std::string& term) {
     add_h(":url", ":u", "Open a URL directly in browser");
     add_h(":cmd", "", "Run a raw shell command");
     
-    for (const auto& ext : extensions) add_h(ext.trigger, ext.trigger_short, ext.help_text.empty() ? "Extension: " + ext.name : ext.help_text);
-    for (auto const& [type, maps] : mapped_builtins) {
-        for (const auto& m : maps) add_h(m.trigger, m.trigger_short, "Mapped " + type + ": " + m.name);
-    }
-
     return help;
 }
 
-std::vector<SearchResult> SearchEngine::search_apps(const std::string& term, const MapEntry* map) {
+std::vector<SearchResult> SearchEngine::search_apps(const std::string& term) {
     std::vector<SearchResult> results;
     std::vector<std::string> data_dirs;
     
@@ -189,7 +100,7 @@ std::vector<SearchResult> SearchEngine::search_apps(const std::string& term, con
     }
     data_dirs.push_back(Utils::get_home_dir() + "/.local/share/applications");
 
-    static std::string terminal_cmd = get_default_terminal();
+    static std::string terminal_cmd = Utils::get_default_terminal();
 
     for (const auto& dir : data_dirs) {
         if (!fs::exists(dir)) continue;
@@ -216,17 +127,9 @@ std::vector<SearchResult> SearchEngine::search_apps(const std::string& term, con
                                 cmd = terminal_cmd + " -e " + cmd;
                             }
 
-                            // Apply Mapping Template
-                            if (map) {
-                                std::string mapped_cmd = map->command_template;
-                                size_t pos = mapped_cmd.find("{}");
-                                if (pos != std::string::npos) mapped_cmd.replace(pos, 2, cmd);
-                                cmd = mapped_cmd;
-                            }
-
                             results.push_back({
                                 s_name,
-                                comment ? std::string(comment) : (map ? "Map: " + map->name : ""),
+                                comment ? std::string(comment) : (""),
                                 icon ? std::string(icon) : "application-x-executable",
                                 cmd, "app", score
                             });
@@ -244,12 +147,12 @@ std::vector<SearchResult> SearchEngine::search_apps(const std::string& term, con
         return a.name < b.name;
     });
 
-    int limit = (map && map->limit > 0) ? map->limit : 50;
+    int limit = 50;
     if (results.size() > (size_t)limit) results.resize(limit);
     return results;
 }
 
-std::vector<SearchResult> SearchEngine::search_files(const std::string& term, const MapEntry* map) {
+std::vector<SearchResult> SearchEngine::search_files(const std::string& term) {
     std::string search_dir = "~";
     std::string query = term;
 
@@ -266,19 +169,14 @@ std::vector<SearchResult> SearchEngine::search_files(const std::string& term, co
         }
     }
 
-    if (map && !map->folder.empty()) search_dir = map->folder;
-    search_dir = resolve_path(search_dir);
+    search_dir = Utils::resolve_path(search_dir);
 
-    if (!fs::exists(search_dir)) search_dir = resolve_path("~");
+    if (!fs::exists(search_dir)) search_dir = Utils::resolve_path("~");
 
     std::string cmd = "find \"" + search_dir + "\" -maxdepth 4 -not -path '*/.*' ";
     if (!query.empty()) cmd += "-iname '*" + query + "*' ";
     
-    if (map && !map->exclude_type.empty()) {
-        cmd += "! -name '*." + map->exclude_type + "' ";
-    }
-
-    int limit = (map && map->limit > 0) ? map->limit : 20;
+    int limit = 50;
     cmd += "2>/dev/null | head -n " + std::to_string(limit);
 
     std::string out = Utils::exec(cmd.c_str());
@@ -286,8 +184,8 @@ std::vector<SearchResult> SearchEngine::search_files(const std::string& term, co
     std::string line;
     std::vector<SearchResult> results;
 
-    static std::string editor_cmd = get_default_editor();
-    static std::string terminal_cmd = get_default_terminal();
+    static std::string editor_cmd = Utils::get_default_editor();
+    static std::string terminal_cmd = Utils::get_default_terminal();
 
     while(std::getline(ss, line)) {
         if(line.empty()) continue;
@@ -295,13 +193,7 @@ std::vector<SearchResult> SearchEngine::search_files(const std::string& term, co
         bool is_dir = fs::is_directory(p);
         
         std::string open_cmd;
-        if (map && !map->command_template.empty()) {
-            open_cmd = map->command_template;
-            size_t pos = open_cmd.find("{}");
-            if (pos != std::string::npos) open_cmd.replace(pos, 2, line);
-        } else {
-            open_cmd = is_dir ? terminal_cmd + " -e " + editor_cmd + " \"" + line + "\"" : "xdg-open \"" + line + "\"";
-        }
+        open_cmd = is_dir ? terminal_cmd + " -e " + editor_cmd + " \"" + line + "\"" : "xdg-open \"" + line + "\"";
 
         results.push_back({ 
             p.filename().string(), 
@@ -309,84 +201,6 @@ std::vector<SearchResult> SearchEngine::search_files(const std::string& term, co
             is_dir ? "folder" : "text-x-generic", 
             open_cmd, "file" 
         });
-    }
-    return results;
-}
-
-std::vector<SearchResult> SearchEngine::search_extensions(const std::string& term, const Extension& ext) {
-    std::vector<SearchResult> results;
-
-    if (!ext.from_folder.empty()) {
-        std::string dir = resolve_path(ext.from_folder);
-        if (!fs::exists(dir)) {
-            return {{"Error", "Extension folder not found: " + dir, "dialog-error", "", "error"}};
-        }
-
-        int count = 0;
-        for (const auto& entry : fs::directory_iterator(dir)) {
-            if (ext.limit > 0 && count >= ext.limit) break;
-            std::string path = entry.path().string();
-            if (!ext.exclude_type.empty() && entry.path().extension() == "." + ext.exclude_type) continue;
-            
-            if (term.empty() || Utils::contains_ignore_case(entry.path().filename().string(), term)) {
-                std::string final_cmd = ext.on_select;
-                size_t pos = final_cmd.find("{}");
-                if (pos != std::string::npos) final_cmd.replace(pos, 2, path);
-                else final_cmd += " \"" + path + "\"";
-
-                results.push_back({ entry.path().filename().string(), "ext: " + ext.name, "folder-saved-search", final_cmd, "extension" });
-                count++;
-            }
-        }
-        return results;
-    }
-
-    // Type 2: Static List or Custom Script
-    std::string full_cmd;
-    if (!ext.path.empty()) full_cmd = resolve_path(ext.path) + " \"" + term + "\"";
-    else if (!ext.list_cmd.empty()) full_cmd = ext.list_cmd;
-    else if (!ext.command.empty()) {
-        // Simple command execution (Weather style)
-        std::string out = Utils::exec(ext.command.c_str());
-        if (!out.empty()) results.push_back({ out, "ext: " + ext.name, "view-refresh", "", "extension" });
-        return results;
-    }
-
-    if (full_cmd.empty()) return {};
-    std::string output = Utils::exec(full_cmd.c_str());
-
-    if (ext.json_output) {
-        try {
-            auto j = nlohmann::json::parse(output);
-            for (const auto& item : j) {
-                results.push_back({
-                    item.value("name", ""),
-                    item.value("comment", "ext: " + ext.name),
-                    item.value("icon", "text-x-script"),
-                    item.value("command", ""), "extension"
-                });
-                if (item.contains("command")) results.back().command = item["command"];
-                if (ext.limit > 0 && results.size() >= (size_t)ext.limit) break;
-            }
-        } catch (...) {}
-    } else {
-        std::stringstream ss(output);
-        std::string line;
-        // Icons if provided
-        std::vector<std::string> icons;
-        if (!ext.icon_cmd.empty()) {
-            std::stringstream iss(Utils::exec(ext.icon_cmd.c_str()));
-            std::string il; while(std::getline(iss, il)) icons.push_back(il);
-        }
-        
-        int i = 0;
-        while(std::getline(ss, line)) {
-            if(line.empty()) continue;
-            std::string icon = (i < (int)icons.size()) ? icons[i] : "text-x-script";
-            results.push_back({line, "ext: " + ext.name, icon, "", "extension"});
-            i++;
-            if (ext.limit > 0 && results.size() >= (size_t)ext.limit) break;
-        }
     }
     return results;
 }
@@ -553,7 +367,6 @@ std::vector<SearchResult> SearchEngine::search_emoji(const std::string& term) {
     return results;
 }
 
-
 std::vector<SearchResult> SearchEngine::search_cmd(const std::string& term) { 
     return {{ term, "Run command", "utilities-terminal", term, "cmd" }};
 }
@@ -587,31 +400,4 @@ std::vector<SearchResult> SearchEngine::search_youtube_sync(const std::string& t
 
 std::vector<SearchResult> SearchEngine::search_url(const std::string& term) {
     return {{ term, "Open URL", "network-server", "xdg-open \"" + term + "\"", "url" }};
-}
-
-std::string SearchEngine::get_default_terminal() {
-    const char* term_env = getenv("TERMINAL");
-    if (term_env) return std::string(term_env);
-
-    std::vector<std::string> common_terms = {
-        "alacritty", "kitty", "gnome-terminal", "konsole", 
-        "xfce4-terminal", "foot", "termit", "xterm"
-    };
-
-    for (const auto& t : common_terms) {
-        if (system((std::string("command -v ") + t + " > /dev/null 2>&1").c_str()) == 0) {
-            return t;
-        }
-    }
-    return "xterm";
-}
-
-std::string SearchEngine::get_default_editor() {
-    const char* visual = getenv("VISUAL"); if (visual) return visual;
-    const char* editor = getenv("EDITOR"); if (editor) return editor;
-    for (auto e : {
-        "nvim", "vim", "nano", "vi", "hx", "code"
-    }) 
-    if (system(("command -v " + std::string(e) + " >/dev/null").c_str()) == 0) return e;
-    return "vi";
 }

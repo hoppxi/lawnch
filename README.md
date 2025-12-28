@@ -35,4 +35,10 @@ make
 
 ./lawnch -d # start the daemon
 ./lawnch -t # toggle the search window
+./lawnch -q # kill the daemon
+./lawnch -r # reload the daemon
 ```
+
+## Styling
+
+You can find example style in **assets/style.css**.

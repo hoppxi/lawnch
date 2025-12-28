@@ -13,7 +13,7 @@ namespace Utils {
     std::string exec(const char* cmd) {
         std::array<char, 128> buffer;
         std::string result;
-        std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
+        std::unique_ptr<FILE, int(*)(FILE*)> pipe(popen(cmd, "r"), pclose);
         if (!pipe) return "";
         while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
             result += buffer.data();
@@ -23,18 +23,17 @@ namespace Utils {
 
     void exec_detached(const std::string& cmd) {
         pid_t pid = fork();
+        if (pid < 0) return; // fork failed
         if (pid == 0) {
-            // Child process
-            setsid(); // Create new session
-            // Redirect stdin/out/err to /dev/null
-            freopen("/dev/null", "r", stdin);
-            freopen("/dev/null", "w", stdout);
-            freopen("/dev/null", "w", stderr);
-            
+            setsid();
+            (void)freopen("/dev/null", "r", stdin);
+            (void)freopen("/dev/null", "w", stdout);
+            (void)freopen("/dev/null", "w", stderr);
             execl("/bin/sh", "sh", "-c", cmd.c_str(), (char *)nullptr);
             _exit(127);
         }
     }
+
 
     std::string get_home_dir() {
         const char* home = getenv("HOME");
@@ -44,6 +43,42 @@ namespace Utils {
             return "";
         }
         return home;
+    }
+
+
+    std::string get_default_terminal() {
+        const char* term_env = getenv("TERMINAL");
+        if (term_env) return std::string(term_env);
+
+        std::vector<std::string> common_terms = {
+            "alacritty", "kitty", "gnome-terminal", "konsole", 
+            "xfce4-terminal", "foot", "termit", "xterm"
+        };
+
+        for (const auto& t : common_terms) {
+            if (system((std::string("command -v ") + t + " > /dev/null 2>&1").c_str()) == 0) {
+                return t;
+            }
+        }
+        return "xterm";
+    }
+
+    std::string get_default_editor() {
+        const char* visual = getenv("VISUAL"); if (visual) return visual;
+        const char* editor = getenv("EDITOR"); if (editor) return editor;
+        for (auto e : {
+            "nvim", "vim", "nano", "vi", "hx", "code"
+        }) 
+        if (system(("command -v " + std::string(e) + " >/dev/null").c_str()) == 0) return e;
+        return "vi";
+    }
+
+    std::string resolve_path(std::string path) {
+        if (path.empty()) return "";
+        if (path[0] == '~') {
+            path.replace(0, 1, get_home_dir());
+        }
+        return path;
     }
 
     bool is_executable(const std::string& path) {

@@ -1,12 +1,13 @@
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <gtk/gtk.h>
-#include "window.hpp"
-#include <thread>
-#include <atomic>
-#include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <gtk/gtk.h>
+#include "window.hpp"
+#include "utils.hpp"
+#include <thread>
+#include <atomic>
 #include <cstring>
 #include <iostream>
 #include <filesystem>
@@ -107,7 +108,11 @@ static void on_activate(GtkApplication* app, gpointer) {
 
         GtkCssProvider* provider = gtk_css_provider_new();
         g_signal_connect(provider, "parsing-error", G_CALLBACK(on_css_error), NULL);
-        gtk_css_provider_load_from_path(provider, "/home/hoppxi/devspace/lawnch/build/style.css");
+
+        std::string config_dir = Utils::get_config_dir();
+        std::string css_path = config_dir + "/lawnch/style.css";
+        gtk_css_provider_load_from_path(provider, css_path.c_str());
+
         gtk_style_context_add_provider_for_display(
             gdk_display_get_default(),
             GTK_STYLE_PROVIDER(provider),

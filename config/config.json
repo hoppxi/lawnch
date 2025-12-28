@@ -1,0 +1,59 @@
+{
+  "map": {
+    "files": [
+      {
+        "name": "Wp",
+        "tigger": ":wss",
+        "trigger_short": ":wss",
+        "folder": "~/Pictures/Wallpapers",
+        "exclude_type": "webp",
+        "command": "awww img {}",
+        "limit": "20"
+      }
+    ],
+
+    "apps": [
+      {
+        "name": "USWM",
+        "tigger": ":uswm",
+        "trigger_short": ":s",
+        "command": "uswm {}",
+        "limit": "20"
+      }
+    ]
+  },
+  "extensions": [
+    {
+      "name": "Wallpapers",
+      "tigger": ":wallpapers",
+      "trigger_short": ":wp",
+      "from_folder": "~/Pictures/Wallpapers",
+      "exclude_type": "webp",
+      "on_select": "awww img {}",
+      "help_text": "Quickly set your desktop background",
+      "limit": "20",
+      "json": true
+    },
+    {
+      "name": "Opened Apps",
+      "tigger": ":o-apps",
+      "trigger_short": ":oa",
+      "path": "~/.config/eww/opened_apps"
+    },
+    {
+      "name": "Power Menu",
+      "trigger": ":power",
+      "trigger_short": ":p",
+      "list": "echo -e \"Shutdown\\nReboot\\nLogout\"",
+      "icon": "echo -e \"shutdown\\nrestart\\nlogout\"",
+      "command": "echo -e \"shutdown now\\nreboot\\nloginctl kill-session hoppxi\"",
+      "json": false
+    },
+    {
+      "name": "Weather",
+      "trigger": ":wt",
+      "command": "curl -s 'wttr.in/Addis+Ababa?format=%l:+%t'",
+      "json": false
+    }
+  ]
+}

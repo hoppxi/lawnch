@@ -10,6 +10,7 @@ namespace Utils {
     std::string get_default_terminal();
     std::string get_default_editor();
     std::string resolve_path(std::string path);
+    std::string get_config_dir();
     bool is_executable(const std::string& path);
     int match_score(const std::string& input, const std::string& target);
     std::vector<std::string> tokenize(const std::string& str);    

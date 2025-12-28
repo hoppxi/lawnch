@@ -1,9 +1,11 @@
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <pwd.h>
 #include "utils.hpp"
 #include <array>
 #include <memory>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <pwd.h>
 #include <sstream>
 #include <iostream>
 #include <cstring>
@@ -23,13 +25,21 @@ namespace Utils {
 
     void exec_detached(const std::string& cmd) {
         pid_t pid = fork();
-        if (pid < 0) return; // fork failed
+        if (pid < 0) return;
+
         if (pid == 0) {
             setsid();
-            (void)freopen("/dev/null", "r", stdin);
-            (void)freopen("/dev/null", "w", stdout);
-            (void)freopen("/dev/null", "w", stderr);
-            execl("/bin/sh", "sh", "-c", cmd.c_str(), (char *)nullptr);
+
+            int devnull = open("/dev/null", O_RDWR);
+            if (devnull >= 0) {
+                dup2(devnull, STDIN_FILENO);
+                dup2(devnull, STDOUT_FILENO);
+                dup2(devnull, STDERR_FILENO);
+                if (devnull > STDERR_FILENO)
+                    close(devnull);
+            }
+
+            execl("/bin/sh", "sh", "-c", cmd.c_str(), (char*)nullptr);
             _exit(127);
         }
     }
@@ -79,6 +89,24 @@ namespace Utils {
             path.replace(0, 1, get_home_dir());
         }
         return path;
+    }
+
+    std::string get_config_dir() {
+        if (const char* xdg = std::getenv("XDG_CONFIG_HOME")) {
+            if (*xdg) return xdg;
+        }
+
+        if (const char* home = std::getenv("HOME")) {
+            if (*home) return std::string(home) + "/.config";
+        }
+
+        if (const char* dirs = std::getenv("XDG_CONFIG_DIRS")) {
+            std::stringstream ss(dirs);
+            std::string dir;
+            if (std::getline(ss, dir, ':') && !dir.empty()) return dir;
+        }
+
+        return "/etc/xdg";
     }
 
     bool is_executable(const std::string& path) {

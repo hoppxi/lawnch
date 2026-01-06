@@ -72,7 +72,7 @@ Requirements:
 - `inih`, `harfbuzz`, `librsvg`, `fontconfig`
 
 ```bash
-git clone https://github.com/yourusername/lawnch.git
+git clone https://github.com/hoppxi/lawnch.git
 cd lawnch
 cmake -B build
 cmake --build build

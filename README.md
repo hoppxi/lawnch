@@ -24,6 +24,7 @@ Lawnch uses a filter command system kind of like Vim. You can switch to specific
 | `:<plugin_name>` | Switch to the the plugin (e.g. :p for powermenu).     |
 
 > Note: Filters are defined by the plugins themselves and can be customized. plugins can allow to customize filter key.
+> For more info [click here](https://github.com/hoppxi/lawnch/tree/main/plugins)
 
 ## Installation
 
@@ -140,7 +141,7 @@ Lawnch plugins are compiled shared libraries (`.so`).
 - Development: Plugins uses the `lawnch_plugin_api.h` header.
 - Structure: A plugin directory usually contains the C++ source and a `CMakeLists.txt` and `deps.nix` (if any deps needed to build).
 
-To create a new plugin, check the `plugins/` directory. and see powermenu as example plugin implementing the `lawnch_plugin_api.h` .
+To create a new plugin, check [here](https://github.com/hoppxi/lawnch/tree/main/plugins) and the `plugins/` directory. and see powermenu as example plugin implementing the `lawnch_plugin_api.h` .
 
 ## Contributing
 

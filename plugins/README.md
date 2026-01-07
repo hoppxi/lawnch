@@ -4,16 +4,16 @@ This directory contains plugins for Lawnch.
 
 ## Plugins
 
-- [Calculator](https://github.com/hoppxi/lawnch/tree/main/plugins/calculator/README.md) – Perform quick math operations directly in the search bar.
-- [Clipboard](https://github.com/hoppxi/lawnch/tree/main/plugins/clipboard/README.md) – Manage and search through your clipboard history.
-- [Command](https://github.com/hoppxi/lawnch/tree/main/plugins/command/README.md) – Execute system commands.
-- [Emoji](https://github.com/hoppxi/lawnch/tree/main/plugins/emoji/README.md) – Search for emojis and copy them to your clipboard.
-- [Files](https://github.com/hoppxi/lawnch/tree/main/plugins/files/README.md) – Fast file system search and indexing.
-- [Google](https://github.com/hoppxi/lawnch/tree/main/plugins/google/README.md) – Web search via Google.
-- [Power Menu](https://github.com/hoppxi/lawnch/tree/main/plugins/powermenu/README.md) – Ppower actions (Shutdown, Reboot, Lock, etc.).
-- [URL](https://github.com/hoppxi/lawnch/tree/main/plugins/url/README.md) – Open web addresses.
-- [Wallpapers](https://github.com/hoppxi/lawnch/tree/main/plugins/wallpapers/README.md) – Browse and set desktop wallpapers.
-- [YouTube](https://github.com/hoppxi/lawnch/tree/main/plugins/youtube/README.md) – Search for videos and open them in your browser.
+- [Calculator](https://github.com/hoppxi/lawnch/tree/main/plugins/calculator) – Perform quick math operations directly in the search bar.
+- [Clipboard](https://github.com/hoppxi/lawnch/tree/main/plugins/clipboard) – Manage and search through your clipboard history.
+- [Command](https://github.com/hoppxi/lawnch/tree/main/plugins/command) – Execute system commands.
+- [Emoji](https://github.com/hoppxi/lawnch/tree/main/plugins/emoji) – Search for emojis and copy them to your clipboard.
+- [Files](https://github.com/hoppxi/lawnch/tree/main/plugins/files) – Fast file system search and indexing.
+- [Google](https://github.com/hoppxi/lawnch/tree/main/plugins/google) – Web search via Google.
+- [Power Menu](https://github.com/hoppxi/lawnch/tree/main/plugins/powermenu) – Ppower actions (Shutdown, Reboot, Lock, etc.).
+- [URL](https://github.com/hoppxi/lawnch/tree/main/plugins/url) – Open web addresses.
+- [Wallpapers](https://github.com/hoppxi/lawnch/tree/main/plugins/wallpapers) – Browse and set desktop wallpapers.
+- [YouTube](https://github.com/hoppxi/lawnch/tree/main/plugins/youtube) – Search for videos and open them in your browser.
 
 ## Plugin Development
 

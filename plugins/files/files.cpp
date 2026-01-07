@@ -143,6 +143,117 @@ static void parse_query(const std::string &term, fs::path &out_dir,
   out_query.erase(0, out_query.find_first_not_of(" "));
 }
 
+static std::string get_icon_for_file(const FileEntry &f) {
+  if (f.is_dir) {
+    return "folder-symbolic";
+  }
+
+  std::string ext = f.path.extension().string();
+  if (ext.empty())
+    return "text-x-generic";
+
+  std::transform(ext.begin(), ext.end(), ext.begin(),
+                 [](unsigned char c) { return std::tolower(c); });
+
+  static const std::unordered_map<std::string, std::string> icon_map = {
+      // Programming & Scripts
+      {".c", "text-x-script"},
+      {".cpp", "text-x-script"},
+      {".h", "text-x-script"},
+      {".hpp", "text-x-script"},
+      {".py", "text-x-script"},
+      {".js", "text-x-script"},
+      {".ts", "text-x-script"},
+      {".go", "text-x-script"},
+      {".rs", "text-x-script"},
+      {".java", "text-x-script"},
+      {".sh", "text-x-script"},
+      {".bash", "text-x-script"},
+      {".php", "text-x-script"},
+      {".rb", "text-x-script"},
+      {".pl", "text-x-script"},
+      {".lua", "text-x-script"},
+      {".sql", "text-x-script"},
+      {".html", "text-html"},
+      {".css", "text-css"},
+      {".json", "text-x-script"},
+      {".xml", "text-xml"},
+
+      // Documents
+      {".pdf", "document-pdf"},
+      {".doc", "x-office-document"},
+      {".docx", "x-office-document"},
+      {".odt", "x-office-document"},
+      {".rtf", "x-office-document"},
+      {".xls", "x-office-spreadsheet"},
+      {".xlsx", "x-office-spreadsheet"},
+      {".ods", "x-office-spreadsheet"},
+      {".csv", "x-office-spreadsheet"},
+      {".ppt", "x-office-presentation"},
+      {".pptx", "x-office-presentation"},
+      {".odp", "x-office-presentation"},
+      {".txt", "text-x-generic"},
+      {".md", "text-markdown"},
+      {".tex", "text-x-tex"},
+
+      // Archives
+      {".zip", "package-x-generic"},
+      {".tar", "package-x-generic"},
+      {".gz", "package-x-generic"},
+      {".bz2", "package-x-generic"},
+      {".xz", "package-x-generic"},
+      {".7z", "package-x-generic"},
+      {".rar", "package-x-generic"},
+      {".deb", "package-x-generic"},
+      {".rpm", "package-x-generic"},
+      {".iso", "drive-optical"},
+
+      // Images
+      {".png", "image-x-generic"},
+      {".jpg", "image-x-generic"},
+      {".jpeg", "image-x-generic"},
+      {".gif", "image-x-generic"},
+      {".svg", "image-x-generic"},
+      {".bmp", "image-x-generic"},
+      {".webp", "image-x-generic"},
+      {".ico", "image-x-generic"},
+      {".tiff", "image-x-generic"},
+
+      // Audio
+      {".mp3", "audio-x-generic"},
+      {".wav", "audio-x-generic"},
+      {".ogg", "audio-x-generic"},
+      {".flac", "audio-x-generic"},
+      {".m4a", "audio-x-generic"},
+      {".aac", "audio-x-generic"},
+      {".opus", "audio-x-generic"},
+
+      // Video
+      {".mp4", "video-x-generic"},
+      {".mkv", "video-x-generic"},
+      {".avi", "video-x-generic"},
+      {".mov", "video-x-generic"},
+      {".wmv", "video-x-generic"},
+      {".webm", "video-x-generic"},
+      {".flv", "video-x-generic"},
+
+      // ohers
+      {".bin", "application-x-executable"},
+      {".appimage", "application-x-executable"},
+      {".flatpak", "package-x-generic"},
+      {".conf", "emblem-system"},
+      {".cfg", "emblem-system"},
+      {".ini", "emblem-system"},
+      {".log", "text-x-generic-template"}};
+
+  auto it = icon_map.find(ext);
+  if (it != icon_map.end()) {
+    return it->second;
+  }
+
+  return "text-x-generic"; // Final fallback
+}
+
 void plugin_init(const LawnchHostApi *host) {
   if (const char *v = host->get_config_value(host, "max_results")) {
     try {
@@ -220,7 +331,10 @@ LawnchResult *plugin_query(const char *term, int *num_results) {
       LawnchResult r;
       r.name = c_strdup(f.name);
       r.comment = c_strdup(f.path.string());
-      r.icon = c_strdup(f.is_dir ? "folder-symbolic" : "text-x-generic");
+
+      std::string icon_name = get_icon_for_file(f);
+      r.icon = c_strdup(icon_name.c_str());
+
       r.command = c_strdup(cmd);
       r.type = c_strdup("plugin");
 

@@ -12,8 +12,7 @@ with lib;
 let
   cfg = config.programs.lawnch;
 
-  # A function to build a self-contained plugin
-  buildPlugin =
+  getPluginInfo =
     name: pluginCfg:
     let
       sourcePath =
@@ -35,16 +34,24 @@ let
             assets = [ ];
           };
 
-      # Normalize: handle both [ "dep" ] and { deps = [ "dep" ]; }
-      pluginDeps = if builtins.isList rawDeps then rawDeps else (rawDeps.deps or [ ]);
-      pluginAssets = if builtins.isList rawDeps then [ ] else (rawDeps.assets or [ ]);
+    in
+    {
+      inherit sourcePath;
+      assets = if builtins.isList rawDeps then [ ] else (rawDeps.assets or [ ]);
+      deps = if builtins.isList rawDeps then rawDeps else (rawDeps.deps or [ ]);
+    };
 
-      autoDeps = map (dep: pkgs.${dep}) pluginDeps;
+  # A function to build a self-contained plugin
+  buildPlugin =
+    name: pluginCfg:
+    let
+      info = getPluginInfo name pluginCfg;
+      autoDeps = map (dep: pkgs.${dep}) info.deps;
     in
     pkgs.stdenv.mkDerivation {
       pname = "lawnch-plugin-${name}";
       version = pluginCfg.version;
-      src = sourcePath;
+      src = info.sourcePath;
 
       nativeBuildInputs = with pkgs; [
         cmake
@@ -69,9 +76,10 @@ let
         ${builtins.concatStringsSep "\n" (
           map (asset: ''
             echo "Installing asset: ${asset}"
-            mkdir -p $out/lib/lawnch/plugins/assets
-            cp -r "$src/${asset}" $out/lib/lawnch/plugins/assets/
-          '') pluginAssets
+            mkdir -p "$out/lib/lawnch/assets"
+            mkdir -p "$(dirname "$out/lib/lawnch/assets/${asset}")"
+            cp -r "$src/${asset}" "$out/lib/lawnch/assets/${asset}"
+          '') info.assets
         )}
 
         runHook postInstall
@@ -105,14 +113,30 @@ in
   config = mkIf cfg.enable {
     home.packages = [ cfg.package ];
 
-    # Install the .so file for each enabled plugin
-    home.file = mapAttrs' (name: plugin: {
-      name = ".local/share/lawnch/plugins/${name}.so";
-      value = {
-        source = "${buildPlugin name plugin}/lib/lawnch/plugins/${name}.so";
-        executable = true;
-      };
-    }) (filterAttrs (n: v: v.enable) cfg.plugins);
+    xdg.dataFile = mkMerge (
+      mapAttrsToList (
+        name: plugin:
+        let
+          info = getPluginInfo name plugin;
+          builtPkg = buildPlugin name plugin;
+        in
+        {
+          "lawnch/plugins/${name}.so" = {
+            source = "${builtPkg}/lib/lawnch/plugins/${name}.so";
+            executable = true;
+          };
+        }
+        // (listToAttrs (
+          map (asset: {
+            name = "lawnch/assets/${asset}";
+            value = {
+              source = "${builtPkg}/lib/lawnch/assets/${asset}";
+              recursive = true;
+            };
+          }) info.assets
+        ))
+      ) (filterAttrs (n: v: v.enable) cfg.plugins)
+    );
 
     xdg.configFile."lawnch/config.ini".source = generateFullConfig;
   };

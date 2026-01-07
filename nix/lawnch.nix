@@ -137,6 +137,22 @@ with lib;
           type = types.int;
           default = 10;
         };
+        padding_top = mkOption {
+          type = types.int;
+          default = 0;
+        };
+        padding_bottom = mkOption {
+          type = types.int;
+          default = 0;
+        };
+        padding_left = mkOption {
+          type = types.int;
+          default = 0;
+        };
+        padding_right = mkOption {
+          type = types.int;
+          default = 0;
+        };
         item_spacing = mkOption {
           type = types.int;
           default = 2;

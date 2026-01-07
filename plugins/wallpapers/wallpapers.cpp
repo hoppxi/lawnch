@@ -97,7 +97,7 @@ LawnchResult *plugin_get_help(void) {
   LawnchResult *r = new LawnchResult;
   r->name = c_strdup(":wall / :wp");
   r->comment = c_strdup("Set wallpaper");
-  r->icon = c_strdup("preferences-desktop-wallpaper-symbolic");
+  r->icon = c_strdup("preferences-desktop-wallpaper");
   r->command = c_strdup("");
   r->type = c_strdup("help");
   return r;
@@ -138,9 +138,9 @@ LawnchResult *plugin_query(const char *term, int *num_results) {
     LawnchResult r;
     r.name = c_strdup(p.filename().string());
     r.comment = c_strdup(p.parent_path().string());
-    r.icon = c_strdup("preferences-desktop-wallpaper-symbolic");
+    r.icon = c_strdup("preferences-desktop-wallpaper");
     r.command = c_strdup(build_command(g_state.command_template, abs_path));
-    r.type = c_strdup("plugin");
+    r.type = c_strdup("wallpaper-plugin");
 
     results.push_back(r);
   }

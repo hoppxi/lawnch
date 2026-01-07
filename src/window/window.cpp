@@ -55,12 +55,77 @@ LauncherWindow::LauncherWindow(Search &search) : search(search) {
                                      this);
   zwlr_layer_surface_v1_set_size(layer_surface, cfg.window_width,
                                  cfg.window_height);
-  zwlr_layer_surface_v1_set_anchor(layer_surface,
-                                   ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP);
+
+  uint32_t anchor_opts = 0;
+  int m_top = 0, m_right = 0, m_bottom = 0, m_left = 0;
+
+  // Check if anchor is in coordinates format "x,y"
+  int x = 0, y = 0;
+  bool is_coords = false;
+  if (!cfg.window_anchor.empty()) {
+    size_t first_digit = cfg.window_anchor.find_first_of("0123456789");
+    // If it starts with a number, assume coordinates
+    // user could put "10,left" which will be invalidate for the left option
+    if (first_digit == 0) {
+      char comma;
+      std::stringstream ss(cfg.window_anchor);
+      if (ss >> x >> comma >> y) {
+        is_coords = true;
+      }
+    }
+  }
+
+  if (is_coords) {
+    // If anchor is number with coordinates we anchor the window to the top left
+    // then margin top and left will be the coordinate values
+    anchor_opts =
+        ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP | ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT;
+    m_top = y;
+    m_left = x;
+    m_bottom = 0;
+    m_right = 0;
+  } else {
+    // If anchor is key word then we anchor to the given position and allow only
+    // the give position to have margin values
+    std::string a = cfg.window_anchor;
+
+    auto contains = [&](const std::string &word) {
+      std::stringstream ss(a);
+      std::string segment;
+      while (std::getline(ss, segment, ',')) {
+        if (segment == word)
+          return true;
+      }
+      return false;
+    };
+
+    bool has_top = contains("top");
+    bool has_bottom = contains("bottom");
+    bool has_left = contains("left");
+    bool has_right = contains("right");
+
+    if (has_top) {
+      anchor_opts |= ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP;
+      m_top = cfg.window_margin_top;
+    }
+    if (has_bottom) {
+      anchor_opts |= ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM;
+      m_bottom = cfg.window_margin_bottom;
+    }
+    if (has_left) {
+      anchor_opts |= ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT;
+      m_left = cfg.window_margin_left;
+    }
+    if (has_right) {
+      anchor_opts |= ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT;
+      m_right = cfg.window_margin_right;
+    }
+  }
+
+  zwlr_layer_surface_v1_set_anchor(layer_surface, anchor_opts);
   zwlr_layer_surface_v1_set_exclusive_zone(layer_surface, -1);
-  zwlr_layer_surface_v1_set_margin(
-      layer_surface, cfg.window_margin_top, cfg.window_margin_right,
-      cfg.window_margin_bottom, cfg.window_margin_left);
+  zwlr_layer_surface_v1_set_margin(layer_surface, m_top, m_right, m_bottom,
+                                   m_left);
 
   zwlr_layer_surface_v1_set_keyboard_interactivity(
       layer_surface, ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_EXCLUSIVE);

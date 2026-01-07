@@ -98,27 +98,59 @@ void LauncherWindow::render() {
   cairo_set_line_width(cr, cfg.window_border_width);
   cairo_stroke(cr);
 
-  // Input Rendering
-  PangoLayout *layout = pango_cairo_create_layout(cr);
+  // --- Input Rendering ---
 
+  // Setup Input Font
+  PangoLayout *layout = pango_cairo_create_layout(cr);
   std::string font_desc_str = cfg.input_font_family;
   if (!cfg.input_font_weight.empty()) {
     font_desc_str += " " + cfg.input_font_weight;
   }
-
   PangoFontDescription *font =
       pango_font_description_from_string(font_desc_str.c_str());
   pango_font_description_set_size(font, cfg.input_font_size * PANGO_SCALE);
   pango_layout_set_font_description(layout, font);
   pango_layout_set_ellipsize(layout, PANGO_ELLIPSIZE_END);
 
-  double input_x = cfg.input_padding_left + cfg.window_border_width;
-  double input_y = cfg.input_padding_top + cfg.window_border_width;
-  double input_w = current_buffer->width -
-                   (cfg.input_padding_left + cfg.input_padding_right +
-                    cfg.window_border_width * 2);
+  // Calculate Input Dimensions
+  // We assume the input box spans the full width of the window minus the window
+  // border The padding_top/bottom are used to give the input box height around
+  // the font.
 
-  pango_layout_set_width(layout, input_w * PANGO_SCALE);
+  PangoFontMetrics *input_metrics = pango_context_get_metrics(
+      pango_layout_get_context(layout), font, nullptr);
+  double font_h = (pango_font_metrics_get_ascent(input_metrics) +
+                   pango_font_metrics_get_descent(input_metrics)) /
+                  PANGO_SCALE;
+  pango_font_metrics_unref(input_metrics);
+
+  double input_box_x = cfg.window_border_width;
+  double input_box_y = cfg.window_border_width;
+  double input_box_w = current_buffer->width - (cfg.window_border_width * 2);
+  double input_box_h =
+      cfg.input_padding_top + font_h + cfg.input_padding_bottom;
+
+  // Draw Input Box Background & Border
+  Utils::draw_rounded_rect(cr, input_box_x, input_box_y, input_box_w,
+                           input_box_h, cfg.input_border_radius);
+  cairo_set_source_rgba(
+      cr, cfg.input_background_color.r, cfg.input_background_color.g,
+      cfg.input_background_color.b, cfg.input_background_color.a);
+  cairo_fill_preserve(cr);
+  cairo_set_source_rgba(cr, cfg.input_border_color.r, cfg.input_border_color.g,
+                        cfg.input_border_color.b, cfg.input_border_color.a);
+  cairo_set_line_width(cr, cfg.input_border_width);
+  cairo_stroke(cr);
+
+  // Text Layout Configuration
+  double text_draw_x = input_box_x + cfg.input_padding_left;
+  double text_draw_y = input_box_y + cfg.input_padding_top;
+  // Available width for text needs to account for left AND right padding
+  double text_avail_w =
+      input_box_w - (cfg.input_padding_left + cfg.input_padding_right);
+
+  pango_layout_set_width(layout, text_avail_w * PANGO_SCALE);
+
   if (cfg.input_horizontal_align == "center") {
     pango_layout_set_alignment(layout, PANGO_ALIGN_CENTER);
   } else if (cfg.input_horizontal_align == "right") {
@@ -127,6 +159,7 @@ void LauncherWindow::render() {
     pango_layout_set_alignment(layout, PANGO_ALIGN_LEFT);
   }
 
+  // Draw Text
   if (search_text.empty()) {
     pango_layout_set_text(layout, "Search or type :h or for more...", -1);
     cairo_set_source_rgba(
@@ -134,18 +167,11 @@ void LauncherWindow::render() {
         cfg.input_placeholder_color.b, cfg.input_placeholder_color.a);
   } else {
     pango_layout_set_text(layout, search_text.c_str(), -1);
-
-    // Highlight background if text is selected (not fully implemented
-    // in snippet)
-    if (input_selected) {
-      //
-    }
-
     cairo_set_source_rgba(cr, cfg.input_text_color.r, cfg.input_text_color.g,
                           cfg.input_text_color.b, cfg.input_text_color.a);
   }
 
-  cairo_move_to(cr, input_x, input_y);
+  cairo_move_to(cr, text_draw_x, text_draw_y);
   pango_cairo_show_layout(cr, layout);
 
   // Caret Rendering
@@ -154,21 +180,12 @@ void LauncherWindow::render() {
     PangoRectangle weak_pos;
     pango_layout_get_cursor_pos(layout, caret_position, &strong_pos, &weak_pos);
 
-    // pango_layout_get_cursor_pos gives coordinates relative to the layout
-    // origin (input_x, input_y) It automatically accounts for alignment shifts.
-    double caret_x = input_x + (double)strong_pos.x / PANGO_SCALE;
-    double caret_y = input_y + (double)strong_pos.y / PANGO_SCALE;
+    double caret_x = text_draw_x + (double)strong_pos.x / PANGO_SCALE;
+    double caret_y = text_draw_y + (double)strong_pos.y / PANGO_SCALE;
     double caret_h = (double)strong_pos.height / PANGO_SCALE;
 
-    // Fallback height if empty
-    if (caret_h == 0) {
-      PangoFontMetrics *metrics = pango_context_get_metrics(
-          pango_layout_get_context(layout), font, nullptr);
-      caret_h = (pango_font_metrics_get_ascent(metrics) +
-                 pango_font_metrics_get_descent(metrics)) /
-                PANGO_SCALE;
-      pango_font_metrics_unref(metrics);
-    }
+    if (caret_h == 0)
+      caret_h = font_h;
 
     cairo_set_source_rgba(cr, cfg.input_caret_color.r, cfg.input_caret_color.g,
                           cfg.input_caret_color.b, cfg.input_caret_color.a);
@@ -177,10 +194,8 @@ void LauncherWindow::render() {
     cairo_stroke(cr);
   }
 
-  // Results Rendering
+  // Render results
 
-  // Reset font description to result font (ignore input weight if needed, or
-  // re-parse)
   pango_font_description_free(font);
   font = pango_font_description_from_string(cfg.results_font_family.c_str());
   pango_font_description_set_size(font, cfg.results_font_size * PANGO_SCALE);
@@ -189,13 +204,11 @@ void LauncherWindow::render() {
   pango_font_description_set_size(comment_font,
                                   cfg.results_comment_font_size * PANGO_SCALE);
 
-  // Calculate Layout Metrics
-  double start_y = input_y + 30 + cfg.results_item_spacing;
+  double results_start_y = input_box_y + input_box_h + cfg.results_padding_top;
   double text_gap = 4.0;
   double name_h_approx = cfg.results_font_size * 1.4;
   double comment_h_approx = cfg.results_comment_font_size * 1.4;
 
-  // Dynamic Height Calculation
   double item_inner_h = name_h_approx;
   if (cfg.results_enable_comment) {
     item_inner_h += text_gap + comment_h_approx;
@@ -203,7 +216,8 @@ void LauncherWindow::render() {
 
   double item_height =
       cfg.results_item_padding * 2 + item_inner_h + cfg.results_item_spacing;
-  double available_h = current_buffer->height - start_y;
+  double available_h =
+      current_buffer->height - results_start_y - cfg.results_padding_bottom;
 
   if (item_height <= 0)
     item_height = 1;
@@ -223,52 +237,51 @@ void LauncherWindow::render() {
   for (int i = scroll_offset; i < end_index; ++i) {
     const auto &res = current_results[i];
     int rel_i = i - scroll_offset;
-    double item_y = start_y + rel_i * item_height;
+    double item_y = results_start_y + rel_i * item_height;
 
-    // Use input padding for result horizontal margins
-    double box_x = cfg.input_padding_left;
-    double box_w = current_buffer->width - cfg.input_padding_left -
-                   cfg.input_padding_right;
+    // Use results padding for horizontal bounds
+    double box_x = cfg.window_border_width + cfg.results_padding_left;
+    double box_w = current_buffer->width - (cfg.window_border_width * 2) -
+                   (cfg.results_padding_left + cfg.results_padding_right);
     double box_h = item_height - cfg.results_item_spacing;
 
-    // Selection Background
-    if (i == selected_index) {
-      Utils::draw_rounded_rect(cr, box_x, item_y, box_w, box_h,
-                               cfg.results_item_border_radius);
+    // Determine current style based on selection
+    bool is_sel = (i == selected_index);
+    int border_radius = is_sel ? cfg.results_selected_border_radius
+                               : cfg.results_default_border_radius;
+    int border_width = is_sel ? cfg.results_selected_border_width
+                              : cfg.results_default_border_width;
+    Color border_color = is_sel ? cfg.results_selected_border_color
+                                : cfg.results_default_border_color;
+    Color bg_color = is_sel ? cfg.results_selected_background_color
+                            : cfg.results_default_background_color;
+    Color text_color = is_sel ? cfg.results_selected_text_color
+                              : cfg.results_default_text_color;
 
-      cairo_set_source_rgba(cr, cfg.results_selected_background_color.r,
-                            cfg.results_selected_background_color.g,
-                            cfg.results_selected_background_color.b,
-                            cfg.results_selected_background_color.a);
-      cairo_fill(cr);
-      cairo_set_source_rgba(cr, cfg.results_selected_text_color.r,
-                            cfg.results_selected_text_color.g,
-                            cfg.results_selected_text_color.b,
-                            cfg.results_selected_text_color.a);
-    } else {
-      cairo_set_source_rgba(cr, cfg.results_default_text_color.r,
-                            cfg.results_default_text_color.g,
-                            cfg.results_default_text_color.b,
-                            cfg.results_default_text_color.a);
-    }
+    // Draw item background
+    Utils::draw_rounded_rect(cr, box_x, item_y, box_w, box_h, border_radius);
+    cairo_set_source_rgba(cr, bg_color.r, bg_color.g, bg_color.b, bg_color.a);
+    cairo_fill_preserve(cr);
+
+    // Draw item border
+    cairo_set_source_rgba(cr, border_color.r, border_color.g, border_color.b,
+                          border_color.a);
+    cairo_set_line_width(cr, border_width);
+    cairo_stroke(cr);
 
     double content_start_x = box_x + cfg.results_item_padding;
     double current_x = content_start_x;
     double center_y = item_y + box_h / 2.0;
 
-    // Render Icon
+    // Render icon
     if (cfg.results_enable_icon) {
       double icon_draw_y = center_y - (cfg.results_icon_size / 2.0);
-
       IconManager::get().render_icon(cr, res.icon, current_x, icon_draw_y,
                                      cfg.results_icon_size);
-
-      current_x +=
-          cfg.results_icon_size + 12; // 12 is gap between icon and text
+      current_x += cfg.results_icon_size + 12;
     }
 
-    // Render Text
-    // Calculate available width strictly to avoid overflow when icon is present
+    // Render text
     double available_text_w =
         (box_x + box_w - cfg.results_item_padding) - current_x;
     if (available_text_w < 0)
@@ -277,24 +290,22 @@ void LauncherWindow::render() {
     // Name
     double name_y;
     if (cfg.results_enable_comment) {
-      // If comment enabled, name is top-aligned
       name_y = item_y + cfg.results_item_padding;
     } else {
-      // If no comment, center the name vertically
       name_y = center_y - (name_h_approx / 2.0);
     }
 
     pango_layout_set_font_description(layout, font);
     pango_layout_set_text(layout, res.name.c_str(), -1);
     pango_layout_set_width(layout, available_text_w * PANGO_SCALE);
-    pango_layout_set_alignment(
-        layout, PANGO_ALIGN_LEFT); // Always left align result text for now
+    pango_layout_set_alignment(layout, PANGO_ALIGN_LEFT);
 
+    cairo_set_source_rgba(cr, text_color.r, text_color.g, text_color.b,
+                          text_color.a);
     cairo_move_to(cr, current_x, name_y);
     pango_cairo_show_layout(cr, layout);
 
-    // Render comment
-    // comment positioning
+    // Comment
     int name_w, name_h_pixels;
     pango_layout_get_pixel_size(layout, &name_w, &name_h_pixels);
 
@@ -303,12 +314,12 @@ void LauncherWindow::render() {
       pango_layout_set_text(layout, res.comment.c_str(), -1);
       pango_layout_set_width(layout, available_text_w * PANGO_SCALE);
 
-      cairo_set_source_rgba(cr, cfg.results_selected_comment_color.r,
-                            cfg.results_selected_comment_color.g,
-                            cfg.results_selected_comment_color.b,
-                            cfg.results_selected_comment_color.a);
-
-      if (i != selected_index) {
+      if (is_sel) {
+        cairo_set_source_rgba(cr, cfg.results_selected_comment_color.r,
+                              cfg.results_selected_comment_color.g,
+                              cfg.results_selected_comment_color.b,
+                              cfg.results_selected_comment_color.a);
+      } else {
         cairo_set_source_rgba(
             cr, cfg.results_comment_color.r, cfg.results_comment_color.g,
             cfg.results_comment_color.b, cfg.results_comment_color.a);

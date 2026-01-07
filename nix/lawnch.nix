@@ -22,6 +22,10 @@ with lib;
           type = types.int;
           default = 400;
         };
+        anchor = mkOption {
+          type = types.str;
+          default = "top,center";
+        };
         margin_top = mkOption {
           type = types.int;
           default = 120;
@@ -157,13 +161,33 @@ with lib;
           type = types.str;
           default = "rgba(69, 133, 136, 0.8)";
         };
-        icon_size = mkOption {
+        default_border_radius = mkOption {
           type = types.int;
-          default = 24;
+          default = 8;
         };
-        item_border_radius = mkOption {
+        default_border_width = mkOption {
+          type = types.int;
+          default = 0;
+        };
+        default_border_color = mkOption {
+          type = types.str;
+          default = "rgba(0, 0, 0, 0.8)";
+        };
+        selected_border_radius = mkOption {
           type = types.int;
           default = 6;
+        };
+        selected_border_width = mkOption {
+          type = types.int;
+          default = 6;
+        };
+        selected_border_color = mkOption {
+          type = types.str;
+          default = "rgba(0, 0, 0, 0.8)";
+        };
+        enable_comment = mkOption {
+          type = types.bool;
+          default = true;
         };
         comment_font_size = mkOption {
           type = types.int;
@@ -181,9 +205,9 @@ with lib;
           type = types.bool;
           default = true;
         };
-        enable_comment = mkOption {
-          type = types.bool;
-          default = true;
+        icon_size = mkOption {
+          type = types.int;
+          default = 24;
         };
       };
     };

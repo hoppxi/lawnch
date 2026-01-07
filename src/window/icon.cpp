@@ -4,20 +4,67 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
+#include <set>
 #include <sstream>
 
+extern "C" {
+#include "ini.h"
+}
+
 namespace fs = std::filesystem;
+
+// ini handler
+struct ThemeParseState {
+  std::string inherits;
+  std::string directories;
+};
+
+static int theme_ini_handler(void *user, const char *section, const char *name,
+                             const char *value) {
+  ThemeParseState *state = (ThemeParseState *)user;
+
+  // We only care about the [Icon Theme] section
+  std::string sec(section);
+  if (sec == "Icon Theme") {
+    std::string key(name);
+    if (key == "Inherits") {
+      state->inherits = value;
+    } else if (key == "Directories") {
+      state->directories = value;
+    }
+  }
+  return 1;
+}
+
+struct ConfigFindState {
+  std::string target_section;
+  std::string target_key;
+  std::string found_value;
+};
+
+static int config_find_handler(void *user, const char *section,
+                               const char *name, const char *value) {
+  ConfigFindState *state = (ConfigFindState *)user;
+
+  if (state->target_section == section && state->target_key == name) {
+    state->found_value = value;
+    return 0;
+  }
+  return 1;
+}
+
+// Icon manager
 
 IconManager &IconManager::get() {
   static IconManager instance;
   return instance;
 }
 
-IconManager::IconManager() { init_paths(); }
+IconManager::IconManager() { init(); }
 
 IconManager::~IconManager() {
-  // Cleanup handles on exit
-  for (auto &pair : cache) {
+  for (auto &pair : handle_cache) {
     if (pair.second)
       g_object_unref(pair.second);
   }
@@ -29,118 +76,169 @@ void IconManager::render_icon(cairo_t *cr, const std::string &name, double x,
     return;
 
   RsvgHandle *handle = get_handle(name);
-  if (!handle)
+  if (!handle) {
     return;
+  }
 
   RsvgRectangle viewport = {x, y, size, size};
-
   GError *error = nullptr;
+
   if (!rsvg_handle_render_document(handle, cr, &viewport, &error)) {
     if (error) {
       std::stringstream ss;
-      ss << "Icon render error: " << error->message;
+      ss << "Icon render error for '" << name << "': " << error->message;
       Utils::log("IconManager", Utils::LogLevel::ERROR, ss.str());
       g_error_free(error);
     }
   }
 }
 
-void IconManager::init_paths() {
-  std::vector<std::string> base_dirs;
+void IconManager::init() {
   const char *home = getenv("HOME");
   const char *xdg_data = getenv("XDG_DATA_DIRS");
 
-  if (home)
-    base_dirs.push_back(std::string(home) + "/.local/share");
+  if (home) {
+    base_search_paths.push_back(std::string(home) + "/.icons");
+    base_search_paths.push_back(std::string(home) + "/.local/share/icons");
+  }
 
   if (xdg_data) {
     std::stringstream ss(xdg_data);
     std::string item;
     while (std::getline(ss, item, ':')) {
       if (!item.empty())
-        base_dirs.push_back(item);
+        base_search_paths.push_back(item + "/icons");
     }
   } else {
-    base_dirs.push_back("/usr/local/share");
-    base_dirs.push_back("/usr/share");
+    base_search_paths.push_back("/usr/local/share/icons");
+    base_search_paths.push_back("/usr/share/icons");
+    // Flatpak support
+    base_search_paths.push_back("/var/lib/flatpak/exports/share/icons");
   }
 
-  std::string theme_name = detect_gtk_theme();
-  if (theme_name.empty())
-    theme_name = "Adwaita";
+  std::string current_theme = detect_system_theme();
+  if (current_theme.empty())
+    current_theme = "hicolor";
 
-  std::vector<std::string> theme_names = {theme_name, "Papirus", "hicolor"};
+  Utils::log("IconManager", Utils::LogLevel::INFO,
+             "Current Theme: " + current_theme);
 
-  for (const auto &base : base_dirs) {
-    for (const auto &t_name : theme_names) {
-      std::string p = base + "/icons/" + t_name;
-      if (fs::exists(p) && fs::is_directory(p)) {
-        theme_search_paths.push_back(p);
-      }
-    }
-    std::string pix = base + "/pixmaps";
-    if (fs::exists(pix))
-      theme_search_paths.push_back(pix);
+  std::vector<std::string> visited;
+  load_theme_recursive(current_theme, visited);
+
+  bool has_hicolor = false;
+  for (const auto &t : active_theme_stack) {
+    if (t.name == "hicolor")
+      has_hicolor = true;
   }
-
-  category_subdirs = {
-      "scalable/apps",   "scalable/actions", "scalable/devices",
-      "scalable/places", "scalable/status",  "scalable/categories",
-      "48x48/apps",      "48x48/actions",    "48x48/devices",
-      "48x48/places",    "32x32/apps",       "32x32/actions",
-      "32x32/devices",   "32x32/places",     "24x24/apps",
-      "24x24/actions",   "24x24/devices",    "24x24/places",
-      "16x16/apps",      "16x16/actions",    "apps",
-      "actions",         "mimetypes"};
+  if (!has_hicolor) {
+    load_theme_recursive("hicolor", visited);
+  }
 }
 
-std::string IconManager::detect_gtk_theme() {
-  const char *home = getenv("HOME");
-  if (!home)
-    return "";
+void IconManager::load_theme_recursive(const std::string &theme_name,
+                                       std::vector<std::string> &visited) {
+  // Stop infinite recursion
+  for (const auto &v : visited) {
+    if (v == theme_name)
+      return;
+  }
+  visited.push_back(theme_name);
 
-  std::string config_path = std::string(home) + "/.config/gtk-3.0/settings.ini";
-  std::ifstream file(config_path);
-  std::string line;
+  IconTheme theme;
+  if (load_theme_definition(theme_name, theme)) {
+    active_theme_stack.push_back(theme);
 
-  if (file.is_open()) {
-    while (std::getline(file, line)) {
-      if (line.find("gtk-icon-theme-name") != std::string::npos) {
-        size_t eq = line.find('=');
-        if (eq != std::string::npos) {
-          std::string theme = line.substr(eq + 1);
-          theme.erase(0, theme.find_first_not_of(" \t\r\n"));
-          theme.erase(theme.find_last_not_of(" \t\r\n") + 1);
-          return theme;
-        }
-      }
+    for (const auto &parent : theme.inherits) {
+      load_theme_recursive(parent, visited);
     }
   }
-  return "";
+}
+
+bool IconManager::load_theme_definition(const std::string &theme_name,
+                                        IconTheme &out_theme) {
+  for (const auto &base : base_search_paths) {
+    fs::path theme_path = fs::path(base) / theme_name;
+    fs::path index_path = theme_path / "index.theme";
+
+    if (fs::exists(index_path)) {
+      out_theme.name = theme_name;
+      out_theme.full_path = theme_path.string();
+
+      ThemeParseState state;
+      if (ini_parse(index_path.c_str(), theme_ini_handler, &state) < 0) {
+        // Even if parse fails, we might have gotten partial
+        // data. Still, mostly < 0 means file error.
+      }
+
+      out_theme.inherits = split_string(state.inherits, ',');
+      out_theme.subdirs = split_string(state.directories, ',');
+
+      for (auto &s : out_theme.inherits) {
+        s.erase(0, s.find_first_not_of(" \t"));
+        s.erase(s.find_last_not_of(" \t") + 1);
+      }
+
+      return true; // Found and loaded
+    }
+  }
+  return false;
+}
+
+std::string IconManager::detect_system_theme() {
+  std::string theme;
+  std::string home = Utils::get_home_dir();
+  std::string config_home = Utils::get_xdg_config_home();
+
+  // KDE (kdeglobals) [Icons] Theme
+  {
+    std::string kde_path = config_home + "/kdeglobals";
+    if (fs::exists(kde_path)) {
+      ConfigFindState state = {"Icons", "Theme", ""};
+      ini_parse(kde_path.c_str(), config_find_handler, &state);
+      if (!state.found_value.empty())
+        return state.found_value;
+    }
+  }
+
+  // GTK 3.0 [Settings] gtk-icon-theme-name
+  {
+    std::string gtk3_path = config_home + "/gtk-3.0/settings.ini";
+    if (fs::exists(gtk3_path)) {
+      ConfigFindState state = {"Settings", "gtk-icon-theme-name", ""};
+      ini_parse(gtk3_path.c_str(), config_find_handler, &state);
+      if (!state.found_value.empty())
+        return state.found_value;
+    }
+  }
+
+  {
+    std::string gtk2_path = home + "/.gtkrc-2.0";
+    // Parsing .gtkrc-2.0 is harder (not standard INI). mostly covered by GTK3
+    // or Defaults
+    // It still could be parsed from .config/gtk-2.0 though.
+  }
+
+  const char *env_theme = getenv("GTK_THEME");
+  if (env_theme)
+    return std::string(env_theme);
+
+  return "Adwaita";
 }
 
 RsvgHandle *IconManager::get_handle(const std::string &name) {
-  if (cache.count(name))
-    return cache[name];
+  if (handle_cache.count(name))
+    return handle_cache[name];
 
   for (const auto &missing : missing_cache) {
     if (missing == name)
       return nullptr;
   }
 
-  std::string full_path;
-
-  if (name[0] == '/') {
-    if (fs::exists(name))
-      full_path = name;
-  }
-
-  else {
-    full_path = find_icon_path(name);
-  }
+  std::string full_path = find_icon_path(name);
 
   if (full_path.empty()) {
-    missing_cache.push_back(name); // Remember this failure
+    missing_cache.push_back(name);
     return nullptr;
   }
 
@@ -149,36 +247,60 @@ RsvgHandle *IconManager::get_handle(const std::string &name) {
 
   if (error) {
     std::stringstream ss;
-    ss << "Failed to load icon '" << name << "': " << error->message;
+    ss << "Failed to load icon '" << name << "' at " << full_path << ": "
+       << error->message;
     Utils::log("IconManager", Utils::LogLevel::ERROR, ss.str());
     g_error_free(error);
     missing_cache.push_back(name);
     return nullptr;
   }
 
-  cache[name] = handle;
+  handle_cache[name] = handle;
   return handle;
 }
 
 std::string IconManager::find_icon_path(const std::string &name) {
-  for (const auto &theme_root : theme_search_paths) {
+  if (name.front() == '/') {
+    if (fs::exists(name))
+      return name;
+    return "";
+  }
 
-    for (const auto &sub : category_subdirs) {
-      std::string p_svg = theme_root + "/" + sub + "/" + name + ".svg";
-      if (fs::exists(p_svg))
-        return p_svg;
+  for (const auto &theme : active_theme_stack) {
 
-      std::string p_png = theme_root + "/" + sub + "/" + name + ".png";
-      if (fs::exists(p_png))
-        return p_png;
+    for (const auto &subdir : theme.subdirs) {
+      fs::path dir = fs::path(theme.full_path) / subdir;
+
+      std::vector<fs::path> candidates;
+      candidates.push_back(dir / (name + ".svg"));
+      candidates.push_back(dir / (name + ".png"));
+
+      for (const auto &p : candidates) {
+        if (fs::exists(p))
+          return p.string();
+      }
     }
 
-    std::string p_svg = theme_root + "/" + name + ".svg";
-    if (fs::exists(p_svg))
-      return p_svg;
-    std::string p_png = theme_root + "/" + name + ".png";
-    if (fs::exists(p_png))
-      return p_png;
+    fs::path root_svg = fs::path(theme.full_path) / (name + ".svg");
+    if (fs::exists(root_svg))
+      return root_svg.string();
+
+    fs::path root_png = fs::path(theme.full_path) / (name + ".png");
+    if (fs::exists(root_png))
+      return root_png.string();
   }
+
   return "";
+}
+
+std::vector<std::string> IconManager::split_string(const std::string &str,
+                                                   char delimiter) {
+  std::vector<std::string> tokens;
+  std::string token;
+  std::istringstream tokenStream(str);
+  while (std::getline(tokenStream, token, delimiter)) {
+    if (!token.empty())
+      tokens.push_back(token);
+  }
+  return tokens;
 }

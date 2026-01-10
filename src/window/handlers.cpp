@@ -1,8 +1,7 @@
-#include "../config.hpp"
-#include "../utils.hpp"
+#include "../config/config_manager.hpp"
+#include "../helpers/logger.hpp"
 #include "window.hpp"
 #include <cstring>
-#include <sstream>
 #include <sys/mman.h>
 #include <unistd.h>
 #include <xkbcommon/xkbcommon-keysyms.h>
@@ -85,8 +84,8 @@ void LauncherWindow::keyboard_keymap_handler(void *data, struct wl_keyboard *,
       xkb_keymap_new_from_string(s->xkb_context, map, XKB_KEYMAP_FORMAT_TEXT_V1,
                                  XKB_KEYMAP_COMPILE_NO_FLAGS);
   if (!s->xkb_keymap) {
-    Utils::log("wayland", Utils::LogLevel::ERROR,
-               "Failed to create XKB keymap");
+    Logger::log("wayland", Logger::LogLevel::ERROR,
+                "Failed to create XKB keymap");
   }
 
   munmap(map, size);
@@ -178,7 +177,7 @@ void LauncherWindow::layer_surface_configure_handler(
     uint32_t h) {
   auto s = (LauncherWindow *)data;
   if (w == 0 || h == 0) {
-    const auto &cfg = ConfigManager::get();
+    const auto &cfg = ConfigManager::Instance().Get();
     w = cfg.window_width;
     h = cfg.window_height;
   }

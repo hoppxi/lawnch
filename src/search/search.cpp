@@ -1,7 +1,5 @@
 #include "search.hpp"
 #include "modes.hpp"
-#include <algorithm>
-#include <iostream>
 
 Search::Search(PluginManager &plugin_manager) : plugin_manager(plugin_manager) {
   modes.push_back(std::make_unique<AppMode>());
@@ -60,8 +58,8 @@ std::vector<SearchResult> Search::query(const std::string &term) {
     if (!sub_query.empty()) {
       std::vector<SearchResult> filtered;
       for (const auto &h : help) {
-        if (Utils::contains_ignore_case(h.name, sub_query) ||
-            Utils::contains_ignore_case(h.comment, sub_query)) {
+        if (Lawnch::Str::contains_ic(h.name, sub_query) ||
+            Lawnch::Str::contains_ic(h.comment, sub_query)) {
           filtered.push_back(h);
         }
       }

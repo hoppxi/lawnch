@@ -1,7 +1,5 @@
-#include "../config.hpp"
-#include "../utils.hpp"
+#include "../helpers/process.hpp"
 #include "window.hpp"
-#include <iostream>
 #include <sys/timerfd.h>
 #include <xkbcommon/xkbcommon-keysyms.h>
 
@@ -42,7 +40,6 @@ static bool is_continuation_byte(char c) { return (c & 0xC0) == 0x80; }
 
 void LauncherWindow::handle_key_press_action(uint32_t keycode,
                                              xkb_keysym_t sym) {
-  const auto &cfg = ConfigManager::get();
   bool ctrl = xkb_state_mod_name_is_active(
       xkb_state, XKB_MOD_NAME_CTRL,
       static_cast<xkb_state_component>(XKB_STATE_MODS_DEPRESSED |
@@ -72,7 +69,7 @@ void LauncherWindow::handle_key_press_action(uint32_t keycode,
             escaped += c;
         }
         std::string cmd = "echo -n '" + escaped + "' | wl-copy";
-        Utils::exec_detached(cmd);
+        Lawnch::Proc::exec_detached(cmd);
       }
       return;
     }
@@ -81,7 +78,7 @@ void LauncherWindow::handle_key_press_action(uint32_t keycode,
       if (!search_text.empty()) {
         push_undo();
         std::string cmd = "echo -n '" + search_text + "' | wl-copy";
-        Utils::exec_detached(cmd);
+        Lawnch::Proc::exec_detached(cmd);
         search_text.clear();
         caret_position = 0;
         input_selected = false;
@@ -91,7 +88,7 @@ void LauncherWindow::handle_key_press_action(uint32_t keycode,
     }
     // CTRL + V (Paste)
     if (sym == XKB_KEY_v || sym == XKB_KEY_V) {
-      std::string clipboard = Utils::exec("wl-paste --no-newline");
+      std::string clipboard = Lawnch::Proc::exec("wl-paste --no-newline");
       if (!clipboard.empty()) {
         push_undo();
         if (input_selected) {
@@ -138,7 +135,7 @@ void LauncherWindow::handle_key_press_action(uint32_t keycode,
   case XKB_KEY_Return:
   case XKB_KEY_KP_Enter:
     if (selected_index >= 0 && selected_index < (int)current_results.size()) {
-      Utils::exec_detached(current_results[selected_index].command);
+      Lawnch::Proc::exec_detached(current_results[selected_index].command);
       stop();
     }
     break;

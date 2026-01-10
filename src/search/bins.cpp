@@ -1,3 +1,5 @@
+#include "../helpers/process.hpp"
+#include "../helpers/string.hpp"
 #include "modes.hpp"
 #include <filesystem>
 #include <mutex>
@@ -38,11 +40,11 @@ std::vector<SearchResult> BinMode::query(const std::string &term) {
       if (results.size() >= 20)
         return results;
 
-      if (!Utils::is_executable(entry.path()))
+      if (!Lawnch::Proc::is_executable(entry.path()))
         continue;
 
       const std::string name = entry.path().filename().string();
-      if (!Utils::contains_ignore_case(name, term))
+      if (!Lawnch::Str::contains_ic(name, term))
         continue;
 
       results.push_back({name, entry.path().string(), "utilities-terminal",

@@ -1,5 +1,6 @@
 #include "icon.hpp"
-#include "../utils.hpp"
+#include "../helpers/fs.hpp"
+#include "../helpers/logger.hpp"
 #include <algorithm>
 #include <cstdlib>
 #include <filesystem>
@@ -87,7 +88,7 @@ void IconManager::render_icon(cairo_t *cr, const std::string &name, double x,
     if (error) {
       std::stringstream ss;
       ss << "Icon render error for '" << name << "': " << error->message;
-      Utils::log("IconManager", Utils::LogLevel::ERROR, ss.str());
+      Logger::log("IconManager", Logger::LogLevel::ERROR, ss.str());
       g_error_free(error);
     }
   }
@@ -120,8 +121,8 @@ void IconManager::init() {
   if (current_theme.empty())
     current_theme = "hicolor";
 
-  Utils::log("IconManager", Utils::LogLevel::INFO,
-             "Current Theme: " + current_theme);
+  Logger::log("IconManager", Logger::LogLevel::INFO,
+              "Current Theme: " + current_theme);
 
   std::vector<std::string> visited;
   load_theme_recursive(current_theme, visited);
@@ -187,12 +188,12 @@ bool IconManager::load_theme_definition(const std::string &theme_name,
 
 std::string IconManager::detect_system_theme() {
   std::string theme;
-  std::string home = Utils::get_home_dir();
-  std::string config_home = Utils::get_xdg_config_home();
+  fs::path home = Lawnch::Fs::get_home_path();
+  fs::path config_home = Lawnch::Fs::get_config_home();
 
   // KDE (kdeglobals) [Icons] Theme
   {
-    std::string kde_path = config_home + "/kdeglobals";
+    std::string kde_path = config_home / "kdeglobals";
     if (fs::exists(kde_path)) {
       ConfigFindState state = {"Icons", "Theme", ""};
       ini_parse(kde_path.c_str(), config_find_handler, &state);
@@ -203,7 +204,7 @@ std::string IconManager::detect_system_theme() {
 
   // GTK 3.0 [Settings] gtk-icon-theme-name
   {
-    std::string gtk3_path = config_home + "/gtk-3.0/settings.ini";
+    std::string gtk3_path = config_home / "gtk-3.0/settings.ini";
     if (fs::exists(gtk3_path)) {
       ConfigFindState state = {"Settings", "gtk-icon-theme-name", ""};
       ini_parse(gtk3_path.c_str(), config_find_handler, &state);
@@ -213,7 +214,7 @@ std::string IconManager::detect_system_theme() {
   }
 
   {
-    std::string gtk2_path = home + "/.gtkrc-2.0";
+    std::string gtk2_path = home / ".gtkrc-2.0";
     // Parsing .gtkrc-2.0 is harder (not standard INI). mostly covered by GTK3
     // or Defaults
     // It still could be parsed from .config/gtk-2.0 though.
@@ -249,7 +250,7 @@ RsvgHandle *IconManager::get_handle(const std::string &name) {
     std::stringstream ss;
     ss << "Failed to load icon '" << name << "' at " << full_path << ": "
        << error->message;
-    Utils::log("IconManager", Utils::LogLevel::ERROR, ss.str());
+    Logger::log("IconManager", Logger::LogLevel::ERROR, ss.str());
     g_error_free(error);
     missing_cache.push_back(name);
     return nullptr;

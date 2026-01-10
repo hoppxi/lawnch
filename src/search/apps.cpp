@@ -1,17 +1,15 @@
-#include "../utils.hpp"
+#include "../helpers/fs.hpp"
+#include "../helpers/process.hpp"
+#include "../helpers/string.hpp"
 #include "modes.hpp"
 #include <algorithm>
-#include <atomic>
 #include <execution>
 #include <filesystem>
 #include <glib.h>
-#include <iostream>
 #include <mutex>
-#include <optional>
 #include <shared_mutex>
 #include <sstream>
 #include <string_view>
-#include <unordered_map>
 #include <vector>
 
 namespace fs = std::filesystem;
@@ -56,7 +54,8 @@ static void build_index() {
   for (std::string seg; std::getline(ss, seg, ':');)
     data_dirs.push_back(seg + "/applications");
 
-  data_dirs.push_back(Utils::get_home_dir() + "/.local/share/applications");
+  std::filesystem::path home_path = Lawnch::Fs::get_home_path();
+  data_dirs.push_back(home_path / ".local/share/applications");
 
   std::vector<DesktopEntry> local_index;
   std::mutex push_mutex;
@@ -134,13 +133,14 @@ std::vector<SearchResult> AppMode::query(const std::string &term) {
   const std::string term_lower = to_lower(term);
   const bool empty = term_lower.empty();
 
-  static const std::string terminal_cmd = Utils::get_default_terminal();
+  static const std::string terminal_cmd = Lawnch::Proc::get_default_terminal();
 
   std::vector<SearchResult> results;
   results.reserve(64);
 
   for (const auto &app : g_index) {
-    int score = empty ? 1 : Utils::match_score(term_lower, app.name_lower);
+    int score =
+        empty ? 1 : Lawnch::Str::match_score(term_lower, app.name_lower);
     if (score <= 0)
       continue;
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../config.hpp"
+#include "../config/config_types.hpp"
 #include "interface.hpp"
 #include <map>
 #include <memory>
@@ -12,8 +12,11 @@ struct PluginApiContext;
 
 class PluginManager {
 public:
-  explicit PluginManager(Config &config);
+  explicit PluginManager(const Config &config);
   ~PluginManager();
+
+  PluginManager(const PluginManager &) = delete;
+  PluginManager &operator=(const PluginManager &) = delete;
 
   void load_plugins();
   SearchMode *find_plugin(const std::string &trigger);
@@ -25,11 +28,12 @@ private:
   void find_plugin_dirs();
   void find_data_dir();
 
-  Config &config;
-  std::string data_dir;
-  std::vector<std::string> plugin_dirs;
-  std::vector<void *> handles;
-  std::vector<std::unique_ptr<SearchMode>> plugins;
-  std::vector<std::unique_ptr<PluginApiContext>> api_contexts;
-  std::map<std::string, SearchMode *> trigger_map;
+  const Config &m_config;
+  std::string m_data_dir;
+  std::vector<std::string> m_plugin_dirs;
+  std::vector<void *> m_handles;
+
+  std::vector<std::unique_ptr<SearchMode>> m_plugins;
+  std::vector<std::unique_ptr<PluginApiContext>> m_api_contexts;
+  std::map<std::string, SearchMode *> m_trigger_map;
 };

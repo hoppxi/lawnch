@@ -1,6 +1,7 @@
-#include "../config.hpp"
+#include "../config/config_manager.hpp"
+#include "../helpers/gfx.hpp"
+#include "../helpers/string.hpp"
 #include "../search/search.hpp"
-#include "../utils.hpp"
 #include "icon.hpp"
 #include "window.hpp"
 #include <algorithm>
@@ -68,14 +69,13 @@ void LauncherWindow::render() {
     return;
 
   if (!current_buffer) {
-    create_buffer(buffers[0], ConfigManager::get().window_width,
-                  ConfigManager::get().window_height);
-    create_buffer(buffers[1], ConfigManager::get().window_width,
-                  ConfigManager::get().window_height);
+    const auto &cfg = ConfigManager::Instance().Get();
+    create_buffer(buffers[0], cfg.window_width, cfg.window_height);
+    create_buffer(buffers[1], cfg.window_width, cfg.window_height);
     current_buffer = &buffers[0];
   }
 
-  const auto &cfg = ConfigManager::get();
+  const auto &cfg = ConfigManager::Instance().Get();
   cairo_t *cr = current_buffer->cairo;
 
   // Clear background
@@ -86,8 +86,9 @@ void LauncherWindow::render() {
   cairo_restore(cr);
 
   // Draw Main Window
-  Utils::draw_rounded_rect(cr, 0, 0, current_buffer->width,
-                           current_buffer->height, cfg.window_border_radius);
+  Lawnch::Gfx::path_rounded_rect(cr, 0, 0, current_buffer->width,
+                                 current_buffer->height,
+                                 cfg.window_border_radius);
   cairo_set_source_rgba(
       cr, cfg.window_background_color.r, cfg.window_background_color.g,
       cfg.window_background_color.b, cfg.window_background_color.a);
@@ -131,8 +132,8 @@ void LauncherWindow::render() {
       cfg.input_padding_top + font_h + cfg.input_padding_bottom;
 
   // Draw Input Box Background & Border
-  Utils::draw_rounded_rect(cr, input_box_x, input_box_y, input_box_w,
-                           input_box_h, cfg.input_border_radius);
+  Lawnch::Gfx::path_rounded_rect(cr, input_box_x, input_box_y, input_box_w,
+                                 input_box_h, cfg.input_border_radius);
   cairo_set_source_rgba(
       cr, cfg.input_background_color.r, cfg.input_background_color.g,
       cfg.input_background_color.b, cfg.input_background_color.a);
@@ -251,15 +252,16 @@ void LauncherWindow::render() {
                                : cfg.results_default_border_radius;
     int border_width = is_sel ? cfg.results_selected_border_width
                               : cfg.results_default_border_width;
-    Color border_color = is_sel ? cfg.results_selected_border_color
-                                : cfg.results_default_border_color;
-    Color bg_color = is_sel ? cfg.results_selected_background_color
-                            : cfg.results_default_background_color;
-    Color text_color = is_sel ? cfg.results_selected_text_color
-                              : cfg.results_default_text_color;
+    Lawnch::Str::Color border_color = is_sel ? cfg.results_selected_border_color
+                                             : cfg.results_default_border_color;
+    Lawnch::Str::Color bg_color = is_sel ? cfg.results_selected_background_color
+                                         : cfg.results_default_background_color;
+    Lawnch::Str::Color text_color = is_sel ? cfg.results_selected_text_color
+                                           : cfg.results_default_text_color;
 
     // Draw item background
-    Utils::draw_rounded_rect(cr, box_x, item_y, box_w, box_h, border_radius);
+    Lawnch::Gfx::path_rounded_rect(cr, box_x, item_y, box_w, box_h,
+                                   border_radius);
     cairo_set_source_rgba(cr, bg_color.r, bg_color.g, bg_color.b, bg_color.a);
     cairo_fill_preserve(cr);
 

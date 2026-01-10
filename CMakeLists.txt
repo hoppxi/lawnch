@@ -60,8 +60,8 @@ add_custom_command(
 	DEPENDS ${WLR_LAYER_SHELL_PROTOCOL_XML}
 )
 
-add_library(wayland_protocols STATIC 
-	${WLR_LAYER_SHELL_PRIVATE_CODE} 
+add_library(wayland_protocols STATIC
+	${WLR_LAYER_SHELL_PRIVATE_CODE}
 	${WLR_LAYER_SHELL_CLIENT_HEADER}
 	${XDG_SHELL_PRIVATE_CODE}
 	${XDG_SHELL_CLIENT_HEADER}
@@ -74,7 +74,12 @@ target_link_libraries(dl INTERFACE dl)
 
 add_executable(lawnch
 	src/main.cpp
-	src/config.cpp
+	src/config/config_manager.cpp
+	src/helpers/gfx.cpp
+	src/helpers/fs.cpp
+	src/helpers/string.cpp
+	src/helpers/process.cpp
+	src/helpers/logger.cpp
 	src/search/search.cpp
 	src/search/plugin_manager.cpp
 	src/search/plugin_adapter.cpp
@@ -85,7 +90,6 @@ add_executable(lawnch
 	src/window/icon.cpp
 	src/window/render.cpp
 	src/window/input.cpp
-	src/utils.cpp
 )
 
 target_include_directories(lawnch PRIVATE

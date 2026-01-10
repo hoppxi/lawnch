@@ -3,12 +3,13 @@
 #endif
 
 #include "window.hpp"
-#include "../config.hpp"
-#include "../utils.hpp"
+#include "../config/config_manager.hpp"
+#include "../helpers/string.hpp"
 #include <cstring>
 #include <fcntl.h>
 #include <iostream>
 #include <poll.h>
+#include <sstream>
 #include <stdexcept>
 #include <sys/mman.h>
 #include <sys/timerfd.h>
@@ -45,7 +46,7 @@ LauncherWindow::LauncherWindow(Search &search) : search(search) {
   xkb_context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
   surface = wl_compositor_create_surface(compositor);
 
-  const auto &cfg = ConfigManager::get();
+  const auto &cfg = ConfigManager::Instance().Get();
 
   layer_surface = zwlr_layer_shell_v1_get_layer_surface(
       layer_shell, surface, output, ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY,
@@ -58,68 +59,28 @@ LauncherWindow::LauncherWindow(Search &search) : search(search) {
 
   uint32_t anchor_opts = 0;
   int m_top = 0, m_right = 0, m_bottom = 0, m_left = 0;
+  std::string anchor = cfg.window_anchor;
 
-  // Check if anchor is in coordinates format "x,y"
-  int x = 0, y = 0;
-  bool is_coords = false;
-  if (!cfg.window_anchor.empty()) {
-    size_t first_digit = cfg.window_anchor.find_first_of("0123456789");
-    // If it starts with a number, assume coordinates
-    // user could put "10,left" which will be invalidate for the left option
-    if (first_digit == 0) {
-      char comma;
-      std::stringstream ss(cfg.window_anchor);
-      if (ss >> x >> comma >> y) {
-        is_coords = true;
-      }
-    }
+  bool has_top = Lawnch::Str::contains_ic(anchor, "top");
+  bool has_bottom = Lawnch::Str::contains_ic(anchor, "bottom");
+  bool has_left = Lawnch::Str::contains_ic(anchor, "left");
+  bool has_right = Lawnch::Str::contains_ic(anchor, "right");
+
+  if (has_top) {
+    anchor_opts |= ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP;
+    m_top = cfg.window_margin_top;
   }
-
-  if (is_coords) {
-    // If anchor is number with coordinates we anchor the window to the top left
-    // then margin top and left will be the coordinate values
-    anchor_opts =
-        ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP | ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT;
-    m_top = y;
-    m_left = x;
-    m_bottom = 0;
-    m_right = 0;
-  } else {
-    // If anchor is key word then we anchor to the given position and allow only
-    // the give position to have margin values
-    std::string a = cfg.window_anchor;
-
-    auto contains = [&](const std::string &word) {
-      std::stringstream ss(a);
-      std::string segment;
-      while (std::getline(ss, segment, ',')) {
-        if (segment == word)
-          return true;
-      }
-      return false;
-    };
-
-    bool has_top = contains("top");
-    bool has_bottom = contains("bottom");
-    bool has_left = contains("left");
-    bool has_right = contains("right");
-
-    if (has_top) {
-      anchor_opts |= ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP;
-      m_top = cfg.window_margin_top;
-    }
-    if (has_bottom) {
-      anchor_opts |= ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM;
-      m_bottom = cfg.window_margin_bottom;
-    }
-    if (has_left) {
-      anchor_opts |= ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT;
-      m_left = cfg.window_margin_left;
-    }
-    if (has_right) {
-      anchor_opts |= ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT;
-      m_right = cfg.window_margin_right;
-    }
+  if (has_bottom) {
+    anchor_opts |= ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM;
+    m_bottom = cfg.window_margin_bottom;
+  }
+  if (has_left) {
+    anchor_opts |= ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT;
+    m_left = cfg.window_margin_left;
+  }
+  if (has_right) {
+    anchor_opts |= ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT;
+    m_right = cfg.window_margin_right;
   }
 
   zwlr_layer_surface_v1_set_anchor(layer_surface, anchor_opts);

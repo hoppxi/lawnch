@@ -1,9 +1,16 @@
 #pragma once
-#include <cairo/cairo.h>
+#include <blend2d.h>
+#include <string>
 
 namespace Lawnch::Gfx {
 
-void path_rounded_rect(cairo_t *cr, double x, double y, double width,
-                       double height, double radius);
+BLRoundRect rounded_rect(double x, double y, double width, double height,
+                         double radius);
+
+BLFont get_font(const std::string &family, double size,
+                const std::string &weight = "normal");
+
+std::string truncate_text(const std::string &text, BLFont &font,
+                          double max_width);
 
 } // namespace Lawnch::Gfx

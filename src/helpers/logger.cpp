@@ -6,7 +6,7 @@
 #include <iostream>
 #include <mutex>
 
-namespace {
+namespace Lawnch::Logger {
 
 class LogEngine {
 public:
@@ -30,7 +30,7 @@ public:
     }
   }
 
-  void write(std::string_view logger_name, Logger::LogLevel level,
+  void write(std::string_view logger_name, Lawnch::Logger::LogLevel level,
              std::string_view message) {
 
     auto now = std::chrono::system_clock::now();
@@ -40,7 +40,7 @@ public:
     std::lock_guard<std::mutex> lock(m_mutex);
 
     if (!m_file.is_open()) {
-      // Fallback to console if file isn't open
+      // fallback to console if file isn't open
       std::cout << "[LOG_FAILED] " << message << "\n";
       return;
     }
@@ -60,17 +60,18 @@ private:
     }
   }
 
-  std::string_view levelToString(Logger::LogLevel level) {
+  std::string_view levelToString(Lawnch::Logger::LogLevel level) {
+    using Lawnch::Logger::LogLevel;
     switch (level) {
-    case Logger::LogLevel::DEBUG:
+    case LogLevel::DEBUG:
       return "DEBUG";
-    case Logger::LogLevel::INFO:
+    case LogLevel::INFO:
       return "INFO";
-    case Logger::LogLevel::WARNING:
+    case LogLevel::WARNING:
       return "WARNING";
-    case Logger::LogLevel::ERROR:
+    case LogLevel::ERROR:
       return "ERROR";
-    case Logger::LogLevel::CRITICAL:
+    case LogLevel::CRITICAL:
       return "CRITICAL";
     default:
       return "UNKNOWN";
@@ -81,10 +82,6 @@ private:
   std::mutex m_mutex;
 };
 
-} // namespace
-
-namespace Logger {
-
 void init(const std::string &file_path) {
   LogEngine::getInstance().setLogFile(file_path);
 }
@@ -94,4 +91,4 @@ void log(std::string_view logger_name, LogLevel level,
   LogEngine::getInstance().write(logger_name, level, message);
 }
 
-} // namespace Logger
+} // namespace Lawnch::Logger

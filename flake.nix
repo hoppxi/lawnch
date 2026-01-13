@@ -45,18 +45,13 @@
 
         buildPkgs = with pkgs; [
           wayland
-          cairo
-          pango
-          nlohmann_json
-          curl
+          blend2d
           inih
-          harfbuzz
-          libxdmcp
           libxkbcommon
-          librsvg
+          nanosvg
           fontconfig
+          libffi
           expat
-          libglvnd
         ];
 
         lawnch-unwrapped = pkgs.stdenv.mkDerivation {

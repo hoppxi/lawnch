@@ -21,7 +21,6 @@ bool has_command(const std::string &cmd) {
 }
 
 std::string get_default_terminal() {
-  // only computed once per program run
   static std::string cached_term = []() -> std::string {
     if (const char *term = std::getenv("TERMINAL"))
       return term;

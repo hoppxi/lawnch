@@ -1,18 +1,77 @@
 #include "string.hpp"
-#include "logger.hpp"
 #include <algorithm>
 #include <cctype>
 
 namespace Lawnch::Str {
 
-void to_lower(std::string &str) {
-  std::transform(str.begin(), str.end(), str.begin(),
-                 [](unsigned char c) { return std::tolower(c); });
+std::string to_lower_copy(std::string_view str) {
+  std::string out;
+  out.reserve(str.size());
+  for (char c : str)
+    out.push_back(std::tolower(static_cast<unsigned char>(c)));
+  return out;
+}
+
+std::string trim(const std::string &str) {
+  const auto strBegin = str.find_first_not_of(" \t");
+  if (strBegin == std::string::npos)
+    return ""; // empty
+
+  const auto strEnd = str.find_last_not_of(" \t");
+  const auto strRange = strEnd - strBegin + 1;
+
+  return str.substr(strBegin, strRange);
+}
+
+std::string unescape(std::string_view str) {
+  std::string result;
+  result.reserve(str.size());
+
+  for (size_t i = 0; i < str.size(); ++i) {
+    if (str[i] == '\\' && i + 1 < str.size()) {
+      switch (str[i + 1]) {
+      case 's':
+        result += ' ';
+        break;
+      case 'n':
+        result += '\n';
+        break;
+      case 't':
+        result += '\t';
+        break;
+      case 'r':
+        result += '\r';
+        break;
+      case '\\':
+        result += '\\';
+        break;
+      default:
+        result += str[i + 1];
+        break;
+      }
+      ++i;
+    } else {
+      result += str[i];
+    }
+  }
+  return result;
+}
+
+std::string replace_all(std::string str, const std::string &from,
+                        const std::string &to) {
+  if (from.empty())
+    return str;
+  size_t pos = 0;
+  while ((pos = str.find(from, pos)) != std::string::npos) {
+    str.replace(pos, from.length(), to);
+    pos += to.length();
+  }
+  return str;
 }
 
 std::vector<std::string> tokenize(std::string_view str, char delimiter) {
   std::vector<std::string> tokens;
-  // Pre-reserve a reasonable amount to avoid reallocations
+  // pre-reserve a reasonable amount to avoid reallocations
   tokens.reserve(4);
 
   size_t start = 0;
@@ -34,6 +93,13 @@ std::vector<std::string> tokenize(std::string_view str, char delimiter) {
     tokens.push_back(std::move(last_token));
 
   return tokens;
+}
+
+bool iequals(const std::string &a, const std::string &b) {
+  if (a.size() != b.size())
+    return false;
+  return std::equal(a.begin(), a.end(), b.begin(),
+                    [](char a, char b) { return tolower(a) == tolower(b); });
 }
 
 bool contains_ic(std::string_view haystack, std::string_view needle) {
@@ -65,45 +131,8 @@ int match_score(std::string_view input, std::string_view target) {
   return 0;
 }
 
-std::string trim(const std::string &str) {
-  const auto strBegin = str.find_first_not_of(" \t");
-  if (strBegin == std::string::npos)
-    return ""; // empty
-
-  const auto strEnd = str.find_last_not_of(" \t");
-  const auto strRange = strEnd - strBegin + 1;
-
-  return str.substr(strBegin, strRange);
-}
-
-bool parseBool(const std::string &s) {
-  std::string v = s;
-  std::transform(v.begin(), v.end(), v.begin(), ::tolower);
-  return (v == "true" || v == "1" || v == "yes" || v == "on");
-}
-
-Color parseColor(const std::string &s) {
-  Color c = {0, 0, 0, 1};
-  std::string clean = trim(s);
-
-  if (clean.rfind("rgba(", 0) == 0 && clean.back() == ')') {
-    double r = 0, g = 0, b = 0, a = 1.0;
-    if (std::sscanf(clean.c_str(), "rgba(%lf, %lf, %lf, %lf)", &r, &g, &b,
-                    &a) == 4) {
-      c.r = std::clamp(r / 255.0, 0.0, 1.0);
-      c.g = std::clamp(g / 255.0, 0.0, 1.0);
-      c.b = std::clamp(b / 255.0, 0.0, 1.0);
-      c.a = std::clamp(a, 0.0, 1.0);
-    } else {
-      Logger::log("Config", Logger::LogLevel::WARNING,
-                  "Malformed color format: " + s + ". Expected rgba(r,g,b,a).");
-    }
-  } else {
-    // TODO: support for hex color format
-    // currenly only supports rgba color format
-    Logger::log("Config", Logger::LogLevel::WARNING,
-                "Unsupported color format: " + s);
-  }
-  return c;
+void to_lower(std::string &str) {
+  std::transform(str.begin(), str.end(), str.begin(),
+                 [](unsigned char c) { return std::tolower(c); });
 }
 } // namespace Lawnch::Str

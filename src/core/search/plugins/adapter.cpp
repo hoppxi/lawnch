@@ -1,0 +1,60 @@
+#include "adapter.hpp"
+
+namespace Lawnch::Core::Search::Plugins {
+
+Adapter::Adapter(LawnchPluginVTable *vt) : vtable(vt) {}
+
+Adapter::~Adapter() {
+  if (vtable && vtable->destroy) {
+    vtable->destroy();
+  }
+}
+
+void Adapter::init_with_api(const LawnchHostApi *host_api) {
+  if (vtable && vtable->init) {
+    vtable->init(host_api);
+  }
+}
+
+std::vector<std::string> Adapter::get_triggers() const {
+  std::vector<std::string> result;
+  if (vtable && vtable->get_triggers) {
+    const char **triggers = vtable->get_triggers();
+    while (triggers && *triggers) {
+      result.emplace_back(*triggers);
+      triggers++;
+    }
+  }
+  return result;
+}
+
+SearchResult Adapter::get_help() const {
+  if (vtable && vtable->get_help) {
+    LawnchResult *r_ptr = vtable->get_help();
+    if (!r_ptr)
+      return SearchMode::get_help();
+    LawnchResult r = *r_ptr;
+    return SearchResult{r.name ? r.name : "", r.comment ? r.comment : "",
+                        r.icon ? r.icon : "", r.command ? r.command : "",
+                        r.type ? r.type : "", 0};
+  }
+  return SearchMode::get_help();
+}
+
+std::vector<SearchResult> Adapter::query(const std::string &term) {
+  std::vector<SearchResult> results;
+  if (vtable && vtable->query) {
+    int count = 0;
+    LawnchResult *res = vtable->query(term.c_str(), &count);
+    results.reserve(count);
+    for (int i = 0; i < count; ++i) {
+      results.push_back(SearchResult{
+          res[i].name ? res[i].name : "", res[i].comment ? res[i].comment : "",
+          res[i].icon ? res[i].icon : "", res[i].command ? res[i].command : "",
+          res[i].type ? res[i].type : "", 0});
+    }
+  }
+  return results;
+}
+
+} // namespace Lawnch::Core::Search::Plugins

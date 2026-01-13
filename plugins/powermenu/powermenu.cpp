@@ -59,7 +59,7 @@ void load_defaults() {
       "Log Out", "Log out of your session", "system-log-out-symbolic",
       "loginctl terminate-session ${XDG_SESSION_ID-}"};
   g_state.options["lockscreen"] = {"Lockscreen", "Lock the screen",
-                                   "system-lock-out-symbolic",
+                                   "lock-symbolic",
                                    "pidof hyprlock || hyprlock"};
 
   g_state.option_order = {"shutdown",  "reboot",  "suspend",

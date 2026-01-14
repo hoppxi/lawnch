@@ -2,7 +2,9 @@
 #include "../../helpers/logger.hpp"
 #include "../config/manager.hpp"
 #include <algorithm>
+#include <cctype>
 #include <cmath>
+#include <filesystem>
 #include <iostream>
 #include <vector>
 
@@ -53,40 +55,60 @@ void Manager::ensure_initialized() {
   }
 }
 
-bool Manager::load_icon_image(const std::string &path,
-                              const std::string &cache_key, double size) {
-
+BLImage Manager::load_icon_image(const std::string &path, double size) {
   if (path.find(".png") != std::string::npos ||
       path.find(".jpg") != std::string::npos ||
-      path.find(".jpeg") != std::string::npos) {
+      path.find(".jpeg") != std::string::npos ||
+      path.find(".webp") != std::string::npos ||
+      path.find(".bmp") != std::string::npos) {
     BLImage img;
     BLResult err = img.read_from_file(path.c_str());
     if (err == BL_SUCCESS) {
-      icon_cache[cache_key] = img;
-      return true;
+      if (img.width() != size || img.height() != size) {
+        // resize
+        int is = (int)size;
+        BLImage resized(is, is, BL_FORMAT_PRGB32);
+        BLContext ctx(resized);
+        ctx.clear_all();
+
+        double scale =
+            std::min(size / (double)img.width(), size / (double)img.height());
+        double w = img.width() * scale;
+        double h = img.height() * scale;
+        double x = (size - w) / 2.0;
+        double y = (size - h) / 2.0;
+
+        ctx.blit_image(BLRect(x, y, w, h), img);
+        ctx.end();
+        return resized;
+      }
+      return img;
     }
     Lawnch::Logger::log("IconManager", Lawnch::Logger::LogLevel::ERROR,
                         "Blend2D failed to load: " + path);
-    return false;
+    return BLImage();
   }
 
   if (path.find(".svg") != std::string::npos) {
     NSVGimage *image = nullptr;
 
-    if (cache.find(path) != cache.end()) {
-      image = cache[path];
-    } else {
-      image = nsvgParseFromFile(path.c_str(), "px", 96.0f);
-      if (image)
-        cache[path] = image;
+    {
+      std::lock_guard<std::mutex> lock(cache_mutex);
+      if (cache.count(path)) {
+        image = cache[path];
+      } else {
+        image = nsvgParseFromFile(path.c_str(), "px", 96.0f);
+        if (image)
+          cache[path] = image;
+      }
     }
 
     if (!image)
-      return false;
+      return BLImage();
 
     NSVGrasterizer *rast = nsvgCreateRasterizer();
     if (rast == NULL)
-      return false;
+      return BLImage();
 
     int w = (int)size;
     int h = (int)size;
@@ -136,11 +158,10 @@ bool Manager::load_icon_image(const std::string &path,
       }
     }
 
-    icon_cache[cache_key] = img;
-    return true;
+    return img;
   }
 
-  return false;
+  return BLImage();
 }
 
 void Manager::render_icon(BLContext &ctx, const std::string &icon_name,
@@ -152,20 +173,59 @@ void Manager::render_icon(BLContext &ctx, const std::string &icon_name,
 
   std::string cache_key = icon_name + "_" + std::to_string((int)size);
 
-  if (icon_cache.find(cache_key) != icon_cache.end()) {
-    ctx.blit_image(BLPoint(std::floor(x), std::floor(y)),
-                   icon_cache[cache_key]);
-    return;
+  {
+    std::lock_guard<std::mutex> lock(cache_mutex);
+    if (icon_cache.count(cache_key)) {
+      ctx.blit_image(BLPoint(std::floor(x), std::floor(y)),
+                     icon_cache[cache_key]);
+      return;
+    }
+
+    if (pending_loads.count(cache_key)) {
+      return;
+    }
+    pending_loads.insert(cache_key);
   }
 
-  std::string path = theme_loader.lookup_icon(icon_name);
-  if (path.empty())
-    return;
+  std::thread([this, icon_name, cache_key, size]() {
+    std::string path;
 
-  if (load_icon_image(path, cache_key, size)) {
-    ctx.blit_image(BLPoint(std::floor(x), std::floor(y)),
-                   icon_cache[cache_key]);
-  }
+    bool abs_handled = false;
+    if (icon_name.front() == '/') {
+      std::string ext = "";
+      size_t dot_pos = icon_name.find_last_of('.');
+      if (dot_pos != std::string::npos) {
+        ext = icon_name.substr(dot_pos);
+        std::transform(ext.begin(), ext.end(), ext.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+      }
+
+      if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".svg" ||
+          ext == ".bmp" || ext == ".webp") {
+        if (std::filesystem::exists(icon_name)) {
+          path = icon_name;
+          abs_handled = true;
+        }
+      }
+    }
+
+    if (!abs_handled) {
+      path = this->theme_loader.lookup_icon(icon_name);
+    }
+
+    BLImage img;
+    if (!path.empty()) {
+      img = this->load_icon_image(path, size);
+    }
+
+    {
+      std::lock_guard<std::mutex> lock(cache_mutex);
+      if (!img.is_empty()) {
+        icon_cache[cache_key] = img;
+      }
+      pending_loads.erase(cache_key);
+    }
+  }).detach();
 }
 
 } // namespace Lawnch::Core::Icons

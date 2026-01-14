@@ -4,7 +4,10 @@
 #include <blend2d.h>
 #include <map>
 #include <memory>
+#include <mutex>
+#include <set>
 #include <string>
+#include <thread>
 
 struct NSVGimage;
 
@@ -24,14 +27,16 @@ private:
   void init();
   void ensure_initialized();
 
-  bool load_icon_image(const std::string &path, const std::string &cache_key,
-                       double size);
+  BLImage load_icon_image(const std::string &path, double size);
 
   bool initialized = false;
   ThemeLoader theme_loader;
 
   std::map<std::string, NSVGimage *> cache;
   std::map<std::string, BLImage> icon_cache;
+
+  std::mutex cache_mutex;
+  std::set<std::string> pending_loads;
 };
 
 } // namespace Lawnch::Core::Icons

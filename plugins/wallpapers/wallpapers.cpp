@@ -138,7 +138,7 @@ LawnchResult *plugin_query(const char *term, int *num_results) {
     LawnchResult r;
     r.name = c_strdup(p.filename().string());
     r.comment = c_strdup(p.parent_path().string());
-    r.icon = c_strdup("preferences-desktop-wallpaper");
+    r.icon = c_strdup((p.parent_path() / p.filename()).string());
     r.command = c_strdup(build_command(g_state.command_template, abs_path));
     r.type = c_strdup("wallpaper-plugin");
 

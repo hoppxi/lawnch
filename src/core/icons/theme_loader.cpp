@@ -17,7 +17,6 @@ namespace fs = std::filesystem;
 
 namespace Lawnch::Core::Icons {
 
-// ini handler
 struct ThemeParseState {
   std::string inherits;
   std::string directories;
@@ -197,9 +196,8 @@ std::string ThemeLoader::lookup_icon(const std::string &icon_name) {
 std::string ThemeLoader::find_icon_path(const std::string &name) {
   if (name.empty())
     return "";
+  // don't evaluate furthermore, it is a path not icon name
   if (name.front() == '/') {
-    if (fs::exists(name))
-      return name;
     return "";
   }
 

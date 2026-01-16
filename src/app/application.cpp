@@ -3,10 +3,13 @@
 #include "../helpers/locale.hpp"
 #include "../helpers/logger.hpp"
 #include "../helpers/process.hpp"
+#include <chrono>
 #include <filesystem>
 #include <iostream>
+#include <mutex>
 #include <poll.h>
 #include <sys/eventfd.h>
+#include <thread>
 #include <unistd.h>
 
 namespace Lawnch::App {
@@ -16,7 +19,8 @@ Application::Application(std::unique_ptr<IPC::Server> server,
                          int log_verbosity)
     : ipc_server(std::move(server)),
       config_manager(Core::Config::Manager::Instance()),
-      icon_manager(Core::Icons::Manager::Instance()) {
+      icon_manager(Core::Icons::Manager::Instance()),
+      last_render_time(std::chrono::steady_clock::now()) {
 
   std::filesystem::path log_path = Fs::get_log_path("lawnch");
   Logger::init(log_path.string(),
@@ -27,21 +31,11 @@ Application::Application(std::unique_ptr<IPC::Server> server,
               "verbosity level " + std::to_string(log_verbosity));
 
   wakeup_fd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
-  icon_manager.set_update_callback([this]() {
-    uint64_t u = 1;
-    Lawnch::Logger::log("App", Lawnch::Logger::LogLevel::DEBUG,
-                        "Callback writing to wakeup_fd");
-    if (write(this->wakeup_fd, &u, sizeof(u)) < 0) {
-      // ignore error
-    }
-  });
 
   ipc_server->set_on_kill([this]() { this->stop(); });
   try {
     ipc_server->init();
   } catch (const std::exception &e) {
-    // Single-instance IPC failed? Just log the error and continue; previously
-    // considered exiting.
     Logger::log("App", Logger::LogLevel::ERROR,
                 std::string("IPC Init Failed: ") + e.what());
   }
@@ -67,7 +61,6 @@ Application::Application(std::unique_ptr<IPC::Server> server,
   plugin_manager =
       std::make_unique<Core::Search::Plugins::Manager>(config_manager.Get());
 
-  // Apply general config settings
   Locale::set_override(config_manager.Get().general_locale);
   history.set_max_size(config_manager.Get().general_history_max_size);
 
@@ -164,12 +157,55 @@ void Application::stop() {
 
 void Application::resize(int width, int height) {
   buffer.create(registry->shm, width, height);
-  render_frame();
+  if (layer_surface->is_configured() && buffer.is_valid()) {
+    std::lock_guard<std::mutex> lock(render_mutex);
+    render_pending = false;
+    last_render_time = std::chrono::steady_clock::now() - min_frame_time_ms;
+    render_frame_impl();
+  }
 }
 
 void Application::render_frame() {
   if (!layer_surface->is_configured() || !buffer.is_valid())
     return;
+
+  auto now = std::chrono::steady_clock::now();
+  auto time_since_last = std::chrono::duration_cast<std::chrono::milliseconds>(
+      now - last_render_time);
+
+  if (time_since_last >= min_frame_time_ms) {
+    std::lock_guard<std::mutex> lock(render_mutex);
+    render_pending = false;
+    render_frame_impl();
+    return;
+  }
+
+  if (!render_pending) {
+    render_pending = true;
+    auto delay = min_frame_time_ms - time_since_last;
+    std::thread([this, delay]() {
+      std::this_thread::sleep_for(delay);
+      std::lock_guard<std::mutex> lock(render_mutex);
+      if (render_pending) {
+        render_pending = false;
+        if (layer_surface->is_configured() && buffer.is_valid()) {
+          render_frame_impl();
+        }
+      }
+    }).detach();
+  }
+}
+
+void Application::render_frame_impl() {
+  if (!layer_surface->is_configured() || !buffer.is_valid()) {
+    return;
+  }
+
+  if (buffer.get_width() <= 0 || buffer.get_height() <= 0) {
+    return;
+  }
+
+  last_render_time = std::chrono::steady_clock::now();
 
   Core::Window::Render::RenderState state;
   state.search_text = keyboard->get_text();
@@ -182,7 +218,9 @@ void Application::render_frame() {
   renderer.render(buffer.get_context(), buffer.get_width(), buffer.get_height(),
                   config_manager.Get(), state);
 
-  layer_surface->commit(buffer.get_wl_buffer());
+  if (buffer.is_valid() && layer_surface->is_configured()) {
+    layer_surface->commit(buffer.get_wl_buffer());
+  }
 }
 
 void Application::on_keyboard_update() {

@@ -46,7 +46,8 @@ int main(int argc, char **argv) {
       return 0;
     }
 
-    App::Application app(std::move(ipc_server), options.config_path);
+    App::Application app(std::move(ipc_server), options.config_path,
+                         options.verbosity);
     app.run();
   } catch (const std::exception &e) {
     std::cerr << "Fatal Error: " << e.what() << std::endl;

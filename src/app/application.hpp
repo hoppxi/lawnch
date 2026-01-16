@@ -24,7 +24,7 @@ namespace Lawnch::App {
 class Application {
 public:
   Application(std::unique_ptr<IPC::Server> server,
-              std::optional<std::string> config_path);
+              std::optional<std::string> config_path, int log_verbosity = 3);
   ~Application();
 
   void run();
@@ -32,6 +32,7 @@ public:
 
 private:
   bool running = false;
+  int wakeup_fd = -1;
 
   std::unique_ptr<IPC::Server> ipc_server;
 

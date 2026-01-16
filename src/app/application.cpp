@@ -6,20 +6,35 @@
 #include <filesystem>
 #include <iostream>
 #include <poll.h>
+#include <sys/eventfd.h>
 #include <unistd.h>
 
 namespace Lawnch::App {
 
 Application::Application(std::unique_ptr<IPC::Server> server,
-                         std::optional<std::string> config_path_override)
+                         std::optional<std::string> config_path_override,
+                         int log_verbosity)
     : ipc_server(std::move(server)),
       config_manager(Core::Config::Manager::Instance()),
       icon_manager(Core::Icons::Manager::Instance()) {
 
   std::filesystem::path log_path = Fs::get_log_path("lawnch");
-  Logger::init(log_path.string());
+  Logger::init(log_path.string(),
+               static_cast<Logger::LogVerbosity>(log_verbosity));
 
   Logger::log("App", Logger::LogLevel::INFO, "Initializing Application...");
+  Logger::log("Logger", Logger::LogLevel::INFO,
+              "verbosity level " + std::to_string(log_verbosity));
+
+  wakeup_fd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
+  icon_manager.set_update_callback([this]() {
+    uint64_t u = 1;
+    Lawnch::Logger::log("App", Lawnch::Logger::LogLevel::DEBUG,
+                        "Callback writing to wakeup_fd");
+    if (write(this->wakeup_fd, &u, sizeof(u)) < 0) {
+      // ignore error
+    }
+  });
 
   ipc_server->set_on_kill([this]() { this->stop(); });
   try {
@@ -67,6 +82,10 @@ Application::Application(std::unique_ptr<IPC::Server> server,
   kb_cb.on_render = [this]() { this->on_keyboard_render(); };
 
   keyboard = std::make_unique<Core::Window::Input::Keyboard>(history, kb_cb);
+  const auto &cfg = Core::Config::Manager::Instance().Get();
+  if (cfg.results_reverse) {
+    keyboard->set_reverse_navigation(true);
+  }
 
   Core::Window::Input::PointerCallbacks ptr_cb;
   ptr_cb.on_scroll = [this](double d) { this->on_pointer_scroll(d); };
@@ -95,20 +114,23 @@ Application::Application(std::unique_ptr<IPC::Server> server,
 }
 
 Application::~Application() {
-  // cleanup
+  if (wakeup_fd != -1) {
+    close(wakeup_fd);
+  }
 }
 
 void Application::run() {
   running = true;
-  struct pollfd fds[3];
-
-  fds[0] = {.fd = display->get_fd(), .events = POLLIN, .revents = 0};
-  fds[1] = {.fd = seat->get_repeat_timer_fd(), .events = POLLIN, .revents = 0};
-  fds[2] = {.fd = ipc_server->get_fd(), .events = POLLIN, .revents = 0};
-
   while (running && display->dispatch() != -1) {
+    struct pollfd fds[4];
+    fds[0] = {.fd = display->get_fd(), .events = POLLIN, .revents = 0};
+    fds[1] = {
+        .fd = seat->get_repeat_timer_fd(), .events = POLLIN, .revents = 0};
+    fds[2] = {.fd = ipc_server->get_fd(), .events = POLLIN, .revents = 0};
+    fds[3] = {.fd = wakeup_fd, .events = POLLIN, .revents = 0};
+
     display->flush();
-    if (poll(fds, 3, -1) < 0)
+    if (poll(fds, 4, -1) < 0)
       break;
 
     if (fds[0].revents & POLLIN) {
@@ -122,6 +144,15 @@ void Application::run() {
 
     if (fds[2].revents & POLLIN) {
       ipc_server->process_messages();
+    }
+
+    if (fds[3].revents & POLLIN) {
+      uint64_t u;
+      if (read(wakeup_fd, &u, sizeof(u)) > 0) {
+        Logger::log("App", Logger::LogLevel::DEBUG,
+                    "Wakeup received, rendering frame.");
+        render_frame();
+      }
     }
   }
 }
@@ -243,6 +274,7 @@ void Application::on_pointer_scroll(double delta) {
         scroll_offset--;
     }
   }
+
   render_frame();
 }
 

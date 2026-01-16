@@ -1,11 +1,14 @@
 #include "manager.hpp"
+#include "../../helpers/fs.hpp"
 #include "../../helpers/logger.hpp"
 #include "../config/manager.hpp"
 #include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <filesystem>
-#include <iostream>
+#include <iomanip>
+#include <random>
+#include <sstream>
 #include <vector>
 
 #define NANOSVG_IMPLEMENTATION
@@ -20,12 +23,21 @@ Manager &Manager::Instance() {
   return instance;
 }
 
-Manager::Manager() {}
+// init LRU with capacity of 8MB aggressively low
+Manager::Manager() : icon_cache(8 * 1024 * 1024) {
+  int num_workers = 1;
+  for (int i = 0; i < num_workers; ++i) {
+    workers.emplace_back(&Manager::worker_loop, this);
+  }
+}
 
 Manager::~Manager() {
-  for (auto &pair : cache) {
-    if (pair.second)
-      nsvgDelete(pair.second);
+  stop_workers = true;
+  queue_cv.notify_all();
+  for (auto &worker : workers) {
+    if (worker.joinable()) {
+      worker.join();
+    }
   }
 }
 
@@ -56,6 +68,9 @@ void Manager::ensure_initialized() {
 }
 
 BLImage Manager::load_icon_image(const std::string &path, double size) {
+  BLImage final_image;
+  bool loaded = false;
+
   if (path.find(".png") != std::string::npos ||
       path.find(".jpg") != std::string::npos ||
       path.find(".jpeg") != std::string::npos ||
@@ -80,85 +95,80 @@ BLImage Manager::load_icon_image(const std::string &path, double size) {
 
         ctx.blit_image(BLRect(x, y, w, h), img);
         ctx.end();
-        return resized;
+        final_image = resized;
+        loaded = true;
+      } else {
+        final_image = img;
+        loaded = true;
       }
-      return img;
+    } else {
+      Lawnch::Logger::log("IconManager", Lawnch::Logger::LogLevel::ERROR,
+                          "Blend2D failed to load: " + path);
     }
-    Lawnch::Logger::log("IconManager", Lawnch::Logger::LogLevel::ERROR,
-                        "Blend2D failed to load: " + path);
-    return BLImage();
   }
 
-  if (path.find(".svg") != std::string::npos) {
-    NSVGimage *image = nullptr;
+  else if (path.find(".svg") != std::string::npos) {
+    NSVGimage *image = nsvgParseFromFile(path.c_str(), "px", 96.0f);
 
-    {
-      std::lock_guard<std::mutex> lock(cache_mutex);
-      if (cache.count(path)) {
-        image = cache[path];
-      } else {
-        image = nsvgParseFromFile(path.c_str(), "px", 96.0f);
-        if (image)
-          cache[path] = image;
-      }
-    }
+    if (image) {
+      NSVGrasterizer *rast = nsvgCreateRasterizer();
+      if (rast) {
+        int w = (int)size;
+        int h = (int)size;
 
-    if (!image)
-      return BLImage();
+        float scaleX = (float)size / image->width;
+        float scaleY = (float)size / image->height;
+        float scale = (scaleX < scaleY) ? scaleX : scaleY;
 
-    NSVGrasterizer *rast = nsvgCreateRasterizer();
-    if (rast == NULL)
-      return BLImage();
+        float tx = std::round((size - (image->width * scale)) * 0.5f);
+        float ty = std::round((size - (image->height * scale)) * 0.5f);
 
-    int w = (int)size;
-    int h = (int)size;
+        int stride = w * 4;
+        std::vector<unsigned char> temp_buffer(stride * h, 0);
 
-    float scaleX = (float)size / image->width;
-    float scaleY = (float)size / image->height;
-    float scale = (scaleX < scaleY) ? scaleX : scaleY;
+        nsvgRasterize(rast, image, tx, ty, scale, temp_buffer.data(), w, h,
+                      stride);
+        nsvgDeleteRasterizer(rast);
 
-    float tx = std::round((size - (image->width * scale)) * 0.5f);
-    float ty = std::round((size - (image->height * scale)) * 0.5f);
+        final_image = BLImage(w, h, BL_FORMAT_PRGB32);
+        BLImageData imgData;
+        final_image.make_mutable(&imgData);
 
-    int stride = w * 4;
-    std::vector<unsigned char> temp_buffer(stride * h, 0);
+        unsigned char *blData = (unsigned char *)imgData.pixel_data;
+        int blStride = imgData.stride;
+        const unsigned char *srcData = temp_buffer.data();
 
-    nsvgRasterize(rast, image, tx, ty, scale, temp_buffer.data(), w, h, stride);
-    nsvgDeleteRasterizer(rast);
+        for (int iy = 0; iy < h; ++iy) {
+          const unsigned char *srcRow = srcData + iy * stride;
+          unsigned char *dstRow = blData + iy * blStride;
+          for (int ix = 0; ix < w; ++ix) {
+            unsigned int r = srcRow[ix * 4 + 0];
+            unsigned int g = srcRow[ix * 4 + 1];
+            unsigned int b = srcRow[ix * 4 + 2];
+            unsigned int a = srcRow[ix * 4 + 3];
 
-    BLImage img(w, h, BL_FORMAT_PRGB32);
-    BLImageData imgData;
-    img.make_mutable(&imgData);
-
-    unsigned char *blData = (unsigned char *)imgData.pixel_data;
-    int blStride = imgData.stride;
-    const unsigned char *srcData = temp_buffer.data();
-
-    for (int iy = 0; iy < h; ++iy) {
-      const unsigned char *srcRow = srcData + iy * stride;
-      unsigned char *dstRow = blData + iy * blStride;
-      for (int ix = 0; ix < w; ++ix) {
-        unsigned int r = srcRow[ix * 4 + 0];
-        unsigned int g = srcRow[ix * 4 + 1];
-        unsigned int b = srcRow[ix * 4 + 2];
-        unsigned int a = srcRow[ix * 4 + 3];
-
-        if (a > 0) {
-          // pre-multiply alpha for Blend2D
-          r = (r * a + 127) / 255;
-          g = (g * a + 127) / 255;
-          b = (b * a + 127) / 255;
-          dstRow[ix * 4 + 0] = (unsigned char)b; // b
-          dstRow[ix * 4 + 1] = (unsigned char)g; // g
-          dstRow[ix * 4 + 2] = (unsigned char)r; // r
-          dstRow[ix * 4 + 3] = (unsigned char)a; // a
-        } else {
-          *((uint32_t *)&dstRow[ix * 4]) = 0;
+            if (a > 0) {
+              // pre-multiply alpha for Blend2D
+              r = (r * a + 127) / 255;
+              g = (g * a + 127) / 255;
+              b = (b * a + 127) / 255;
+              dstRow[ix * 4 + 0] = (unsigned char)b; // b
+              dstRow[ix * 4 + 1] = (unsigned char)g; // g
+              dstRow[ix * 4 + 2] = (unsigned char)r; // r
+              dstRow[ix * 4 + 3] = (unsigned char)a; // a
+            } else {
+              *((uint32_t *)&dstRow[ix * 4]) = 0;
+            }
+          }
         }
+        loaded = true;
       }
+      nsvgDelete(image);
     }
+  }
 
-    return img;
+  if (loaded && !final_image.is_empty()) {
+    return final_image;
   }
 
   return BLImage();
@@ -174,23 +184,48 @@ void Manager::render_icon(BLContext &ctx, const std::string &icon_name,
   std::string cache_key = icon_name + "_" + std::to_string((int)size);
 
   {
-    std::lock_guard<std::mutex> lock(cache_mutex);
-    if (icon_cache.count(cache_key)) {
-      ctx.blit_image(BLPoint(std::floor(x), std::floor(y)),
-                     icon_cache[cache_key]);
+    auto cached = icon_cache.get(cache_key);
+    if (cached.has_value()) {
+      ctx.blit_image(BLPoint(std::floor(x), std::floor(y)), cached.value());
       return;
     }
 
+    std::lock_guard<std::mutex> lock(cache_mutex);
     if (pending_loads.count(cache_key)) {
       return;
     }
     pending_loads.insert(cache_key);
   }
 
-  std::thread([this, icon_name, cache_key, size]() {
-    std::string path;
+  {
+    std::lock_guard<std::mutex> lock(queue_mutex);
+    tasks.push({++task_counter, icon_name, cache_key, size});
+  }
+  queue_cv.notify_one();
+}
 
+void Manager::worker_loop() {
+  while (true) {
+    Task task;
+    {
+      std::unique_lock<std::mutex> lock(queue_mutex);
+      queue_cv.wait(lock, [this] { return !tasks.empty() || stop_workers; });
+
+      if (stop_workers && tasks.empty()) {
+        return;
+      }
+
+      task = tasks.top();
+      tasks.pop();
+    }
+
+    std::string icon_name = task.icon_name;
+    std::string cache_key = task.cache_key;
+    double size = task.size;
+
+    std::string path;
     bool abs_handled = false;
+
     if (icon_name.front() == '/') {
       std::string ext = "";
       size_t dot_pos = icon_name.find_last_of('.');
@@ -221,11 +256,17 @@ void Manager::render_icon(BLContext &ctx, const std::string &icon_name,
     {
       std::lock_guard<std::mutex> lock(cache_mutex);
       if (!img.is_empty()) {
-        icon_cache[cache_key] = img;
+        size_t cost = img.width() * img.height() * 4;
+        icon_cache.put(cache_key, img, cost);
       }
       pending_loads.erase(cache_key);
     }
-  }).detach();
-}
 
+    if (this->on_update) {
+      Lawnch::Logger::log("IconManager", Lawnch::Logger::LogLevel::DEBUG,
+                          "Notifying update for " + cache_key);
+      this->on_update();
+    }
+  }
+}
 } // namespace Lawnch::Core::Icons

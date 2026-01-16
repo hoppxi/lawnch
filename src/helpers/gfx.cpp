@@ -7,12 +7,15 @@
 #include <map>
 #include <mutex>
 #include <string>
-
 #ifdef __linux__
 #include <fontconfig/fontconfig.h>
 #endif
 
 namespace Lawnch::Gfx {
+
+BLRgba32 toBLColor(const Config::Color &c) {
+  return BLRgba32(c.r * 255, c.g * 255, c.b * 255, c.a * 255);
+}
 
 BLRoundRect rounded_rect(double x, double y, double width, double height,
                          double radius) {

@@ -44,6 +44,8 @@ struct Manager::Impl {
           member = Lawnch::Config::parseColor(value);
         } else if constexpr (std::is_same_v<T, Lawnch::Config::Padding>) {
           member = Lawnch::Config::parsePadding(value);
+        } else if constexpr (std::is_same_v<T, std::vector<std::string>>) {
+          member = Lawnch::Config::parseStringList(value);
         }
       } catch (const std::exception &e) {
         std::stringstream ss;
@@ -75,6 +77,17 @@ struct Manager::Impl {
     Bind("launch", "terminal_app_cmd", config.launch_terminal_app_cmd,
          std::string("{terminal} {terminal_exec_flag} {}"));
     Bind("launch", "prefix", config.launch_prefix, std::string(""));
+
+    // layout
+    Bind("layout", "order", config.layout_order,
+         std::vector<std::string>{"input", "results_count", "results",
+                                  "preview"});
+    Bind("layout", "orientation", config.layout_orientation,
+         std::string("vertical"));
+    Bind("layout", "preview_position", config.layout_preview_position,
+         std::string("bottom"));
+    Bind("layout", "preview_width_percent", config.layout_preview_width_percent,
+         30);
 
     // window
     Bind("window", "width", config.window_width, 400);
@@ -145,6 +158,7 @@ struct Manager::Impl {
          {0.2, 0.2, 0.2, 0.2});
     Bind("results", "scroll_mode", config.results_scroll_mode,
          std::string("follow"));
+    Bind("results", "reverse", config.results_reverse, false);
 
     // result item
     Bind("result_item", "font_family", config.result_item_font_family,
@@ -199,13 +213,27 @@ struct Manager::Impl {
     Bind("result_item", "selected_highlight_color",
          config.result_item_selected_highlight_color, {1.0, 1.0, 0.0, 1.0});
 
-    // preview icon
+    // preview
     Bind("preview", "enable", config.preview_enable, false);
     Bind("preview", "icon_size", config.preview_icon_size, 64);
     Bind("preview", "padding", config.preview_padding,
          Lawnch::Config::Padding(10));
     Bind("preview", "background_color", config.preview_background_color,
          {0.0, 0.0, 0.0, 0.0});
+    Bind("preview", "show", config.preview_show,
+         std::vector<std::string>{"icon", "name"});
+    Bind("preview", "name_font_family", config.preview_name_font_family,
+         std::string("sans-serif"));
+    Bind("preview", "name_font_size", config.preview_name_font_size, 14);
+    Bind("preview", "name_font_weight", config.preview_name_font_weight,
+         std::string("bold"));
+    Bind("preview", "name_color", config.preview_name_color,
+         {0.9, 0.9, 0.9, 1.0});
+    Bind("preview", "comment_font_size", config.preview_comment_font_size, 12);
+    Bind("preview", "comment_font_weight", config.preview_comment_font_weight,
+         std::string("normal"));
+    Bind("preview", "comment_color", config.preview_comment_color,
+         {0.6, 0.6, 0.6, 1.0});
 
     // results count
     Bind("results_count", "enable", config.results_count_enable, false);
@@ -222,6 +250,18 @@ struct Manager::Impl {
          std::string("right"));
     Bind("results_count", "padding", config.results_count_padding,
          Lawnch::Config::Padding(2, 8, 2, 8));
+
+    // clock
+    Bind("clock", "enable", config.clock_enable, false);
+    Bind("clock", "format", config.clock_format, std::string("%H:%M"));
+    Bind("clock", "font_family", config.clock_font_family,
+         std::string("sans-serif"));
+    Bind("clock", "font_size", config.clock_font_size, 24);
+    Bind("clock", "font_weight", config.clock_font_weight, std::string("bold"));
+    Bind("clock", "text_color", config.clock_text_color, {0.9, 0.9, 0.9, 1.0});
+    Bind("clock", "padding", config.clock_padding,
+         Lawnch::Config::Padding(10, 20, 10, 20));
+    Bind("clock", "text_align", config.clock_text_align, std::string("center"));
   }
 
   int HandleEntry(const std::string &secStr, const std::string &nameStr,

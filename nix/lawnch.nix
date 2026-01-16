@@ -24,6 +24,12 @@ with lib;
         default = { };
         description = "Lauching options";
       };
+      
+      layout = mkOption {
+        type = types.attrs;
+        default = { };
+        description = "Layout options (order, orientation, preview position)";
+      };
 
       window = mkOption {
         type = types.attrs;
@@ -59,6 +65,12 @@ with lib;
         type = types.attrs;
         default = { };
         description = "Results counter option";
+      };
+
+      clock = mkOption {
+        type = types.attrs;
+        default = { };
+        description = "Clock component options";
       };
     };
 

@@ -25,6 +25,12 @@ struct Config {
   std::string launch_terminal_app_cmd;
   std::string launch_prefix;
 
+  // layout
+  std::vector<std::string> layout_order;
+  std::string layout_orientation;
+  std::string layout_preview_position;
+  int layout_preview_width_percent;
+
   // window
   int window_width;
   int window_height;
@@ -77,6 +83,7 @@ struct Config {
   Color results_scrollbar_color;
   Color results_scrollbar_bg_color;
   std::string results_scroll_mode;
+  bool results_reverse;
 
   // result item
   std::string result_item_font_family;
@@ -107,11 +114,19 @@ struct Config {
   std::string result_item_highlight_font_weight;
   Color result_item_selected_highlight_color;
 
-  // preview icons
+  // preview
   bool preview_enable;
   int preview_icon_size;
   Padding preview_padding;
   Color preview_background_color;
+  std::vector<std::string> preview_show;
+  std::string preview_name_font_family;
+  int preview_name_font_size;
+  std::string preview_name_font_weight;
+  Color preview_name_color;
+  int preview_comment_font_size;
+  std::string preview_comment_font_weight;
+  Color preview_comment_color;
 
   // results count
   bool results_count_enable;
@@ -122,6 +137,16 @@ struct Config {
   Color results_count_text_color;
   std::string results_count_text_align;
   Padding results_count_padding;
+
+  // clock
+  bool clock_enable;
+  std::string clock_format;
+  std::string clock_font_family;
+  int clock_font_size;
+  std::string clock_font_weight;
+  Color clock_text_color;
+  Padding clock_padding;
+  std::string clock_text_align;
 
   // plugins
   std::vector<std::string> enabled_plugins;

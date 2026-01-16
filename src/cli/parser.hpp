@@ -9,6 +9,7 @@ struct Options {
   bool help = false;
   bool version = false;
   bool kill = false;
+  int verbosity = 3;
   std::optional<std::string> config_path;
 };
 

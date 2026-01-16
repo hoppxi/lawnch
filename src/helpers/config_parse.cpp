@@ -32,6 +32,27 @@ std::vector<int> parseIntList(const std::string &value) {
   return result;
 }
 
+std::vector<std::string> parseStringList(const std::string &value) {
+  std::vector<std::string> result;
+  std::string trimmedValue = Lawnch::Str::trim(value);
+
+  if (trimmedValue.empty()) {
+    return result;
+  }
+
+  std::stringstream ss(trimmedValue);
+  std::string item;
+
+  while (std::getline(ss, item, ',')) {
+    std::string trimmedItem = Lawnch::Str::trim(item);
+    if (!trimmedItem.empty()) {
+      result.push_back(trimmedItem);
+    }
+  }
+
+  return result;
+}
+
 Padding parsePadding(const std::string &value) {
   auto values = parseIntList(value);
 

@@ -18,6 +18,7 @@ struct Color {
 };
 
 std::vector<int> parseIntList(const std::string &value);
+std::vector<std::string> parseStringList(const std::string &value);
 Padding parsePadding(const std::string &value);
 bool parseBool(const std::string &s);
 Color parseColor(const std::string &s);

@@ -133,15 +133,29 @@ void Keyboard::handle_key(uint32_t keycode, xkb_keysym_t sym,
     }
     break;
   case XKB_KEY_Up:
-    if (selected_index > 0) {
-      selected_index--;
-      callbacks.on_render();
+    if (reverse_navigation) {
+      if (selected_index < result_count - 1) {
+        selected_index++;
+        callbacks.on_render();
+      }
+    } else {
+      if (selected_index > 0) {
+        selected_index--;
+        callbacks.on_render();
+      }
     }
     break;
   case XKB_KEY_Down:
-    if (selected_index < result_count - 1) {
-      selected_index++;
-      callbacks.on_render();
+    if (reverse_navigation) {
+      if (selected_index > 0) {
+        selected_index--;
+        callbacks.on_render();
+      }
+    } else {
+      if (selected_index < result_count - 1) {
+        selected_index++;
+        callbacks.on_render();
+      }
     }
     break;
   case XKB_KEY_Left:

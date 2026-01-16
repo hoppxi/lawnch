@@ -30,6 +30,7 @@ public:
   int get_caret() const { return caret_position; }
   int get_selected_index() const { return selected_index; }
   void set_selected_index(int idx) { selected_index = idx; }
+  void set_reverse_navigation(bool reverse) { reverse_navigation = reverse; }
   bool is_input_selected() const { return input_selected; }
 
   void clear();
@@ -42,6 +43,7 @@ private:
   int caret_position = 0;
   int selected_index = 0;
   bool input_selected = false;
+  bool reverse_navigation = false;
 
   int result_count = 0;
   std::vector<std::string> current_commands;

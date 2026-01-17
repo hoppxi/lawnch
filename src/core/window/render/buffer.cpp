@@ -29,6 +29,12 @@ static int create_shm_file(off_t size) {
 void Buffer::create(struct wl_shm *shm, int w, int h) {
   destroy(); // Setup fresh
 
+  if (w <= 0 || h <= 0) {
+    Lawnch::Logger::log("Renderer", Lawnch::Logger::LogLevel::ERROR,
+                        "Invalid buffer dimensions");
+    return;
+  }
+
   width = w;
   height = h;
   int stride = width * 4; // ARGB32
@@ -51,13 +57,41 @@ void Buffer::create(struct wl_shm *shm, int w, int h) {
   }
 
   struct wl_shm_pool *pool = wl_shm_create_pool(shm, fd, shm_size);
+  if (!pool) {
+    close(fd);
+    munmap(shm_data, shm_size);
+    shm_data = nullptr;
+    Lawnch::Logger::log("Renderer", Lawnch::Logger::LogLevel::ERROR,
+                        "Failed to create SHM pool");
+    return;
+  }
+
   wl_buffer = wl_shm_pool_create_buffer(pool, 0, width, height, stride,
                                         WL_SHM_FORMAT_ARGB8888);
   wl_shm_pool_destroy(pool);
   close(fd);
 
-  image.create_from_data(width, height, BL_FORMAT_PRGB32, shm_data, stride);
-  context.begin(image);
+  if (!wl_buffer) {
+    munmap(shm_data, shm_size);
+    shm_data = nullptr;
+    Lawnch::Logger::log("Renderer", Lawnch::Logger::LogLevel::ERROR,
+                        "Failed to create wl_buffer");
+    return;
+  }
+
+  BLResult result = image.create_from_data(width, height, BL_FORMAT_PRGB32, shm_data, stride);
+  if (result != BL_SUCCESS) {
+    Lawnch::Logger::log("Renderer", Lawnch::Logger::LogLevel::ERROR,
+                        "Failed to create Blend2D image");
+    return;
+  }
+
+  result = context.begin(image);
+  if (result != BL_SUCCESS) {
+    Lawnch::Logger::log("Renderer", Lawnch::Logger::LogLevel::ERROR,
+                        "Failed to begin Blend2D context");
+    return;
+  }
 }
 
 void Buffer::destroy() {

@@ -1,8 +1,10 @@
 #pragma once
 
 #include "../ipc/server.hpp"
+#include <chrono>
 #include <memory>
 #include <optional>
+#include <thread>
 #include <vector>
 
 #include "../core/config/manager.hpp"
@@ -33,6 +35,10 @@ public:
 private:
   bool running = false;
   int wakeup_fd = -1;
+
+  std::chrono::steady_clock::time_point last_render_time;
+  static constexpr std::chrono::milliseconds min_frame_time_ms{16};
+  bool render_pending = false;
 
   std::unique_ptr<IPC::Server> ipc_server;
 
@@ -69,6 +75,9 @@ private:
 
   void resize(int width, int height);
   void render_frame();
+  void render_frame_impl();
+
+  std::mutex render_mutex;
 };
 
 } // namespace Lawnch::App

@@ -63,18 +63,18 @@ void ResultsContainer::draw_result_item(BLContext &ctx,
   double center_y = item_y + (item_h / 2.0);
 
   auto bg_color = is_selected ? cfg.result_item_selected_background_color
-                              : cfg.result_item_default_background_color;
+                              : cfg.result_item_background_color;
   auto border_color = is_selected ? cfg.result_item_selected_border_color
-                                  : cfg.result_item_default_border_color;
+                                  : cfg.result_item_border_color;
   auto text_color = is_selected ? cfg.result_item_selected_text_color
-                                : cfg.result_item_default_text_color;
+                                : cfg.result_item_text_color;
   auto comment_color_cfg = is_selected ? cfg.result_item_selected_comment_color
                                        : cfg.result_item_comment_color;
 
   int radius = is_selected ? cfg.result_item_selected_border_radius
-                           : cfg.result_item_default_border_radius;
+                           : cfg.result_item_border_radius;
   int border_w = is_selected ? cfg.result_item_selected_border_width
-                             : cfg.result_item_default_border_width;
+                             : cfg.result_item_border_width;
 
   BLRoundRect item_rect =
       Lawnch::Gfx::rounded_rect(item_x, item_y, item_w, item_h, radius);
@@ -158,7 +158,7 @@ void ResultsContainer::draw_result_item(BLContext &ctx,
       }
     }
 
-    if (cfg.result_item_highlight_enable && !search_text.empty()) {
+    if (cfg.result_item_enable_highlight && !search_text.empty()) {
       auto highlight_color = is_selected
                                  ? cfg.result_item_selected_highlight_color
                                  : cfg.result_item_highlight_color;
@@ -166,7 +166,6 @@ void ResultsContainer::draw_result_item(BLContext &ctx,
           cfg.result_item_font_family, cfg.result_item_font_size,
           cfg.result_item_highlight_font_weight);
 
-      // Strip filter prefixes
       std::string query_term = search_text;
       if (!query_term.empty() && query_term[0] == ':') {
         size_t space_pos = query_term.find(' ');
@@ -277,7 +276,7 @@ ComponentResult ResultsContainer::draw(ComponentContext &context) {
   int visible_count = std::max(1, (int)std::floor(available_h / item_height));
 
   bool show_scrollbar =
-      cfg.results_scrollbar_enable && total_results > visible_count;
+      cfg.results_enable_scrollbar && total_results > visible_count;
 
   double content_x =
       context.x + cfg.results_margin.left + cfg.results_padding.left;
@@ -299,7 +298,6 @@ ComponentResult ResultsContainer::draw(ComponentContext &context) {
   double container_h =
       context.available_h - cfg.results_margin.top - cfg.results_margin.bottom;
 
-  // Draw container background
   if (cfg.results_background_color.a > 0) {
     ctx.set_fill_style(Lawnch::Gfx::toBLColor(cfg.results_background_color));
     ctx.fill_round_rect(Lawnch::Gfx::rounded_rect(container_x, container_y,
@@ -320,7 +318,6 @@ ComponentResult ResultsContainer::draw(ComponentContext &context) {
 
   double bottom_offset = 0;
   if (cfg.results_reverse && actual_visible < visible_count) {
-    // Calculate how much empty space there is and push items down
     int empty_slots = visible_count - actual_visible;
     bottom_offset = empty_slots * item_height;
   }

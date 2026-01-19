@@ -120,7 +120,7 @@ std::vector<SearchResult> AppMode::query(const std::string &term) {
       cmd = ::Lawnch::Str::replace_all(app_cmd_template, "{}", app.exec);
     }
 
-    results.push_back({app.name, app.comment, app.icon, cmd, "app", score});
+    results.push_back({app.name, app.comment, app.icon, cmd, "app", "", score});
   }
 
   std::partial_sort(

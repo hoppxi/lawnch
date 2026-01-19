@@ -2,7 +2,6 @@
 #include "../../../helpers/string.hpp"
 #include "modes.hpp"
 #include <filesystem>
-#include <iostream>
 #include <mutex>
 #include <sstream>
 #include <vector>

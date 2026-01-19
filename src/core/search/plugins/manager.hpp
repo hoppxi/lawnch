@@ -41,6 +41,16 @@ private:
   std::vector<std::unique_ptr<SearchMode>> m_plugins;
   std::vector<std::unique_ptr<PluginApiContext>> m_api_contexts;
   std::map<std::string, SearchMode *> m_trigger_map;
+
+  std::map<std::string, std::string> m_lazy_triggers;
+  std::vector<SearchResult> m_cached_help;
+  void load_triggers_cache();
+  void save_triggers_cache();
+  void generate_triggers_cache();
+
+public:
+  void ensure_plugin_for_trigger(const std::string &query);
+  const std::vector<SearchResult> &get_all_help() const;
 };
 
 } // namespace Lawnch::Core::Search::Plugins

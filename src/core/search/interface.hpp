@@ -12,6 +12,7 @@ struct SearchResult {
   std::string icon;
   std::string command;
   std::string type;
+  std::string preview_image_path;
   int score = 0;
 };
 
@@ -25,7 +26,7 @@ public:
   virtual SearchResult get_help() const {
     auto t = get_triggers();
     std::string primary = t.empty() ? "" : t[0];
-    return {primary, "Search mode", "help-about", "", "help"};
+    return {primary, "Search mode", "help-about", "", "help", "", 0};
   }
   virtual void init() {}
   virtual void set_async_callback(ResultsCallback callback) {

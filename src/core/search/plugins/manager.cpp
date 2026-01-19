@@ -2,9 +2,12 @@
 #include "../../../helpers/fs.hpp"
 #include "../../../helpers/logger.hpp"
 #include "adapter.hpp"
+#include <algorithm>
 #include <cstdlib>
 #include <dlfcn.h>
 #include <filesystem>
+#include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <sstream>
 
@@ -18,6 +21,42 @@ struct PluginApiContext {
   const Config::Config &config;
   Manager *manager;
 };
+
+static std::string json_escape(const std::string &s) {
+  std::stringstream ss;
+  for (char c : s) {
+    switch (c) {
+    case '"':
+      ss << "\\\"";
+      break;
+    case '\\':
+      ss << "\\\\";
+      break;
+    case '\b':
+      ss << "\\b";
+      break;
+    case '\f':
+      ss << "\\f";
+      break;
+    case '\n':
+      ss << "\\n";
+      break;
+    case '\r':
+      ss << "\\r";
+      break;
+    case '\t':
+      ss << "\\t";
+      break;
+    default:
+      if ('\x00' <= c && c <= '\x1f') {
+        ss << "\\u" << std::hex << std::setw(4) << std::setfill('0') << (int)c;
+      } else {
+        ss << c;
+      }
+    }
+  }
+  return ss.str();
+}
 
 // C callback wrappers
 static const char *s_get_config_value(const LawnchHostApi *host,
@@ -165,17 +204,186 @@ void Manager::ensure_plugins_loaded() {
 
 void Manager::load_plugins() {
   Lawnch::Logger::log("PluginManager", Lawnch::Logger::LogLevel::INFO,
-                      "Loading plugins...");
-  for (const auto &plugin_name : m_config.enabled_plugins) {
-    load_plugin(plugin_name);
+                      "Initializing plugins...");
+
+  fs::path cache_dir = Lawnch::Fs::get_cache_home() / "lawnch";
+  if (!fs::exists(cache_dir)) {
+    fs::create_directories(cache_dir);
   }
-  Lawnch::Logger::log("PluginManager", Lawnch::Logger::LogLevel::INFO,
-                      "All plugins loaded.");
+  fs::path cache_file = cache_dir / "plugin-triggers.cache";
+
+  if (fs::exists(cache_file)) {
+    load_triggers_cache();
+    if (!m_lazy_triggers.empty()) {
+      Lawnch::Logger::log("PluginManager", Lawnch::Logger::LogLevel::INFO,
+                          "Loaded plugin triggers from cache.");
+      plugins_loaded = true;
+      return;
+    }
+  }
+
+  generate_triggers_cache();
   plugins_loaded = true;
 }
 
+void Manager::generate_triggers_cache() {
+  Lawnch::Logger::log("PluginManager", Lawnch::Logger::LogLevel::INFO,
+                      "Generating plugin triggers cache...");
+  for (const auto &plugin_name : m_config.enabled_plugins) {
+    load_plugin(plugin_name);
+  }
+  save_triggers_cache();
+}
+
+void Manager::save_triggers_cache() {
+  fs::path cache_dir = fs::path(Lawnch::Fs::get_cache_home()) / "lawnch";
+  if (!fs::exists(cache_dir)) {
+    fs::create_directories(cache_dir);
+  }
+  fs::path cache_file = cache_dir / "plugin-triggers.cache";
+
+  std::ofstream file(cache_file);
+  if (!file.is_open()) {
+    Lawnch::Logger::log("PluginManager", Lawnch::Logger::LogLevel::ERROR,
+                        "Failed to open cache file for writing.");
+    return;
+  }
+
+  if (m_plugins.size() != m_api_contexts.size()) {
+    Lawnch::Logger::log("PluginManager", Lawnch::Logger::LogLevel::ERROR,
+                        "Plugin/Context mismatch, cannot save cache.");
+    return;
+  }
+
+  std::vector<std::string> sorted_plugins = m_config.enabled_plugins;
+  std::sort(sorted_plugins.begin(), sorted_plugins.end());
+  file << "CONFIG_SIGNATURE:";
+  for (const auto &p : sorted_plugins) {
+    file << p << ",";
+  }
+  file << "\n";
+
+  for (size_t i = 0; i < m_plugins.size(); ++i) {
+    std::string name = m_api_contexts[i]->plugin_name;
+    auto triggers = m_plugins[i]->get_triggers();
+    auto help = m_plugins[i]->get_help();
+
+    file << "PLUGIN:" << name << "\n";
+    for (const auto &t : triggers) {
+      file << "TRIGGER:" << t << "\n";
+    }
+    file << "HELP_NAME:" << help.name << "\n";
+    file << "HELP_COMMENT:" << help.comment << "\n";
+    file << "HELP_ICON:" << help.icon << "\n";
+    file << "HELP_COMMAND:" << help.command << "\n";
+    file << "HELP_TYPE:" << help.type << "\n";
+    file << "HELP_PREVIEW_IMAGE_PATH:" << help.preview_image_path << "\n";
+    file << "END_PLUGIN\n";
+  }
+}
+
+void Manager::load_triggers_cache() {
+  fs::path cache_file = fs::path(Lawnch::Fs::get_cache_home()) / "lawnch" /
+                        "plugin-triggers.cache";
+  std::ifstream file(cache_file);
+  if (!file.is_open()) {
+    return;
+  }
+
+  std::string line;
+  std::string current_plugin;
+  std::vector<std::string> current_triggers;
+  SearchResult current_help;
+
+  if (std::getline(file, line)) {
+    if (line.rfind("CONFIG_SIGNATURE:", 0) == 0) {
+      std::string cached_sig = line.substr(17);
+
+      std::vector<std::string> sorted_plugins = m_config.enabled_plugins;
+      std::sort(sorted_plugins.begin(), sorted_plugins.end());
+      std::stringstream current_sig_ss;
+      for (const auto &p : sorted_plugins) {
+        current_sig_ss << p << ",";
+      }
+
+      if (cached_sig != current_sig_ss.str()) {
+        Lawnch::Logger::log(
+            "PluginManager", Lawnch::Logger::LogLevel::INFO,
+            "Plugin configuration changed, invalidating cache.");
+        return;
+      }
+    } else {
+      Lawnch::Logger::log("PluginManager", Lawnch::Logger::LogLevel::INFO,
+                          "Old cache format detected, invalidating cache.");
+      return;
+    }
+  } else {
+    return;
+  }
+
+  while (std::getline(file, line)) {
+    if (line.rfind("PLUGIN:", 0) == 0) {
+      current_plugin = line.substr(7);
+      current_triggers.clear();
+      current_help = SearchResult{};
+    } else if (line.rfind("TRIGGER:", 0) == 0) {
+      current_triggers.push_back(line.substr(8));
+    } else if (line.rfind("HELP_NAME:", 0) == 0) {
+      current_help.name = line.substr(10);
+    } else if (line.rfind("HELP_COMMENT:", 0) == 0) {
+      current_help.comment = line.substr(13);
+    } else if (line.rfind("HELP_ICON:", 0) == 0) {
+      current_help.icon = line.substr(10);
+    } else if (line.rfind("HELP_COMMAND:", 0) == 0) {
+      current_help.command = line.substr(13);
+    } else if (line.rfind("HELP_TYPE:", 0) == 0) {
+      current_help.type = line.substr(10);
+    } else if (line.rfind("HELP_PREVIEW_IMAGE_PATH:", 0) == 0) {
+      current_help.preview_image_path = line.substr(24);
+    } else if (line == "END_PLUGIN") {
+      if (!current_plugin.empty()) {
+        for (const auto &t : current_triggers) {
+          m_lazy_triggers[t] = current_plugin;
+        }
+        if (current_help.name.empty() && !current_triggers.empty()) {
+          current_help.name = current_triggers[0];
+        }
+        m_cached_help.push_back(current_help);
+      }
+    }
+  }
+}
+
+void Manager::ensure_plugin_for_trigger(const std::string &query) {
+  if (!plugins_loaded)
+    ensure_plugins_loaded();
+
+  auto it = m_lazy_triggers.find(query);
+  if (it != m_lazy_triggers.end()) {
+    if (m_trigger_map.find(query) == m_trigger_map.end()) {
+      load_plugin(it->second);
+      if (m_trigger_map.find(query) == m_trigger_map.end()) {
+        Lawnch::Logger::log("PluginManager", Lawnch::Logger::LogLevel::WARNING,
+                            "Lazy loaded plugin '" + it->second +
+                                "' for trigger '" + query +
+                                "' but it did not register that trigger!");
+      }
+    }
+    return;
+  }
+
+  for (const auto &[trigger, plugin_name] : m_lazy_triggers) {
+    if (query.rfind(trigger + " ", 0) == 0) {
+      if (m_trigger_map.find(trigger) == m_trigger_map.end()) {
+        load_plugin(plugin_name);
+      }
+      return;
+    }
+  }
+}
+
 SearchMode *Manager::find_plugin(const std::string &trigger) {
-  ensure_plugins_loaded();
+  ensure_plugin_for_trigger(trigger);
   auto it = m_trigger_map.find(trigger);
   if (it != m_trigger_map.end()) {
     return it->second;
@@ -184,6 +392,17 @@ SearchMode *Manager::find_plugin(const std::string &trigger) {
 }
 
 void Manager::load_plugin(const std::string &name) {
+  for (const auto &ctx : m_api_contexts) {
+    if (ctx->plugin_name == name)
+      return;
+  }
+
+  if (m_plugin_dirs.empty()) {
+    Lawnch::Logger::log("PluginManager", Lawnch::Logger::LogLevel::WARNING,
+                        "Attempting to load plugin '" + name +
+                            "' but no plugin directories are configured!");
+  }
+
   std::stringstream ss;
   ss << "Loading plugin '" << name << "'";
   Lawnch::Logger::log("PluginManager", Lawnch::Logger::LogLevel::INFO,
@@ -263,6 +482,16 @@ void Manager::load_plugin(const std::string &name) {
   info_ss << "Loaded plugin: " << name << " from " << found_path;
   Lawnch::Logger::log("PluginManager", Lawnch::Logger::LogLevel::INFO,
                       info_ss.str());
+}
+
+const std::vector<SearchResult> &Manager::get_all_help() const {
+  if (m_cached_help.empty() && plugins_loaded) {
+    auto &mutable_this = const_cast<Manager &>(*this);
+    for (const auto &plugin : m_plugins) {
+      mutable_this.m_cached_help.push_back(plugin->get_help());
+    }
+  }
+  return m_cached_help;
 }
 
 } // namespace Lawnch::Core::Search::Plugins

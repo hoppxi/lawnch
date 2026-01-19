@@ -34,9 +34,15 @@ SearchResult Adapter::get_help() const {
     if (!r_ptr)
       return SearchMode::get_help();
     LawnchResult r = *r_ptr;
-    return SearchResult{r.name ? r.name : "", r.comment ? r.comment : "",
-                        r.icon ? r.icon : "", r.command ? r.command : "",
-                        r.type ? r.type : "", 0};
+    return SearchResult{
+        r.name ? r.name : "",
+        r.comment ? r.comment : "",
+        r.icon ? r.icon : "",
+        r.command ? r.command : "",
+        r.type ? r.type : "",
+        r.preview_image_path ? r.preview_image_path : "",
+        0,
+    };
   }
   return SearchMode::get_help();
 }
@@ -49,9 +55,14 @@ std::vector<SearchResult> Adapter::query(const std::string &term) {
     results.reserve(count);
     for (int i = 0; i < count; ++i) {
       results.push_back(SearchResult{
-          res[i].name ? res[i].name : "", res[i].comment ? res[i].comment : "",
-          res[i].icon ? res[i].icon : "", res[i].command ? res[i].command : "",
-          res[i].type ? res[i].type : "", 0});
+          res[i].name ? res[i].name : "",
+          res[i].comment ? res[i].comment : "",
+          res[i].icon ? res[i].icon : "",
+          res[i].command ? res[i].command : "",
+          res[i].type ? res[i].type : "",
+          res[i].preview_image_path ? res[i].preview_image_path : "",
+          0,
+      });
     }
   }
   return results;

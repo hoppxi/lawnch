@@ -10,8 +10,15 @@ public:
   }
   std::vector<SearchResult> query(const std::string &term) override;
   SearchResult get_help() const override {
-    return {":apps / :a", "Search installed applications", "system-search", "",
-            "help"};
+    return {
+        ":apps / :a",
+        "Search installed applications",
+        "system-search",
+        "",
+        "help",
+        "",
+        0,
+    };
   }
 };
 
@@ -22,8 +29,15 @@ public:
   }
   std::vector<SearchResult> query(const std::string &term) override;
   SearchResult get_help() const override {
-    return {":bin / :b", "Search executables in PATH", "utilities-terminal", "",
-            "help"};
+    return {
+        ":bin / :b",
+        "Search executables in PATH",
+        "utilities-terminal",
+        "",
+        "help",
+        "",
+        0,
+    };
   }
 };
 

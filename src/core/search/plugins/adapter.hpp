@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../../../../plugins/lawnch_plugin_api.h"
 #include "../interface.hpp"
+#include "lawnch_plugin_api.h"
 
 #include <string>
 #include <vector>

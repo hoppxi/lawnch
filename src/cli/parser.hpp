@@ -11,6 +11,7 @@ struct Options {
   bool kill = false;
   int verbosity = 3;
   std::optional<std::string> config_path;
+  std::optional<std::string> merge_config_path;
 };
 
 class Parser {

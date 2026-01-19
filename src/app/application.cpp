@@ -16,10 +16,12 @@ namespace Lawnch::App {
 
 Application::Application(std::unique_ptr<IPC::Server> server,
                          std::optional<std::string> config_path_override,
+                         std::optional<std::string> merge_config_path,
                          int log_verbosity)
     : ipc_server(std::move(server)),
       config_manager(Core::Config::Manager::Instance()),
       icon_manager(Core::Icons::Manager::Instance()),
+      image_cache(ImageCache::ImageCache::Instance()),
       last_render_time(std::chrono::steady_clock::now()) {
 
   std::filesystem::path log_path = Fs::get_log_path("lawnch");
@@ -31,6 +33,13 @@ Application::Application(std::unique_ptr<IPC::Server> server,
               "verbosity level " + std::to_string(log_verbosity));
 
   wakeup_fd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
+  image_cache.set_render_callback([this]() {
+    uint64_t u = 1;
+    if (write(this->wakeup_fd, &u, sizeof(u)) == -1) {
+      Logger::log("App", Logger::LogLevel::ERROR,
+                  "Failed to write to wakeup_fd to schedule render");
+    }
+  });
 
   ipc_server->set_on_kill([this]() { this->stop(); });
   try {
@@ -58,6 +67,10 @@ Application::Application(std::unique_ptr<IPC::Server> server,
                 "Config file not found: " + config_path);
   }
 
+  if (merge_config_path.has_value()) {
+    config_manager.Merge(merge_config_path.value());
+  }
+
   plugin_manager =
       std::make_unique<Core::Search::Plugins::Manager>(config_manager.Get());
 
@@ -65,6 +78,9 @@ Application::Application(std::unique_ptr<IPC::Server> server,
   history.set_max_size(config_manager.Get().general_history_max_size);
 
   search_engine = std::make_unique<Core::Search::Engine>(*plugin_manager);
+  if (!config_manager.Get().launch_start_with.empty()) {
+    search_engine->set_forced_mode(config_manager.Get().launch_start_with);
+  }
   search_engine->set_async_callback(
       [this](auto res) { this->on_search_results(res); });
 
@@ -102,6 +118,10 @@ Application::Application(std::unique_ptr<IPC::Server> server,
 
   layer_surface->on_configure = [this](int w, int h) { this->resize(w, h); };
   layer_surface->on_closed = [this]() { this->stop(); };
+
+  if (!config_manager.Get().launch_start_with.empty()) {
+    on_search_results(search_engine->query(""));
+  }
 
   Logger::log("App", Logger::LogLevel::INFO, "Initialization Complete");
 }
@@ -225,14 +245,6 @@ void Application::render_frame_impl() {
 
 void Application::on_keyboard_update() {
   std::string text = keyboard->get_text();
-  if (text.empty()) {
-    current_results.clear();
-    scroll_offset = 0;
-    keyboard->set_result_count(0);
-    render_frame();
-    return;
-  }
-
   current_results = search_engine->query(text);
   on_search_results(current_results);
 }
@@ -252,6 +264,7 @@ void Application::on_search_results(
 
 void Application::on_keyboard_execute(std::string cmd) {
   if (!cmd.empty()) {
+    search_engine->record_usage(cmd);
     const auto &cfg = config_manager.Get();
     std::string final_cmd = cmd;
     if (!cfg.launch_prefix.empty()) {

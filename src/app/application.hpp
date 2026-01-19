@@ -20,13 +20,16 @@
 #include "../core/window/wayland/layer_surface.hpp"
 #include "../core/window/wayland/registry.hpp"
 #include "../core/window/wayland/seat.hpp"
+#include "../helpers/image_cache.hpp"
 
 namespace Lawnch::App {
 
 class Application {
 public:
   Application(std::unique_ptr<IPC::Server> server,
-              std::optional<std::string> config_path, int log_verbosity = 3);
+              std::optional<std::string> config_path,
+              std::optional<std::string> merge_config_path,
+              int log_verbosity = 3);
   ~Application();
 
   void run();
@@ -44,6 +47,7 @@ private:
 
   Core::Config::Manager &config_manager;
   Core::Icons::Manager &icon_manager;
+  ImageCache::ImageCache &image_cache;
 
   std::unique_ptr<Core::Search::Plugins::Manager> plugin_manager;
   std::unique_ptr<Core::Search::Engine> search_engine;

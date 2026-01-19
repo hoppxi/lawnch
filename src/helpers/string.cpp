@@ -1,6 +1,7 @@
 #include "string.hpp"
 #include <algorithm>
 #include <cctype>
+#include <functional>
 
 namespace Lawnch::Str {
 
@@ -135,4 +136,10 @@ void to_lower(std::string &str) {
   std::transform(str.begin(), str.end(), str.begin(),
                  [](unsigned char c) { return std::tolower(c); });
 }
+
+size_t hash(std::string_view str) {
+  std::hash<std::string_view> hasher;
+  return hasher(str);
+}
+
 } // namespace Lawnch::Str

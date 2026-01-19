@@ -1,4 +1,4 @@
-#include "../lawnch_plugin_api.h"
+#include "lawnch_plugin_api.h"
 #include <algorithm>
 #include <cstring>
 #include <filesystem>
@@ -82,6 +82,7 @@ LawnchResult *plugin_get_help(void) {
   result->icon = c_strdup("face-smile");
   result->command = c_strdup("");
   result->type = c_strdup("help");
+  result->preview_image_path = c_strdup("");
   return result;
 }
 
@@ -94,6 +95,7 @@ void plugin_free_results(LawnchResult *results, int num_results) {
     delete[] results[i].icon;
     delete[] results[i].command;
     delete[] results[i].type;
+    delete[] results[i].preview_image_path;
   }
   delete[] results;
 }
@@ -107,6 +109,7 @@ LawnchResult *plugin_query(const char *term, int *num_results) {
     err_result->icon = c_strdup("dialog-error");
     err_result->command = c_strdup("");
     err_result->type = c_strdup("error");
+    err_result->preview_image_path = c_strdup("");
     return err_result;
   }
 
@@ -134,7 +137,7 @@ LawnchResult *plugin_query(const char *term, int *num_results) {
           {c_strdup(emoji + "  " + text),
            c_strdup(item.value("category", "").c_str()), c_strdup(""),
            c_strdup(("echo -n '" + emoji + "' | wl-copy").c_str()),
-           c_strdup("emoji")});
+           c_strdup("emoji"), c_strdup("")});
       if (results_vec.size() >= 50)
         break;
     }

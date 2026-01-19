@@ -1,4 +1,4 @@
-#include "../lawnch_plugin_api.h"
+#include "lawnch_plugin_api.h"
 #include <algorithm>
 #include <array>
 #include <cctype>
@@ -48,16 +48,16 @@ std::vector<LawnchResult> do_clip_query(const std::string &term) {
     output = exec("cliphist list");
   } catch (const std::exception &e) {
     results.push_back({c_strdup("Clipboard unavailable"), c_strdup(e.what()),
-                       c_strdup("dialog-error"), c_strdup(""),
-                       c_strdup("info")});
+                       c_strdup("dialog-error"), c_strdup(""), c_strdup("info"),
+                       c_strdup("")});
     return results;
   }
 
   if (output.empty()) {
     results.push_back({c_strdup("Clipboard unavailable"),
                        c_strdup("cliphist not found or empty"),
-                       c_strdup("dialog-error"), c_strdup(""),
-                       c_strdup("info")});
+                       c_strdup("dialog-error"), c_strdup(""), c_strdup("info"),
+                       c_strdup("")});
     return results;
   }
 
@@ -81,14 +81,14 @@ std::vector<LawnchResult> do_clip_query(const std::string &term) {
     results.push_back({c_strdup(content), c_strdup("Cliphist ID: " + id),
                        c_strdup("edit-paste"),
                        c_strdup("cliphist decode " + id + " | wl-copy"),
-                       c_strdup("clipboard")});
+                       c_strdup("clipboard"), c_strdup("")});
   }
 
   if (results.empty() && !term.empty()) {
     results.push_back({c_strdup("No matches"),
                        c_strdup("Clipboard history exists but no match"),
                        c_strdup("dialog-information"), c_strdup(""),
-                       c_strdup("info")});
+                       c_strdup("info"), c_strdup("")});
   }
 
   return results;
@@ -111,6 +111,7 @@ LawnchResult *plugin_get_help(void) {
   result->icon = c_strdup("edit-paste");
   result->command = c_strdup("");
   result->type = c_strdup("help");
+  result->preview_image_path = c_strdup("");
   return result;
 }
 
@@ -123,6 +124,7 @@ void plugin_free_results(LawnchResult *results, int num_results) {
     delete[] results[i].icon;
     delete[] results[i].command;
     delete[] results[i].type;
+    delete[] results[i].preview_image_path;
   }
   delete[] results;
 }

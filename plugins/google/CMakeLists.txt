@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.17)
 project(google LANGUAGES CXX)
 
+
+find_package(LawnchPluginApi REQUIRED)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -10,11 +12,11 @@ add_library(google SHARED
   google.cpp
 )
 
-target_include_directories(google PRIVATE
-  ../
+target_link_libraries(google PRIVATE
+	Lawnch::LawnchPluginApi
 )
 
-target_link_libraries(google PRIVATE 
+target_link_libraries(google PRIVATE
   CURL::libcurl
 )
 

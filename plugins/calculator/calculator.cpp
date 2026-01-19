@@ -1,4 +1,4 @@
-#include "../lawnch_plugin_api.h"
+#include "lawnch_plugin_api.h"
 
 #include <algorithm>
 #include <cctype>
@@ -225,8 +225,8 @@ std::vector<LawnchResult> do_calc_query(const std::string &expr) {
   if (input.empty()) {
     return {{c_strdup("Calculator"),
              c_strdup("Supports: sin, cos, sqrt, pow, log..."),
-             c_strdup("accessories-calculator"), c_strdup(""),
-             c_strdup("calc")}};
+             c_strdup("accessories-calculator"), c_strdup(""), c_strdup("calc"),
+             c_strdup("")}};
   }
 
   try {
@@ -243,11 +243,11 @@ std::vector<LawnchResult> do_calc_query(const std::string &expr) {
     return {{c_strdup(out.c_str()), c_strdup("Click to copy result"),
              c_strdup("accessories-calculator"),
              c_strdup(("echo -n '" + out + "' | wl-copy").c_str()),
-             c_strdup("calc")}};
+             c_strdup("calc"), c_strdup("")}};
   } catch (const std::exception &e) {
     return {{c_strdup((std::string("Error: ") + e.what()).c_str()),
              c_strdup(input.c_str()), c_strdup("dialog-error"), c_strdup(""),
-             c_strdup("calc")}};
+             c_strdup("calc"), c_strdup("")}};
   }
 }
 
@@ -268,6 +268,7 @@ LawnchResult *plugin_get_help(void) {
   result->icon = c_strdup("accessories-calculator");
   result->command = c_strdup("");
   result->type = c_strdup("help");
+  result->preview_image_path = c_strdup("");
   return result;
 }
 
@@ -280,6 +281,7 @@ void plugin_free_results(LawnchResult *results, int num_results) {
     delete[] results[i].icon;
     delete[] results[i].command;
     delete[] results[i].type;
+    delete[] results[i].preview_image_path;
   }
   delete[] results;
 }

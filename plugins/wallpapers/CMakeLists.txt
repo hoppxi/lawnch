@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.17)
 project(wallpapers LANGUAGES CXX)
 
+
+find_package(LawnchPluginApi REQUIRED)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -8,8 +10,8 @@ add_library(wallpapers SHARED
 	wallpapers.cpp
 )
 
-target_include_directories(wallpapers PRIVATE
-	../
+target_link_libraries(wallpapers PRIVATE
+	Lawnch::LawnchPluginApi
 )
 
 set_target_properties(wallpapers PROPERTIES

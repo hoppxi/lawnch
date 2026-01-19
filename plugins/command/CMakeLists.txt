@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.17)
 project(command LANGUAGES CXX)
 
+
+find_package(LawnchPluginApi REQUIRED)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -8,8 +10,8 @@ add_library(command SHARED
 	command.cpp
 )
 
-target_include_directories(command PRIVATE
-	../
+target_link_libraries(command PRIVATE
+	Lawnch::LawnchPluginApi
 )
 
 set_target_properties(command PROPERTIES

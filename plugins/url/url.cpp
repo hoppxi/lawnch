@@ -1,4 +1,4 @@
-#include "../lawnch_plugin_api.h"
+#include "lawnch_plugin_api.h"
 #include <algorithm>
 #include <cctype>
 #include <cstring>
@@ -15,9 +15,14 @@ char *c_strdup(const std::string &s) {
 std::vector<LawnchResult> do_url_query(const std::string &term) {
   std::vector<LawnchResult> results;
   if (term.empty()) {
-    results.push_back({c_strdup("URL"), c_strdup("Enter URL to open"),
-                       c_strdup("network-server"), c_strdup(""),
-                       c_strdup("info")});
+    results.push_back({
+        c_strdup("URL"),
+        c_strdup("Enter URL to open"),
+        c_strdup("network-server"),
+        c_strdup(""),
+        c_strdup("info"),
+        c_strdup(""),
+    });
     return results;
   }
 
@@ -30,9 +35,14 @@ std::vector<LawnchResult> do_url_query(const std::string &term) {
               .base(),
           s.end());
   if (s.empty()) {
-    results.push_back({c_strdup(term), c_strdup("Enter a valid URL"),
-                       c_strdup("dialog-error"), c_strdup(""),
-                       c_strdup("info")});
+    results.push_back({
+        c_strdup(term),
+        c_strdup("Enter a valid URL"),
+        c_strdup("dialog-error"),
+        c_strdup(""),
+        c_strdup("info"),
+        c_strdup(""),
+    });
     return results;
   }
 
@@ -43,17 +53,27 @@ std::vector<LawnchResult> do_url_query(const std::string &term) {
                                     s.find("..") == std::string::npos));
 
   if (!looks_like_url) {
-    results.push_back({c_strdup(term), c_strdup("Enter a valid URL"),
-                       c_strdup("dialog-error"), c_strdup(""),
-                       c_strdup("info")});
+    results.push_back({
+        c_strdup(term),
+        c_strdup("Enter a valid URL"),
+        c_strdup("dialog-error"),
+        c_strdup(""),
+        c_strdup("info"),
+        c_strdup(""),
+    });
     return results;
   }
 
   std::string url = has_scheme ? s : "https://" + s;
 
-  results.push_back({c_strdup(url), c_strdup("Open URL"),
-                     c_strdup("network-server"),
-                     c_strdup("xdg-open \"" + url + "\""), c_strdup("url")});
+  results.push_back({
+      c_strdup(url),
+      c_strdup("Open URL"),
+      c_strdup("network-server"),
+      c_strdup("xdg-open \"" + url + "\""),
+      c_strdup("url"),
+      c_strdup(""),
+  });
 
   return results;
 }
@@ -75,6 +95,7 @@ LawnchResult *plugin_get_help(void) {
   result->icon = c_strdup("network-server");
   result->command = c_strdup("");
   result->type = c_strdup("help");
+  result->preview_image_path = c_strdup("");
   return result;
 }
 
@@ -87,6 +108,7 @@ void plugin_free_results(LawnchResult *results, int num_results) {
     delete[] results[i].icon;
     delete[] results[i].command;
     delete[] results[i].type;
+    delete[] results[i].preview_image_path;
   }
   delete[] results;
 }

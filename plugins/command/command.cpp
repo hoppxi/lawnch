@@ -1,4 +1,4 @@
-#include "../lawnch_plugin_api.h"
+#include "lawnch_plugin_api.h"
 #include <cctype>
 #include <cstdio>
 #include <cstring>
@@ -24,7 +24,8 @@ std::vector<LawnchResult> do_cmd_query(const std::string &term) {
   std::string cmd = term;
   if (cmd.empty()) {
     return {{c_strdup("Command Mode"), c_strdup("Type a shell command to run"),
-             c_strdup("utilities-terminal"), c_strdup(""), c_strdup("cmd")}};
+             c_strdup("utilities-terminal"), c_strdup(""), c_strdup("cmd"),
+             c_strdup("")}};
   }
 
   for (char &c : cmd) {
@@ -37,7 +38,7 @@ std::vector<LawnchResult> do_cmd_query(const std::string &term) {
 
   return {{c_strdup(cmd.c_str()), c_strdup("Run in terminal"),
            c_strdup("utilities-terminal"), c_strdup(full_command.c_str()),
-           c_strdup("cmd")}};
+           c_strdup("cmd"), c_strdup("")}};
 }
 
 } // namespace
@@ -57,6 +58,7 @@ LawnchResult *plugin_get_help(void) {
   result->icon = c_strdup("utilities-terminal");
   result->command = c_strdup("");
   result->type = c_strdup("help");
+  result->preview_image_path = c_strdup("");
   return result;
 }
 
@@ -69,6 +71,7 @@ void plugin_free_results(LawnchResult *results, int num_results) {
     delete[] results[i].icon;
     delete[] results[i].command;
     delete[] results[i].type;
+    delete[] results[i].preview_image_path;
   }
   delete[] results;
 }

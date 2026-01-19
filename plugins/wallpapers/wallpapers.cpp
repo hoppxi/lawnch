@@ -1,4 +1,4 @@
-#include "../lawnch_plugin_api.h"
+#include "lawnch_plugin_api.h"
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
@@ -100,6 +100,7 @@ LawnchResult *plugin_get_help(void) {
   r->icon = c_strdup("preferences-desktop-wallpaper");
   r->command = c_strdup("");
   r->type = c_strdup("help");
+  r->preview_image_path = c_strdup("");
   return r;
 }
 
@@ -138,9 +139,10 @@ LawnchResult *plugin_query(const char *term, int *num_results) {
     LawnchResult r;
     r.name = c_strdup(p.filename().string());
     r.comment = c_strdup(p.parent_path().string());
-    r.icon = c_strdup((p.parent_path() / p.filename()).string());
+    r.icon = c_strdup("preferences-desktop-wallpaper");
     r.command = c_strdup(build_command(g_state.command_template, abs_path));
     r.type = c_strdup("wallpaper-plugin");
+    r.preview_image_path = c_strdup((p.parent_path() / p.filename()).string());
 
     results.push_back(r);
   }
@@ -163,6 +165,7 @@ void plugin_free_results(LawnchResult *results, int num_results) {
     delete[] results[i].icon;
     delete[] results[i].command;
     delete[] results[i].type;
+    delete[] results[i].preview_image_path;
   }
   delete[] results;
 }

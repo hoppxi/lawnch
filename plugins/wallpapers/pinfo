@@ -1,0 +1,9 @@
+[plugin]
+name=wallpapers
+version=0.1.0
+author=hoppxi
+description=wallpapers plugin
+url=https://github.com/hoppxi/lawnch
+
+[build]
+src=.

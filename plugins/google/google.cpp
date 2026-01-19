@@ -1,4 +1,4 @@
-#include "../lawnch_plugin_api.h"
+#include "lawnch_plugin_api.h"
 #include <cstring>
 #include <curl/curl.h>
 #include <string>
@@ -34,7 +34,7 @@ std::vector<LawnchResult> do_google_query(const std::string &term) {
 
   return {{c_strdup(display.c_str()), c_strdup("Search Google (Enter to open)"),
            c_strdup("web-browser"), c_strdup(command.c_str()),
-           c_strdup("google")}};
+           c_strdup("google"), c_strdup("")}};
 }
 
 } // namespace
@@ -54,6 +54,7 @@ LawnchResult *plugin_get_help(void) {
   result->icon = c_strdup("web-browser");
   result->command = c_strdup("");
   result->type = c_strdup("help");
+  result->preview_image_path = c_strdup("");
   return result;
 }
 
@@ -66,6 +67,7 @@ void plugin_free_results(LawnchResult *results, int num_results) {
     delete[] results[i].icon;
     delete[] results[i].command;
     delete[] results[i].type;
+    delete[] results[i].preview_image_path;
   }
   delete[] results;
 }

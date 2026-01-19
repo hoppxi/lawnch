@@ -1,0 +1,9 @@
+[plugin]
+name=command
+version=0.1.0
+author=hoppxi
+description=command plugin
+url=https://github.com/hoppxi/lawnch
+
+[build]
+src=.

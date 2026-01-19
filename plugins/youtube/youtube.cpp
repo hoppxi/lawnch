@@ -1,4 +1,4 @@
-#include "../lawnch_plugin_api.h"
+#include "lawnch_plugin_api.h"
 #include <cstring>
 #include <curl/curl.h>
 #include <string>
@@ -33,10 +33,14 @@ std::vector<LawnchResult> do_youtube_query(const std::string &term) {
       "xdg-open \"https://www.youtube.com/results?search_query=" +
       encoded_term + "\"";
 
-  return {{c_strdup(display.c_str()),
-           c_strdup("Search YouTube (Enter to open)"),
-           c_strdup("multimedia-video-player"), c_strdup(command.c_str()),
-           c_strdup("youtube")}};
+  return {{
+      c_strdup(display.c_str()),
+      c_strdup("Search YouTube (Enter to open)"),
+      c_strdup("multimedia-video-player"),
+      c_strdup(command.c_str()),
+      c_strdup("youtube"),
+      c_strdup(""),
+  }};
 }
 
 } // namespace
@@ -56,6 +60,7 @@ LawnchResult *plugin_get_help(void) {
   result->icon = c_strdup("multimedia-video-player");
   result->command = c_strdup("");
   result->type = c_strdup("help");
+  result->preview_image_path = c_strdup("");
   return result;
 }
 
@@ -68,6 +73,7 @@ void plugin_free_results(LawnchResult *results, int num_results) {
     delete[] results[i].icon;
     delete[] results[i].command;
     delete[] results[i].type;
+    delete[] results[i].preview_image_path;
   }
   delete[] results;
 }

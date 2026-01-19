@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.17)
 project(emoji LANGUAGES CXX)
 
+
+find_package(LawnchPluginApi REQUIRED)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -10,8 +12,8 @@ add_library(emoji SHARED
 	emoji.cpp
 )
 
-target_include_directories(emoji PRIVATE
-	../
+target_link_libraries(emoji PRIVATE
+	Lawnch::LawnchPluginApi
 )
 
 target_link_libraries(emoji PRIVATE nlohmann_json::nlohmann_json)

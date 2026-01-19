@@ -12,6 +12,12 @@ with lib;
       description = "lawnch package to use.";
     };
 
+    mutable = mkOption {
+      type = types.bool;
+      default = false;
+      description = "option to enable mustable config file";
+    };
+
     settings = {
       general = mkOption {
         type = types.attrs;
@@ -24,11 +30,11 @@ with lib;
         default = { };
         description = "Lauching options";
       };
-      
+
       layout = mkOption {
         type = types.attrs;
         default = { };
-        description = "Layout options (order, orientation, preview position)";
+        description = "Layout options";
       };
 
       window = mkOption {
@@ -41,6 +47,12 @@ with lib;
         type = types.attrs;
         default = { };
         description = "Input box options";
+      };
+
+      input_prompt = mkOption {
+        type = types.attrs;
+        default = { };
+        description = "Input prompt options";
       };
 
       results = mkOption {
@@ -72,6 +84,20 @@ with lib;
         default = { };
         description = "Clock component options";
       };
+    };
+
+    menus = mkOption {
+      type = types.attrsOf types.attrs;
+      default = { };
+      description = "Extra menu configurations. Each attribute name will be the filename (param.ini) and value is the INI configuration.";
+      example = literalExpression ''
+        {
+          powermenu = {
+            input.visible = false;
+            launch.start_with = ":p";
+          };
+        }
+      '';
     };
 
     plugins = mkOption {

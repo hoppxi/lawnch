@@ -1,5 +1,7 @@
 #include "app/application.hpp"
 #include "cli/parser.hpp"
+#include "cli/pm.hpp"
+#include "cli/tm.hpp"
 #include "ipc/client.hpp"
 #include "ipc/server.hpp"
 #include <iostream>
@@ -9,6 +11,18 @@ using namespace Lawnch;
 
 int main(int argc, char **argv) {
   try {
+    if (argc > 1) {
+      std::string cmd = argv[1];
+      if (cmd == "pm") {
+        std::vector<std::string> args(argv + 2, argv + argc);
+        return CLI::PluginManager::handle_command(args);
+      }
+      if (cmd == "tm") {
+        std::vector<std::string> args(argv + 2, argv + argc);
+        return CLI::ThemeManager::handle_command(args);
+      }
+    }
+
     auto options = CLI::Parser::parse(argc, argv);
 
     if (options.help) {
@@ -47,7 +61,7 @@ int main(int argc, char **argv) {
     }
 
     App::Application app(std::move(ipc_server), options.config_path,
-                         options.verbosity);
+                         options.merge_config_path, options.verbosity);
     app.run();
   } catch (const std::exception &e) {
     std::cerr << "Fatal Error: " << e.what() << std::endl;

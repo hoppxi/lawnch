@@ -16,7 +16,7 @@ find_path(BLEND2D_INCLUDE_DIR NAMES blend2d.h PATH_SUFFIXES blend2d)
 find_library(BLEND2D_LIBRARY NAMES blend2d)
 
 if(NOT BLEND2D_INCLUDE_DIR OR NOT BLEND2D_LIBRARY)
-    message(FATAL_ERROR "Blend2D not found via find_path/find_library")
+  message(FATAL_ERROR "Blend2D not found via find_path/find_library")
 endif()
 
 message(STATUS "Blend2D Include: ${BLEND2D_INCLUDE_DIR}")
@@ -29,6 +29,7 @@ pkg_check_modules(WLR_PROTOCOLS REQUIRED wlr-protocols)
 find_path(NANOSVG_INCLUDE_DIR NAMES nanosvg.h PATH_SUFFIXES nanosvg)
 pkg_check_modules(INIH REQUIRED inih)
 pkg_check_modules(FONTCONFIG REQUIRED fontconfig)
+find_package(LawnchPluginApi REQUIRED)
 
 find_program(WAYLAND_SCANNER_EXECUTABLE wayland-scanner)
 if(NOT WAYLAND_SCANNER_EXECUTABLE)
@@ -100,6 +101,7 @@ target_include_directories(lawnch PRIVATE
   ${FONTCONFIG_INCLUDE_DIRS}
 )
 target_link_libraries(lawnch PRIVATE
+  Lawnch::LawnchPluginApi
   wayland_protocols
   ${WAYLAND_LIBRARIES}
   ${BLEND2D_LIBRARIES}

@@ -8,6 +8,7 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    lawnch-plugin-api.url = "path:./packages/lawnch-plugin-api";
   };
 
   outputs =
@@ -15,6 +16,7 @@
       self,
       nixpkgs,
       flake-utils,
+      lawnch-plugin-api,
       ...
     }:
     let
@@ -34,6 +36,8 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
 
+        lawnchPluginApi = lawnch-plugin-api.packages.${system}.default;
+
         nativeBuildPkgs = with pkgs; [
           gcc
           cmake
@@ -52,6 +56,7 @@
           fontconfig
           libffi
           expat
+          lawnchPluginApi
         ];
 
         lawnch-unwrapped = pkgs.stdenv.mkDerivation {
@@ -67,8 +72,8 @@
             mkdir -p $out/bin
             cp lawnch $out/bin/lawnch
 
-            mkdir -p $out/include/lawnch/plugins
-            cp $src/plugins/lawnch_plugin_api.h $out/include/lawnch/plugins/
+            mkdir -p $out/lib/lawnch/
+            cp -r $src/themes $out/lib/lawnch/
 
             runHook postInstall
           '';
@@ -80,6 +85,7 @@
       in
       {
         packages.default = lawnch;
+        packages.lawnch-plugin-api = lawnchPluginApi;
         packages.lawnch-unwrapped = lawnch-unwrapped;
 
         lib.knownPlugins = knownPlugins;
@@ -111,6 +117,7 @@
           inherit pkgs knownPlugins;
           lawnch = lawnchPackage;
           lawnch-unwrapped = lawnchUnwrappedPackage;
+          lawnch-plugin-api = self.packages.${system}.lawnch-plugin-api;
         } { inherit config lib; };
     };
 }

@@ -5,6 +5,7 @@
 #include "components/background.hpp"
 #include "components/clock.hpp"
 #include "components/input_box.hpp"
+#include "components/input_prompt.hpp"
 #include "components/preview.hpp"
 #include "components/results_container.hpp"
 #include "components/results_count.hpp"
@@ -21,6 +22,7 @@ Renderer::~Renderer() {}
 void Renderer::init_components() {
   components["background"] = std::make_unique<Components::Background>();
   components["input"] = std::make_unique<Components::InputBox>();
+  components["input_prompt"] = std::make_unique<Components::InputPrompt>();
   components["results_count"] = std::make_unique<Components::ResultsCount>();
   components["results"] = std::make_unique<Components::ResultsContainer>();
   components["preview"] = std::make_unique<Components::Preview>();
@@ -31,11 +33,21 @@ double estimate_component_height(const std::string &name,
                                  const Config::Config &cfg,
                                  const RenderState &state) {
   if (name == "input") {
+    if (!cfg.input_visible)
+      return 0;
     BLFont font = Lawnch::Gfx::get_font(
         cfg.input_font_family, cfg.input_font_size, cfg.input_font_weight);
     BLFontMetrics fm = font.metrics();
     return fm.ascent + fm.descent + cfg.input_padding.top +
            cfg.input_padding.bottom;
+  }
+  if (name == "input_prompt" && cfg.input_prompt_enable) {
+    BLFont font = Lawnch::Gfx::get_font(cfg.input_prompt_font_family,
+                                        cfg.input_prompt_font_size,
+                                        cfg.input_prompt_font_weight);
+    BLFontMetrics fm = font.metrics();
+    return fm.ascent + fm.descent + cfg.input_prompt_padding.top +
+           cfg.input_prompt_padding.bottom;
   }
   if (name == "results_count" && cfg.results_count_enable) {
     BLFont font = Lawnch::Gfx::get_font(cfg.results_count_font_family,
@@ -53,7 +65,7 @@ double estimate_component_height(const std::string &name,
            cfg.clock_padding.bottom;
   }
   if (name == "preview" && cfg.preview_enable && !state.results.empty()) {
-    return Components::Preview::get_height(cfg);
+    return Components::Preview::get_height(cfg, state);
   }
   return 0;
 }
@@ -116,7 +128,7 @@ void Renderer::render_vertical(BLContext &ctx, int width, int height,
     if (comp_name == "background")
       continue;
     if (comp_name == "results")
-      continue; // Results takes remaining space
+      continue;
     fixed_heights += estimate_component_height(comp_name, cfg, state);
   }
 
@@ -144,10 +156,46 @@ void Renderer::render_vertical(BLContext &ctx, int width, int height,
     if (comp_h <= 0)
       continue;
 
-    ComponentContext comp_ctx{ctx, width,     height,      cfg,   state,
-                              x,   current_y, available_w, comp_h};
-    auto result = it->second->draw(comp_ctx);
-    current_y += result.used_height;
+    if (comp_name == "input") {
+      if (!cfg.input_visible)
+        continue;
+      auto input_comp = it->second.get();
+      auto prompt_comp_it = components.find("input_prompt");
+      auto prompt_comp =
+          dynamic_cast<Components::InputPrompt *>(prompt_comp_it->second.get());
+
+      if (prompt_comp && cfg.input_prompt_enable) {
+        double prompt_width = prompt_comp->calculate_width(cfg);
+        double prompt_comp_h =
+            estimate_component_height("input_prompt", cfg, state);
+        double input_width = available_w - prompt_width;
+        bool prompt_on_left = cfg.input_prompt_position != "right";
+
+        double prompt_x = prompt_on_left ? x : x + input_width;
+        double input_x = prompt_on_left ? x + prompt_width : x;
+
+        ComponentContext prompt_ctx{ctx,       width,        height,
+                                    cfg,       state,        prompt_x,
+                                    current_y, prompt_width, prompt_comp_h};
+        prompt_comp->draw(prompt_ctx);
+
+        ComponentContext input_ctx{ctx,       width,       height,
+                                   cfg,       state,       input_x,
+                                   current_y, input_width, comp_h};
+        auto result = input_comp->draw(input_ctx);
+        current_y += result.used_height;
+      } else {
+        ComponentContext comp_ctx{ctx, width,     height,      cfg,   state,
+                                  x,   current_y, available_w, comp_h};
+        auto result = it->second->draw(comp_ctx);
+        current_y += result.used_height;
+      }
+    } else {
+      ComponentContext comp_ctx{ctx, width,     height,      cfg,   state,
+                                x,   current_y, available_w, comp_h};
+      auto result = it->second->draw(comp_ctx);
+      current_y += result.used_height;
+    }
   }
 }
 
@@ -215,10 +263,44 @@ void Renderer::render_with_side_preview(BLContext &ctx, int width, int height,
     if (comp_h <= 0)
       continue;
 
-    ComponentContext comp_ctx{ctx,       width,     height,    cfg,   state,
-                              content_x, current_y, content_w, comp_h};
-    auto result = it->second->draw(comp_ctx);
-    current_y += result.used_height;
+    if (comp_name == "input") {
+      auto input_comp = it->second.get();
+      auto prompt_comp_it = components.find("input_prompt");
+      auto prompt_comp =
+          dynamic_cast<Components::InputPrompt *>(prompt_comp_it->second.get());
+
+      if (prompt_comp && cfg.input_prompt_enable) {
+        double prompt_width = prompt_comp->calculate_width(cfg);
+        double prompt_comp_h =
+            estimate_component_height("input_prompt", cfg, state);
+        double input_width = content_w - prompt_width;
+        bool prompt_on_left = cfg.input_prompt_position != "right";
+
+        double prompt_x = prompt_on_left ? content_x : content_x + input_width;
+        double input_x = prompt_on_left ? content_x + prompt_width : content_x;
+
+        ComponentContext prompt_ctx{ctx,       width,        height,
+                                    cfg,       state,        prompt_x,
+                                    current_y, prompt_width, prompt_comp_h};
+        prompt_comp->draw(prompt_ctx);
+
+        ComponentContext input_ctx{ctx,       width,       height,
+                                   cfg,       state,       input_x,
+                                   current_y, input_width, comp_h};
+        auto result = input_comp->draw(input_ctx);
+        current_y += result.used_height;
+      } else {
+        ComponentContext comp_ctx{ctx,       width,     height,    cfg,   state,
+                                  content_x, current_y, content_w, comp_h};
+        auto result = it->second->draw(comp_ctx);
+        current_y += result.used_height;
+      }
+    } else {
+      ComponentContext comp_ctx{ctx,       width,     height,    cfg,   state,
+                                content_x, current_y, content_w, comp_h};
+      auto result = it->second->draw(comp_ctx);
+      current_y += result.used_height;
+    }
   }
 }
 

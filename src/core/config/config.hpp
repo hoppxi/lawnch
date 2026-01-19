@@ -24,8 +24,10 @@ struct Config {
   std::string launch_app_cmd;
   std::string launch_terminal_app_cmd;
   std::string launch_prefix;
+  std::string launch_start_with;
 
   // layout
+  std::string layout_theme;
   std::vector<std::string> layout_order;
   std::string layout_orientation;
   std::string layout_preview_position;
@@ -44,11 +46,9 @@ struct Config {
   bool window_exclusive_zone;
   bool window_ignore_exclusive_zones;
   std::string window_keyboard_interactivity;
-  std::string window_namespace;
-  std::string window_output;
-  bool window_hide_on_blur;
 
   // input
+  bool input_visible;
   std::string input_font_family;
   int input_font_size;
   std::string input_font_weight;
@@ -68,6 +68,20 @@ struct Config {
   Color input_border_color;
   std::string input_horizontal_align;
 
+  // input prompt
+  bool input_prompt_enable;
+  std::string input_prompt_content;
+  std::string input_prompt_position;
+  std::string input_prompt_font_family;
+  int input_prompt_font_size;
+  std::string input_prompt_font_weight;
+  Color input_prompt_text_color;
+  Color input_prompt_background_color;
+  int input_prompt_border_radius;
+  int input_prompt_border_width;
+  Color input_prompt_border_color;
+  Padding input_prompt_padding;
+
   // results
   Padding results_margin;
   Padding results_padding;
@@ -76,7 +90,7 @@ struct Config {
   Color results_border_color;
   int results_border_width;
   int results_border_radius;
-  bool results_scrollbar_enable;
+  bool results_enable_scrollbar;
   int results_scrollbar_width;
   int results_scrollbar_padding;
   int results_scrollbar_radius;
@@ -99,17 +113,17 @@ struct Config {
   int result_item_icon_size;
   int result_item_icon_padding_right;
   Padding result_item_padding;
-  int result_item_default_border_radius;
-  int result_item_default_border_width;
-  Color result_item_default_border_color;
-  Color result_item_default_background_color;
-  Color result_item_default_text_color;
+  int result_item_border_radius;
+  int result_item_border_width;
+  Color result_item_border_color;
+  Color result_item_background_color;
+  Color result_item_text_color;
   int result_item_selected_border_radius;
   int result_item_selected_border_width;
   Color result_item_selected_border_color;
   Color result_item_selected_background_color;
   Color result_item_selected_text_color;
-  bool result_item_highlight_enable;
+  bool result_item_enable_highlight;
   Color result_item_highlight_color;
   std::string result_item_highlight_font_weight;
   Color result_item_selected_highlight_color;
@@ -117,8 +131,13 @@ struct Config {
   // preview
   bool preview_enable;
   int preview_icon_size;
+  int preview_preview_image_size;
+  bool preview_hide_icon_if_fallback;
+  bool preview_fallback_icon;
   Padding preview_padding;
   Color preview_background_color;
+  int preview_vertical_spacing;
+  int preview_horizontal_spacing;
   std::vector<std::string> preview_show;
   std::string preview_name_font_family;
   int preview_name_font_size;
@@ -151,6 +170,10 @@ struct Config {
   // plugins
   std::vector<std::string> enabled_plugins;
   std::map<std::string, std::string> plugin_configs;
+
+  // bindings
+  std::string bindings_preset;
+  std::map<std::string, std::string> keybindings;
 };
 
 } // namespace Lawnch::Core::Config

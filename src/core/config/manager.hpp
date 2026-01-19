@@ -16,6 +16,7 @@ public:
   Manager &operator=(Manager &&) = delete;
 
   void Load(const std::string &path);
+  void Merge(const std::string &path);
 
   [[nodiscard]] const Config &Get() const;
 

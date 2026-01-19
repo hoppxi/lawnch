@@ -1,4 +1,5 @@
 #include "manager.hpp"
+#include "../../helpers/fs.hpp"
 #include "../../helpers/logger.hpp"
 #include "../../helpers/string.hpp"
 
@@ -6,6 +7,7 @@ extern "C" {
 #include <ini.h>
 }
 
+#include <filesystem>
 #include <functional>
 #include <mutex>
 #include <shared_mutex>
@@ -61,6 +63,9 @@ struct Manager::Impl {
     bindings.clear();
     config.enabled_plugins.clear();
     config.plugin_configs.clear();
+    config.keybindings.clear();
+
+    Bind("bindings", "preset", config.bindings_preset, std::string("default"));
 
     // general
     Bind("general", "icon_theme", config.general_icon_theme,
@@ -77,8 +82,11 @@ struct Manager::Impl {
     Bind("launch", "terminal_app_cmd", config.launch_terminal_app_cmd,
          std::string("{terminal} {terminal_exec_flag} {}"));
     Bind("launch", "prefix", config.launch_prefix, std::string(""));
+    Bind("launch", "start_with", config.launch_start_with, std::string(""));
 
     // layout
+    Bind("layout", "theme", config.layout_theme,
+         std::string("gruvbox-compact"));
     Bind("layout", "order", config.layout_order,
          std::vector<std::string>{"input", "results_count", "results",
                                   "preview"});
@@ -108,6 +116,7 @@ struct Manager::Impl {
          config.window_keyboard_interactivity, std::string("exclusive"));
 
     // input
+    Bind("input", "visible", config.input_visible, true);
     Bind("input", "font_family", config.input_font_family,
          std::string("sans-serif"));
     Bind("input", "font_size", config.input_font_size, 24);
@@ -136,6 +145,28 @@ struct Manager::Impl {
     Bind("input", "horizontal_align", config.input_horizontal_align,
          std::string("left"));
 
+    // input prompt
+    Bind("input_prompt", "enable", config.input_prompt_enable, false);
+    Bind("input_prompt", "content", config.input_prompt_content,
+         std::string(""));
+    Bind("input_prompt", "position", config.input_prompt_position,
+         std::string("left"));
+    Bind("input_prompt", "font_family", config.input_prompt_font_family,
+         std::string("sans-serif"));
+    Bind("input_prompt", "font_size", config.input_prompt_font_size, 14);
+    Bind("input_prompt", "font_weight", config.input_prompt_font_weight,
+         std::string("normal"));
+    Bind("input_prompt", "text_color", config.input_prompt_text_color,
+         {0.9, 0.9, 0.9, 1.0});
+    Bind("input_prompt", "background_color",
+         config.input_prompt_background_color, {0.0, 0.0, 0.0, 0.0});
+    Bind("input_prompt", "border_radius", config.input_prompt_border_radius, 0);
+    Bind("input_prompt", "border_width", config.input_prompt_border_width, 0);
+    Bind("input_prompt", "border_color", config.input_prompt_border_color,
+         {0.0, 0.0, 0.0, 0.0});
+    Bind("input_prompt", "padding", config.input_prompt_padding,
+         Lawnch::Config::Padding(0, 5, 0, 5));
+
     // results
     Bind("results", "margin", config.results_margin,
          Lawnch::Config::Padding(10, 0, 0, 0));
@@ -148,7 +179,7 @@ struct Manager::Impl {
          {0.0, 0.0, 0.0, 0.0});
     Bind("results", "border_width", config.results_border_width, 0);
     Bind("results", "border_radius", config.results_border_radius, 0);
-    Bind("results", "scrollbar_enable", config.results_scrollbar_enable, true);
+    Bind("results", "enable_scrollbar", config.results_enable_scrollbar, true);
     Bind("results", "scrollbar_width", config.results_scrollbar_width, 4);
     Bind("results", "scrollbar_padding", config.results_scrollbar_padding, 2);
     Bind("results", "scrollbar_radius", config.results_scrollbar_radius, 2);
@@ -184,16 +215,14 @@ struct Manager::Impl {
          config.result_item_icon_padding_right, 12);
     Bind("result_item", "padding", config.result_item_padding,
          Lawnch::Config::Padding(10));
-    Bind("result_item", "default_border_radius",
-         config.result_item_default_border_radius, 6);
-    Bind("result_item", "default_border_width",
-         config.result_item_default_border_width, 0);
-    Bind("result_item", "default_border_color",
-         config.result_item_default_border_color, {1.0, 1.0, 1.0, 0.1});
-    Bind("result_item", "default_background_color",
-         config.result_item_default_background_color, {0.0, 0.0, 0.0, 0.0});
-    Bind("result_item", "default_text_color",
-         config.result_item_default_text_color, {0.9, 0.9, 0.9, 1.0});
+    Bind("result_item", "border_radius", config.result_item_border_radius, 6);
+    Bind("result_item", "border_width", config.result_item_border_width, 0);
+    Bind("result_item", "border_color", config.result_item_border_color,
+         {1.0, 1.0, 1.0, 0.1});
+    Bind("result_item", "background_color", config.result_item_background_color,
+         {0.0, 0.0, 0.0, 0.0});
+    Bind("result_item", "text_color", config.result_item_text_color,
+         {0.9, 0.9, 0.9, 1.0});
     Bind("result_item", "selected_border_radius",
          config.result_item_selected_border_radius, 6);
     Bind("result_item", "selected_border_width",
@@ -204,7 +233,7 @@ struct Manager::Impl {
          config.result_item_selected_background_color, {1.0, 1.0, 1.0, 0.05});
     Bind("result_item", "selected_text_color",
          config.result_item_selected_text_color, {1.0, 1.0, 1.0, 1.0});
-    Bind("result_item", "highlight_enable", config.result_item_highlight_enable,
+    Bind("result_item", "enable_highlight", config.result_item_enable_highlight,
          false);
     Bind("result_item", "highlight_color", config.result_item_highlight_color,
          {1.0, 0.78, 0.0, 1.0});
@@ -220,6 +249,8 @@ struct Manager::Impl {
          Lawnch::Config::Padding(10));
     Bind("preview", "background_color", config.preview_background_color,
          {0.0, 0.0, 0.0, 0.0});
+    Bind("preview", "vertical_spacing", config.preview_vertical_spacing, 5);
+    Bind("preview", "horizontal_spacing", config.preview_horizontal_spacing, 5);
     Bind("preview", "show", config.preview_show,
          std::vector<std::string>{"icon", "name"});
     Bind("preview", "name_font_family", config.preview_name_font_family,
@@ -234,6 +265,12 @@ struct Manager::Impl {
          std::string("normal"));
     Bind("preview", "comment_color", config.preview_comment_color,
          {0.6, 0.6, 0.6, 1.0});
+
+    Bind("preview", "hide_icon_if_fallback",
+         config.preview_hide_icon_if_fallback, false);
+    Bind("preview", "fallback_icon", config.preview_fallback_icon, false);
+    Bind("preview", "preview_image_size", config.preview_preview_image_size,
+         64);
 
     // results count
     Bind("results_count", "enable", config.results_count_enable, false);
@@ -284,10 +321,16 @@ struct Manager::Impl {
     auto it = bindings.find(key);
     if (it != bindings.end()) {
       it->second(valStr);
-    } else {
-      Lawnch::Logger::log("Config", Lawnch::Logger::LogLevel::DEBUG,
-                          "Unknown config key: " + key);
+      return 1;
     }
+
+    if (secStr == "bindings") {
+      config.keybindings[nameStr] = valStr;
+      return 1;
+    }
+
+    Lawnch::Logger::log("Config", Lawnch::Logger::LogLevel::DEBUG,
+                        "Unknown config key: " + key);
     return 1;
   }
 };
@@ -314,16 +357,78 @@ void Manager::Load(const std::string &path) {
     return impl->HandleEntry(section, name, value);
   };
 
+  ini_parse(path.c_str(), handler, m_impl.get());
+  std::string theme_name = m_impl->config.layout_theme;
+
+  m_impl->SetDefaultsAndBindings();
+
+  std::filesystem::path themes_dir;
+  for (const auto &dir : Lawnch::Fs::get_data_dirs()) {
+    std::filesystem::path candidate =
+        std::filesystem::path(dir) / "lawnch" / "themes";
+    if (std::filesystem::exists(candidate)) {
+      themes_dir = candidate;
+      break;
+    }
+  }
+
+  if (themes_dir.empty()) {
+    std::filesystem::path user_themes =
+        Lawnch::Fs::get_data_home() / "lawnch" / "themes";
+    if (std::filesystem::exists(user_themes)) {
+      themes_dir = user_themes;
+    }
+  }
+
+  if (themes_dir.empty()) {
+    std::filesystem::path config_path(path);
+    std::filesystem::path config_sibling = config_path.parent_path() / "themes";
+    if (std::filesystem::exists(config_sibling)) {
+      themes_dir = config_sibling;
+    }
+  }
+
+  if (!themes_dir.empty() && !theme_name.empty()) {
+    std::filesystem::path theme_file = themes_dir / (theme_name + ".ini");
+    if (std::filesystem::exists(theme_file)) {
+      ini_parse(theme_file.string().c_str(), handler, m_impl.get());
+      Lawnch::Logger::log("Config", Lawnch::Logger::LogLevel::INFO,
+                          "Loaded theme: " + theme_name);
+    }
+  }
+
   int error = ini_parse(path.c_str(), handler, m_impl.get());
 
   if (error < 0) {
-    std::stringstream ss;
-    ss << "Unable to load config file '" << path << "'. Using defaults.";
-    Lawnch::Logger::log("Config", Lawnch::Logger::LogLevel::WARNING, ss.str());
+    Lawnch::Logger::log("Config", Lawnch::Logger::LogLevel::WARNING,
+                        "Unable to load config file '" + path +
+                            "'. Using defaults.");
   } else {
-    std::stringstream ss;
-    ss << "Configuration loaded successfully from '" << path << "'";
-    Lawnch::Logger::log("Config", Lawnch::Logger::LogLevel::INFO, ss.str());
+    Lawnch::Logger::log("Config", Lawnch::Logger::LogLevel::INFO,
+                        "Configuration loaded successfully from '" + path +
+                            "'");
+  }
+}
+
+void Manager::Merge(const std::string &path) {
+  std::unique_lock lock(m_impl->config_mutex);
+
+  auto handler = [](void *user, const char *section, const char *name,
+                    const char *value) -> int {
+    auto *impl = static_cast<Manager::Impl *>(user);
+    if (!impl || !section || !name || !value)
+      return 1;
+    return impl->HandleEntry(section, name, value);
+  };
+
+  int error = ini_parse(path.c_str(), handler, m_impl.get());
+  if (error < 0) {
+    Lawnch::Logger::log("Config", Lawnch::Logger::LogLevel::WARNING,
+                        "Unable to merge config file '" + path +
+                            "'. Skipping.");
+  } else {
+    Lawnch::Logger::log("Config", Lawnch::Logger::LogLevel::INFO,
+                        "Merged configuration from '" + path + "'");
   }
 }
 

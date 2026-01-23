@@ -365,20 +365,21 @@ void Manager::Load(const std::string &path) {
   m_impl->SetDefaultsAndBindings();
 
   std::filesystem::path themes_dir;
-  for (const auto &dir : Lawnch::Fs::get_data_dirs()) {
-    std::filesystem::path candidate =
-        std::filesystem::path(dir) / "lawnch" / "themes";
-    if (std::filesystem::exists(candidate)) {
-      themes_dir = candidate;
-      break;
-    }
+
+  std::filesystem::path user_themes =
+      Lawnch::Fs::get_data_home() / "lawnch" / "themes";
+  if (std::filesystem::exists(user_themes)) {
+    themes_dir = user_themes;
   }
 
   if (themes_dir.empty()) {
-    std::filesystem::path user_themes =
-        Lawnch::Fs::get_data_home() / "lawnch" / "themes";
-    if (std::filesystem::exists(user_themes)) {
-      themes_dir = user_themes;
+    for (const auto &dir : Lawnch::Fs::get_data_dirs()) {
+      std::filesystem::path candidate =
+          std::filesystem::path(dir) / "lawnch" / "themes";
+      if (std::filesystem::exists(candidate)) {
+        themes_dir = candidate;
+        break;
+      }
     }
   }
 

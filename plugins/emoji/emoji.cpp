@@ -47,7 +47,7 @@ void plugin_init(const LawnchHostApi *host) {
     return;
   }
 
-  fs::path emoji_path = fs::path(data_dir_path) / "assets" / "emoji.json";
+  fs::path emoji_path = fs::path(data_dir_path) / "emoji.json";
 
   std::ifstream f(emoji_path);
   if (f.good()) {

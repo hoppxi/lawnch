@@ -31,7 +31,7 @@ pkgs.stdenv.mkDerivation {
     mkdir -p $out/lib/lawnch/plugins/pinfo
     cp $src/pinfo $out/lib/lawnch/plugins/pinfo/${pluginName}
 
-    mkdir -p $out/lib/lawnch/assets
-    cp $src/emoji.json $out/lib/lawnch/assets
+    mkdir -p $out/lib/lawnch/plugins/assets
+    cp $src/emoji.json $out/lib/lawnch/plugins/assets/emoji.json
   '';
 }

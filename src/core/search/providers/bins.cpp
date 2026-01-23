@@ -32,10 +32,7 @@ std::vector<SearchResult> BinMode::query(const std::string &term) {
   std::call_once(path_init_flag, init_paths);
 
   std::vector<SearchResult> results;
-  results.reserve(20);
-
-  if (term.empty())
-    return results;
+  results.reserve(50);
 
   for (const auto &dir : cached_paths) {
     for (const auto &entry : fs::directory_iterator(dir)) {

@@ -16,7 +16,7 @@ private:
   static void uninstall(const std::string &name);
   static void list();
   static void switch_theme(const std::string &name);
-  static void validate(const std::string &path);
+  static bool validate(const std::string &path);
   static void current();
 };
 

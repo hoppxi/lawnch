@@ -1,6 +1,7 @@
 #include "manager.hpp"
 #include "../../../helpers/fs.hpp"
 #include "../../../helpers/logger.hpp"
+#include "../../../helpers/string.hpp"
 #include "adapter.hpp"
 #include <algorithm>
 #include <cstdlib>
@@ -21,42 +22,6 @@ struct PluginApiContext {
   const Config::Config &config;
   Manager *manager;
 };
-
-static std::string json_escape(const std::string &s) {
-  std::stringstream ss;
-  for (char c : s) {
-    switch (c) {
-    case '"':
-      ss << "\\\"";
-      break;
-    case '\\':
-      ss << "\\\\";
-      break;
-    case '\b':
-      ss << "\\b";
-      break;
-    case '\f':
-      ss << "\\f";
-      break;
-    case '\n':
-      ss << "\\n";
-      break;
-    case '\r':
-      ss << "\\r";
-      break;
-    case '\t':
-      ss << "\\t";
-      break;
-    default:
-      if ('\x00' <= c && c <= '\x1f') {
-        ss << "\\u" << std::hex << std::setw(4) << std::setfill('0') << (int)c;
-      } else {
-        ss << c;
-      }
-    }
-  }
-  return ss.str();
-}
 
 // C callback wrappers
 static const char *s_get_config_value(const LawnchHostApi *host,
@@ -82,12 +47,13 @@ static const char *s_get_data_dir(const LawnchHostApi *host) {
     return nullptr;
   }
   auto *context = static_cast<PluginApiContext *>(host->userdata);
-  return context->manager->get_data_dir().c_str();
+  static thread_local std::string data_dir_cache;
+  data_dir_cache = context->manager->get_plugin_data_dir(context->plugin_name);
+  return data_dir_cache.c_str();
 }
 
 Manager::Manager(const Config::Config &config) : m_config(config) {
   find_plugin_dirs();
-  find_data_dir();
 }
 
 Manager::~Manager() {
@@ -106,65 +72,25 @@ const std::vector<std::unique_ptr<SearchMode>> &Manager::get_plugins() const {
   return m_plugins;
 }
 
-const std::string &Manager::get_data_dir() const { return m_data_dir; }
-
-void Manager::find_data_dir() {
-
-#ifdef LAWNCH_DATA_DIR
-  if (fs::is_directory(fs::path(LAWNCH_DATA_DIR) / "assets")) {
-    m_data_dir = LAWNCH_DATA_DIR;
-    return;
+std::string Manager::get_plugin_data_dir(const std::string &plugin_name) const {
+  auto it = m_plugin_data_dirs.find(plugin_name);
+  if (it != m_plugin_data_dirs.end()) {
+    return it->second;
   }
-#endif
+  std::string data_dir = find_plugin_data_dir(plugin_name);
+  m_plugin_data_dirs[plugin_name] = data_dir;
+  return data_dir;
+}
 
-  const char *flatpak_dir = std::getenv("XDG_DATA_HOME");
-  std::filesystem::path xdg_data_home = Lawnch::Fs::get_data_home();
-  if (!xdg_data_home.empty()) {
-    fs::path user_data = fs::path(xdg_data_home) / "lawnch";
-    if (fs::is_directory(user_data / "assets")) {
-      m_data_dir = user_data.string();
-      return;
+std::string
+Manager::find_plugin_data_dir(const std::string &plugin_name) const {
+  for (const auto &dir : m_plugin_dirs) {
+    fs::path assets_path = fs::path(dir) / plugin_name / "assets";
+    if (fs::is_directory(assets_path)) {
+      return assets_path.string();
     }
   }
-
-  if (flatpak_dir) {
-    fs::path flatpak_path = fs::path(flatpak_dir).parent_path() / "app" /
-                            "com.github.hoppxi.lawnch" / "share" / "lawnch";
-    if (fs::is_directory(flatpak_path)) {
-      m_data_dir = flatpak_path.string();
-      return;
-    }
-  }
-
-  fs::path exe_path = fs::canonical("/proc/self/exe");
-  fs::path dev_path1 = exe_path.parent_path().parent_path() / "assets";
-  if (fs::is_directory(dev_path1)) {
-    m_data_dir = dev_path1.parent_path().string();
-    return;
-  }
-  fs::path dev_path2 =
-      exe_path.parent_path().parent_path().parent_path() / "assets";
-  if (fs::is_directory(dev_path2)) {
-    m_data_dir = dev_path2.parent_path().string();
-    return;
-  }
-
-  if (fs::is_directory("/usr/share/lawnch/assets")) {
-    m_data_dir = "/usr/share/lawnch";
-    return;
-  }
-  if (fs::is_directory("/usr/local/share/lawnch/assets")) {
-    m_data_dir = "/usr/local/share/lawnch";
-    return;
-  }
-
-  if (fs::is_directory("./assets")) {
-    m_data_dir = ".";
-    return;
-  }
-
-  Lawnch::Logger::log("PluginManager", Lawnch::Logger::LogLevel::WARNING,
-                      "Could not determine data directory.");
+  return "";
 }
 
 void Manager::find_plugin_dirs() {
@@ -173,26 +99,12 @@ void Manager::find_plugin_dirs() {
     m_plugin_dirs.push_back(env_path);
   }
 
-  if (fs::exists("build/plugins")) {
-    m_plugin_dirs.push_back("build/plugins");
-  }
+  fs::path user_plugins = Lawnch::Fs::get_data_home() / "lawnch" / "plugins";
+  m_plugin_dirs.push_back(user_plugins.string());
 
-  std::filesystem::path xdg_data_home = Lawnch::Fs::get_data_home();
-  if (!xdg_data_home.empty()) {
-    fs::path user_plugins = fs::path(xdg_data_home) / "lawnch" / "plugins";
-    if (fs::is_directory(user_plugins)) {
-      m_plugin_dirs.push_back(user_plugins.string());
-    }
-  }
-
-  fs::path system_plugins1 = "/usr/lib/lawnch/plugins";
-  if (fs::is_directory(system_plugins1)) {
-    m_plugin_dirs.push_back(system_plugins1.string());
-  }
-
-  fs::path system_plugins2 = "/usr/local/lib/lawnch/plugins";
-  if (fs::is_directory(system_plugins2)) {
-    m_plugin_dirs.push_back(system_plugins2.string());
+  for (const auto &data_dir : Lawnch::Fs::get_data_dirs()) {
+    fs::path system_plugins = fs::path(data_dir) / "lawnch" / "plugins";
+    m_plugin_dirs.push_back(system_plugins.string());
   }
 }
 
@@ -412,7 +324,7 @@ void Manager::load_plugin(const std::string &name) {
   std::string found_path;
 
   for (const auto &dir : m_plugin_dirs) {
-    std::string path = fs::path(dir) / (name + ".so");
+    std::string path = (fs::path(dir) / name / (name + ".so")).string();
     if (fs::exists(path)) {
       handle = dlopen(path.c_str(), RTLD_LAZY);
       if (handle) {

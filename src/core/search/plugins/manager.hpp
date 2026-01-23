@@ -23,19 +23,19 @@ public:
   const std::vector<std::unique_ptr<SearchMode>> &get_plugins() const;
   SearchMode *find_plugin(const std::string &trigger);
 
-  const std::string &get_data_dir() const;
+  std::string get_plugin_data_dir(const std::string &plugin_name) const;
 
 private:
   void load_plugins();
   void ensure_plugins_loaded();
   void load_plugin(const std::string &name);
   void find_plugin_dirs();
-  void find_data_dir();
+  std::string find_plugin_data_dir(const std::string &plugin_name) const;
 
   bool plugins_loaded = false;
   const Config::Config &m_config;
-  std::string m_data_dir;
   std::vector<std::string> m_plugin_dirs;
+  mutable std::map<std::string, std::string> m_plugin_data_dirs;
   std::vector<void *> m_handles;
 
   std::vector<std::unique_ptr<SearchMode>> m_plugins;

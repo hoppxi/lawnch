@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace Lawnch::CLI {
@@ -13,7 +14,7 @@ struct PluginInfo {
   std::string url;
   std::string src_dir;
   std::vector<std::string> dependencies;
-  std::vector<std::string> assets;
+  std::vector<std::pair<std::string, std::string>> assets; // {source, dest}
 };
 
 class PluginManager {

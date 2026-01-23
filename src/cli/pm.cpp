@@ -99,6 +99,47 @@ PluginManager::parse_plugin_info(const std::string &plugin_dir_or_file) {
       continue;
     }
 
+    // Assets section: lines are paths, not key=value
+    if (current_section == "assets") {
+      // Trim whitespace
+      auto start = line.find_first_not_of(" \t");
+      auto end = line.find_last_not_of(" \t");
+      if (start == std::string::npos)
+        continue;
+      std::string asset_line = line.substr(start, end - start + 1);
+
+      std::string src, dest;
+      auto arrow_pos = asset_line.find("->");
+      if (arrow_pos != std::string::npos) {
+        src = asset_line.substr(0, arrow_pos);
+        dest = asset_line.substr(arrow_pos + 2);
+        // Trim whitespace from src and dest
+        src.erase(src.find_last_not_of(" \t") + 1);
+        src.erase(0, src.find_first_not_of(" \t"));
+        dest.erase(dest.find_last_not_of(" \t") + 1);
+        dest.erase(0, dest.find_first_not_of(" \t"));
+      } else {
+        src = asset_line;
+        // Use just the filename as destination
+        dest = std::filesystem::path(asset_line).filename().string();
+      }
+
+      // Normalize src path: remove leading ./ if present
+      if (src.rfind("./", 0) == 0) {
+        src = src.substr(2);
+      }
+      // Handle leading / as relative to plugin root, not system root
+      if (!src.empty() && src[0] == '/') {
+        src = src.substr(1);
+      }
+
+      if (!src.empty()) {
+        info.assets.push_back({src, dest});
+      }
+      continue;
+    }
+
+    // Other sections use key=value format
     auto delimiterPos = line.find('=');
     if (delimiterPos == std::string::npos)
       continue;
@@ -120,9 +161,6 @@ PluginManager::parse_plugin_info(const std::string &plugin_dir_or_file) {
     } else if (current_section == "build") {
       if (key == "src")
         info.src_dir = value;
-    } else if (current_section == "assets") {
-      if (!key.empty())
-        info.assets.push_back(key);
     } else if (current_section == "dependencies") {
       if (!key.empty())
         info.dependencies.push_back(key);
@@ -219,31 +257,39 @@ void PluginManager::install(const std::string &plugin_dir) {
   }
 
   std::filesystem::path data_home = Lawnch::Fs::get_data_home();
-  std::filesystem::path install_dir = data_home / "lawnch" / "plugins";
-  std::filesystem::path pinfo_install_dir = install_dir / "pinfo";
-  std::filesystem::path assets_install_dir =
-      data_home / "lawnch" / "assets" / plugin_name;
+  std::filesystem::path plugin_install_dir =
+      data_home / "lawnch" / "plugins" / plugin_name;
+  std::filesystem::path assets_install_dir = plugin_install_dir / "assets";
 
   std::cout << "--- Installing plugin '" << plugin_name << "' ---\n";
-  std::filesystem::create_directories(install_dir);
-  std::filesystem::create_directories(pinfo_install_dir);
+  std::filesystem::create_directories(plugin_install_dir);
 
-  std::filesystem::copy_file(so_file, install_dir / (plugin_name + ".so"),
+  std::filesystem::copy_file(so_file,
+                             plugin_install_dir / (plugin_name + ".so"),
                              std::filesystem::copy_options::overwrite_existing);
 
-  std::filesystem::copy_file(path / "pinfo", pinfo_install_dir / plugin_name,
+  std::filesystem::copy_file(path / "pinfo", plugin_install_dir / "pinfo",
                              std::filesystem::copy_options::overwrite_existing);
 
   if (!info.assets.empty()) {
     std::filesystem::create_directories(assets_install_dir);
-    for (const auto &asset : info.assets) {
-      std::filesystem::path asset_src = path / asset;
+    for (const auto &[src, dest] : info.assets) {
+      std::filesystem::path asset_src = path / src;
+      std::filesystem::path asset_dest = assets_install_dir / dest;
       if (std::filesystem::exists(asset_src)) {
-        std::filesystem::copy_file(
-            asset_src, assets_install_dir / asset_src.filename(),
-            std::filesystem::copy_options::overwrite_existing);
+        std::filesystem::create_directories(asset_dest.parent_path());
+        if (std::filesystem::is_directory(asset_src)) {
+          std::filesystem::copy(
+              asset_src, asset_dest,
+              std::filesystem::copy_options::recursive |
+                  std::filesystem::copy_options::overwrite_existing);
+        } else {
+          std::filesystem::copy_file(
+              asset_src, asset_dest,
+              std::filesystem::copy_options::overwrite_existing);
+        }
       } else {
-        std::cerr << "Warning: Asset " << asset << " not found at " << asset_src
+        std::cerr << "Warning: Asset " << src << " not found at " << asset_src
                   << "\n";
       }
     }
@@ -255,10 +301,10 @@ void PluginManager::install(const std::string &plugin_dir) {
 }
 
 void PluginManager::uninstall(const std::string &plugin_name) {
-  std::filesystem::path install_path = Lawnch::Fs::get_data_home() / "lawnch" /
-                                       "plugins" / (plugin_name + ".so");
-  if (std::filesystem::exists(install_path)) {
-    std::filesystem::remove(install_path);
+  std::filesystem::path plugin_dir =
+      Lawnch::Fs::get_data_home() / "lawnch" / "plugins" / plugin_name;
+  if (std::filesystem::exists(plugin_dir)) {
+    std::filesystem::remove_all(plugin_dir);
     std::cout << "Plugin '" << plugin_name << "' uninstalled.\n";
   } else {
     std::cerr << "Plugin '" << plugin_name << "' not found.\n";
@@ -275,8 +321,8 @@ void PluginManager::list(const std::string &filter) {
 
   std::cout << "Installed plugins:\n";
   for (const auto &entry : std::filesystem::directory_iterator(install_dir)) {
-    if (entry.path().extension() == ".so") {
-      std::string name = entry.path().stem().string();
+    if (entry.is_directory()) {
+      std::string name = entry.path().filename().string();
       std::cout << "  - " << name << "\n";
     }
   }
@@ -333,7 +379,7 @@ void PluginManager::disable(const std::string &plugin_name) {
 
 void PluginManager::info(const std::string &plugin_name) {
   std::filesystem::path pinfo_path = Lawnch::Fs::get_data_home() / "lawnch" /
-                                     "plugins" / "pinfo" / plugin_name;
+                                     "plugins" / plugin_name / "pinfo";
 
   if (!std::filesystem::exists(pinfo_path) &&
       std::filesystem::is_directory(plugin_name)) {

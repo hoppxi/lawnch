@@ -36,7 +36,7 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
 
-        lawnchPluginApi = lawnch-plugin-api.packages.${system}.default;
+        lawnch-plugin-api-pkg = lawnch-plugin-api.packages.${system}.default;
 
         nativeBuildPkgs = with pkgs; [
           gcc
@@ -56,7 +56,7 @@
           fontconfig
           libffi
           expat
-          lawnchPluginApi
+          lawnch-plugin-api-pkg
         ];
 
         lawnch-unwrapped = pkgs.stdenv.mkDerivation {
@@ -66,6 +66,8 @@
 
           nativeBuildInputs = nativeBuildPkgs;
           buildInputs = buildPkgs;
+
+          enableParallelBuilding = true;
 
           installPhase = ''
             runHook preInstall
@@ -85,7 +87,7 @@
       in
       {
         packages.default = lawnch;
-        packages.lawnch-plugin-api = lawnchPluginApi;
+        packages.lawnch-plugin-api = lawnch-plugin-api-pkg;
         packages.lawnch-unwrapped = lawnch-unwrapped;
 
         lib.knownPlugins = knownPlugins;

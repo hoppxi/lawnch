@@ -13,6 +13,10 @@ int main(int argc, char **argv) {
   try {
     if (argc > 1) {
       std::string cmd = argv[1];
+      if (cmd == "help") {
+        CLI::Parser::print_help();
+        return 0;
+      }
       if (cmd == "pm") {
         std::vector<std::string> args(argv + 2, argv + argc);
         return CLI::PluginManager::handle_command(args);

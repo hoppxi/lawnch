@@ -78,9 +78,15 @@ Application::Application(std::unique_ptr<IPC::Server> server,
   history.set_max_size(config_manager.Get().general_history_max_size);
 
   search_engine = std::make_unique<Core::Search::Engine>(*plugin_manager);
-  if (!config_manager.Get().launch_start_with.empty()) {
-    search_engine->set_forced_mode(config_manager.Get().launch_start_with);
+
+  if (!config_manager.Get().launch_context.empty()) {
+    search_engine->set_forced_mode(config_manager.Get().launch_context);
   }
+
+  if (!config_manager.Get().launch_start_with.empty()) {
+    search_engine->set_initial_mode(config_manager.Get().launch_start_with);
+  }
+
   search_engine->set_async_callback(
       [this](auto res) { this->on_search_results(res); });
 
@@ -119,9 +125,7 @@ Application::Application(std::unique_ptr<IPC::Server> server,
   layer_surface->on_configure = [this](int w, int h) { this->resize(w, h); };
   layer_surface->on_closed = [this]() { this->stop(); };
 
-  if (!config_manager.Get().launch_start_with.empty()) {
-    on_search_results(search_engine->query(""));
-  }
+  on_search_results(search_engine->query(""));
 
   Logger::log("App", Logger::LogLevel::INFO, "Initialization Complete");
 }

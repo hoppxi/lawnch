@@ -35,6 +35,14 @@ void Engine::set_forced_mode(const std::string &trigger) {
   }
 }
 
+void Engine::set_initial_mode(const std::string &trigger) {
+  if (trigger.empty()) {
+    initial_trigger = std::nullopt;
+  } else {
+    initial_trigger = trigger;
+  }
+}
+
 bool Engine::check_trigger(const std::string &term,
                            const std::vector<std::string> &triggers,
                            std::string &out_query) {
@@ -69,18 +77,14 @@ std::vector<SearchResult> Engine::query(const std::string &term) {
               });
   };
 
-  if (term.empty() && !forced_trigger.has_value())
-    return {};
-
   plugin_manager.ensure_plugin_for_trigger(term);
 
   std::string sub_query;
 
   if (forced_trigger.has_value()) {
     plugin_manager.ensure_plugin_for_trigger(forced_trigger.value());
-    int p_count = 0;
+
     for (const auto &plugin : plugin_manager.get_plugins()) {
-      p_count++;
       if (check_trigger(forced_trigger.value(), plugin->get_triggers(),
                         sub_query)) {
         results = plugin->query(term);
@@ -89,13 +93,46 @@ std::vector<SearchResult> Engine::query(const std::string &term) {
       }
     }
 
-    Lawnch::Logger::log("Engine", Lawnch::Logger::LogLevel::ERROR,
-                        "CRITICAL: Forced plugin trigger '" +
-                            forced_trigger.value() +
-                            "' configured but no matching plugin found among " +
-                            std::to_string(p_count) + " loaded plugins.");
+    for (auto &mode : modes) {
+      if (check_trigger(forced_trigger.value(), mode->get_triggers(),
+                        sub_query)) {
+        results = mode->query(term);
+        sort_results(results);
+        return results;
+      }
+    }
 
+    Lawnch::Logger::log(
+        "Engine", Lawnch::Logger::LogLevel::ERROR,
+        "CRITICAL: Forced context trigger '" + forced_trigger.value() +
+            "' configured but no matching plugin or provider found.");
     return {};
+  }
+
+  if (term.empty() && initial_trigger.has_value()) {
+    plugin_manager.ensure_plugin_for_trigger(initial_trigger.value());
+
+    for (const auto &plugin : plugin_manager.get_plugins()) {
+      if (check_trigger(initial_trigger.value(), plugin->get_triggers(),
+                        sub_query)) {
+        results = plugin->query("");
+        sort_results(results);
+        return results;
+      }
+    }
+
+    for (auto &mode : modes) {
+      if (check_trigger(initial_trigger.value(), mode->get_triggers(),
+                        sub_query)) {
+        results = mode->query("");
+        sort_results(results);
+        return results;
+      }
+    }
+
+    Lawnch::Logger::log("Engine", Lawnch::Logger::LogLevel::WARNING,
+                        "Initial context trigger '" + initial_trigger.value() +
+                            "' not found, falling back to default.");
   }
 
   if (term.empty())
@@ -137,6 +174,33 @@ std::vector<SearchResult> Engine::query(const std::string &term) {
     }
   }
 
+  if (initial_trigger.has_value()) {
+    plugin_manager.ensure_plugin_for_trigger(initial_trigger.value());
+
+    for (const auto &plugin : plugin_manager.get_plugins()) {
+      if (check_trigger(initial_trigger.value(), plugin->get_triggers(),
+                        sub_query)) {
+        results = plugin->query(term);
+        sort_results(results);
+        return results;
+      }
+    }
+
+    for (auto &mode : modes) {
+      if (check_trigger(initial_trigger.value(), mode->get_triggers(),
+                        sub_query)) {
+        results = mode->query(term);
+        sort_results(results);
+        return results;
+      }
+    }
+
+    Lawnch::Logger::log(
+        "Engine", Lawnch::Logger::LogLevel::WARNING,
+        "Initial context trigger '" + initial_trigger.value() +
+            "' not found for query, falling back to default search.");
+  }
+
   for (auto &mode : modes) {
     if (dynamic_cast<Providers::AppMode *>(mode.get())) {
       auto r = mode->query(term);
@@ -151,12 +215,6 @@ std::vector<SearchResult> Engine::query(const std::string &term) {
         results.insert(results.end(), r.begin(), r.end());
       }
     }
-  }
-
-  if (term.rfind(":", 0) == 0 && term.length() > 1) {
-    Lawnch::Logger::log("Engine", Lawnch::Logger::LogLevel::WARNING,
-                        "Potential plugin trigger '" + term +
-                            "' detected but no plugin handled it.");
   }
 
   sort_results(results);

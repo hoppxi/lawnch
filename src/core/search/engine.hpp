@@ -16,6 +16,7 @@ public:
 
   void set_async_callback(ResultsCallback callback);
   void set_forced_mode(const std::string &trigger);
+  void set_initial_mode(const std::string &trigger);
   std::vector<SearchResult> query(const std::string &term);
 
   void record_usage(const std::string &command);
@@ -30,6 +31,7 @@ private:
                      std::string &out_query);
 
   std::optional<std::string> forced_trigger;
+  std::optional<std::string> initial_trigger;
 };
 
 } // namespace Lawnch::Core::Search

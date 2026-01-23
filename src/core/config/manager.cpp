@@ -82,7 +82,9 @@ struct Manager::Impl {
     Bind("launch", "terminal_app_cmd", config.launch_terminal_app_cmd,
          std::string("{terminal} {terminal_exec_flag} {}"));
     Bind("launch", "prefix", config.launch_prefix, std::string(""));
-    Bind("launch", "start_with", config.launch_start_with, std::string(""));
+    Bind("launch", "context", config.launch_context, std::string(""));
+    Bind("launch", "start_with", config.launch_start_with,
+         std::string(":apps"));
 
     // layout
     Bind("layout", "theme", config.layout_theme,

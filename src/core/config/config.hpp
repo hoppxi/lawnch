@@ -24,6 +24,7 @@ struct Config {
   std::string launch_app_cmd;
   std::string launch_terminal_app_cmd;
   std::string launch_prefix;
+  std::string launch_context;
   std::string launch_start_with;
 
   // layout

@@ -32,7 +32,7 @@ install(EXPORT LawnchPluginApiTargets
 include(CMakePackageConfigHelpers)
 write_basic_package_version_file(
   "LawnchPluginApiConfigVersion.cmake"
-  VERSION 0.1.0
+  VERSION 0.1.1
   COMPATIBILITY SameMajorVersion
 )
 

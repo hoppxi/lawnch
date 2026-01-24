@@ -75,6 +75,7 @@ struct Manager::Impl {
          std::string("-e"));
     Bind("general", "editor", config.general_editor, std::string("auto"));
     Bind("general", "history_max_size", config.general_history_max_size, 100);
+    Bind("general", "history", config.general_history, true);
     Bind("general", "locale", config.general_locale, std::string(""));
 
     // launch

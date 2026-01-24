@@ -14,6 +14,8 @@ struct SearchResult {
   std::string type;
   std::string preview_image_path;
   int score = 0;
+  bool track_history = true;
+  bool use_custom_sort = false;
 };
 
 using ResultsCallback = std::function<void(const std::vector<SearchResult> &)>;
@@ -32,6 +34,8 @@ public:
   virtual void set_async_callback(ResultsCallback callback) {
     async_callback = callback;
   }
+  virtual bool allow_history() const { return true; }
+  virtual bool is_custom_sorted() const { return false; }
 
 protected:
   ResultsCallback async_callback = nullptr;

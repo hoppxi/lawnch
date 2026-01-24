@@ -1,16 +1,19 @@
-#include "lawnch_plugin_api.h"
+#include "PluginBase.hpp"
+#include <atomic>
+#include <condition_variable>
 #include <cstring>
 #include <curl/curl.h>
+#include <deque>
+#include <map>
+#include <mutex>
+#include <regex>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace {
-char *c_strdup(const std::string &s) {
-  char *cstr = new char[s.length() + 1];
-  std::strcpy(cstr, s.c_str());
-  return cstr;
-}
 
+// Helper to encode URLs
 std::string url_encode(const std::string &value) {
   CURL *curl = curl_easy_init();
   if (curl) {
@@ -26,72 +29,200 @@ std::string url_encode(const std::string &value) {
   return "";
 }
 
-std::vector<LawnchResult> do_google_query(const std::string &term) {
-  std::string display = term.empty() ? "Type to search Google..." : term;
-  std::string encoded_term = url_encode(term);
-  std::string command =
-      "xdg-open \"https://www.google.com/search?q=" + encoded_term + "\"";
+// Curl Write Callback
+size_t write_callback(void *contents, size_t size, size_t nmemb,
+                      std::string *s) {
+  size_t newLength = size * nmemb;
+  try {
+    s->append((char *)contents, newLength);
+  } catch (std::bad_alloc &e) {
+    return 0;
+  }
+  return newLength;
+}
 
-  return {{c_strdup(display.c_str()), c_strdup("Search Google (Enter to open)"),
-           c_strdup("web-browser"), c_strdup(command.c_str()),
-           c_strdup("google"), c_strdup("")}};
+// Parse Google JSON: ["query", ["sug1", "sug2", ...], ...]
+std::vector<std::string> parse_google_json(const std::string &json) {
+  std::vector<std::string> suggestions;
+
+  // Find the start of the second array (the suggestions list)
+  // Pattern: [ "query", [ "sug1", "sug2"
+  size_t outer_bracket = json.find('[');
+  if (outer_bracket == std::string::npos)
+    return suggestions;
+
+  size_t inner_start = json.find('[', outer_bracket + 1);
+  if (inner_start == std::string::npos)
+    return suggestions;
+
+  size_t inner_end = json.find(']', inner_start);
+  if (inner_end == std::string::npos)
+    return suggestions;
+
+  std::string list_str =
+      json.substr(inner_start + 1, inner_end - inner_start - 1);
+
+  // Simple manual CSV parsing specifically for Google's format
+  // We can't just split by comma because commas can be inside quotes.
+  bool in_quote = false;
+  std::string current;
+  for (size_t i = 0; i < list_str.length(); ++i) {
+    char c = list_str[i];
+    if (c == '"') {
+      in_quote = !in_quote;
+    } else if (c == ',' && !in_quote) {
+      if (!current.empty()) {
+        suggestions.push_back(current);
+        current.clear();
+      }
+    } else {
+      current += c;
+    }
+  }
+  if (!current.empty())
+    suggestions.push_back(current);
+
+  return suggestions;
 }
 
 } // namespace
 
-void plugin_init(const LawnchHostApi *host) {}
-void plugin_destroy(void) {}
+class GooglePlugin : public lawnch::Plugin {
+private:
+  std::map<std::string, std::vector<std::string>> cache_;
+  std::deque<std::string> query_queue_;
+  std::mutex mutex_;
+  std::condition_variable cv_;
+  std::atomic<bool> running_{false};
+  std::thread worker_thread_;
 
-const char **plugin_get_triggers(void) {
-  static const char *triggers[] = {":google", ":g", nullptr};
-  return triggers;
-}
+  void worker_loop() {
+    while (running_) {
+      std::string query;
+      {
+        std::unique_lock<std::mutex> lock(mutex_);
+        cv_.wait(lock, [this] { return !query_queue_.empty() || !running_; });
 
-LawnchResult *plugin_get_help(void) {
-  auto result = new LawnchResult;
-  result->name = c_strdup(":google / :g");
-  result->comment = c_strdup("Search Google");
-  result->icon = c_strdup("web-browser");
-  result->command = c_strdup("");
-  result->type = c_strdup("help");
-  result->preview_image_path = c_strdup("");
-  return result;
-}
+        if (!running_)
+          break;
 
-void plugin_free_results(LawnchResult *results, int num_results) {
-  if (!results)
-    return;
-  for (int i = 0; i < num_results; ++i) {
-    delete[] results[i].name;
-    delete[] results[i].comment;
-    delete[] results[i].icon;
-    delete[] results[i].command;
-    delete[] results[i].type;
-    delete[] results[i].preview_image_path;
+        query = query_queue_.front();
+        query_queue_.pop_front();
+
+        if (cache_.count(query))
+          continue;
+      }
+
+      CURL *curl = curl_easy_init();
+      if (curl) {
+        std::string encoded = url_encode(query);
+        std::string url = "http://suggestqueries.google.com/complete/"
+                          "search?client=firefox&q=" +
+                          encoded;
+        std::string response_string;
+
+        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
+        curl_easy_setopt(curl, CURLOPT_TIMEOUT, 2L);
+
+        CURLcode res = curl_easy_perform(curl);
+        curl_easy_cleanup(curl);
+
+        if (res == CURLE_OK && !response_string.empty()) {
+          auto sugs = parse_google_json(response_string);
+
+          {
+            std::lock_guard<std::mutex> lock(mutex_);
+            cache_[query] = sugs;
+          }
+        }
+      }
+    }
   }
-  delete[] results;
-}
 
-LawnchResult *plugin_query(const char *term, int *num_results) {
-  auto results_vec = do_google_query(term);
-  *num_results = results_vec.size();
-  if (*num_results == 0) {
-    return nullptr;
+  std::vector<lawnch::Result> do_google_query(const std::string &term) {
+    std::string query_str = term;
+    std::string display =
+        query_str.empty() ? "Type to search Google..." : query_str;
+
+    std::vector<lawnch::Result> results;
+
+    std::string encoded_term = url_encode(query_str);
+    std::string command =
+        "xdg-open \"https://www.google.com/search?q=" + encoded_term + "\"";
+
+    lawnch::Result r;
+    r.name = display;
+    r.comment = "Search Google (Enter to open)";
+    r.icon = "web-browser";
+    r.command = command;
+    r.type = "google";
+    results.push_back(r);
+
+    bool cache_hit = false;
+    std::vector<std::string> cached_sugs;
+
+    if (!query_str.empty()) {
+      std::lock_guard<std::mutex> lock(mutex_);
+      if (cache_.count(query_str)) {
+        cached_sugs = cache_[query_str];
+        cache_hit = true;
+      } else {
+        query_queue_.push_back(query_str);
+        cv_.notify_one();
+      }
+    }
+
+    if (cache_hit) {
+      for (const auto &sug : cached_sugs) {
+        std::string sug_cmd =
+            "xdg-open \"https://www.google.com/search?q=" + url_encode(sug) +
+            "\"";
+
+        lawnch::Result sr;
+        sr.name = sug;
+        sr.comment = "Google Suggestion";
+        sr.icon = "system-search";
+        sr.command = sug_cmd;
+        sr.type = "google-suggest";
+        results.push_back(sr);
+      }
+    }
+    return results;
   }
-  auto result_arr = new LawnchResult[*num_results];
-  for (size_t i = 0; i < results_vec.size(); ++i) {
-    result_arr[i] = results_vec[i];
+
+public:
+  void init(const LawnchHostApi *host) override {
+    Plugin::init(host);
+    curl_global_init(CURL_GLOBAL_ALL);
+    running_ = true;
+    worker_thread_ = std::thread(&GooglePlugin::worker_loop, this);
   }
-  return result_arr;
-}
 
-static LawnchPluginVTable g_vtable = {.plugin_api_version =
-                                          LAWNCH_PLUGIN_API_VERSION,
-                                      .init = plugin_init,
-                                      .destroy = plugin_destroy,
-                                      .get_triggers = plugin_get_triggers,
-                                      .get_help = plugin_get_help,
-                                      .query = plugin_query,
-                                      .free_results = plugin_free_results};
+  void destroy() override {
+    running_ = false;
+    cv_.notify_all();
+    if (worker_thread_.joinable()) {
+      worker_thread_.join();
+    }
+    curl_global_cleanup();
+  }
 
-PLUGIN_API LawnchPluginVTable *lawnch_plugin_entry(void) { return &g_vtable; }
+  std::vector<std::string> get_triggers() override { return {":google", ":g"}; }
+
+  lawnch::Result get_help() override {
+    lawnch::Result r;
+    r.name = ":google / :g";
+    r.comment = "Search Google";
+    r.icon = "web-browser";
+    r.type = "help";
+    return r;
+  }
+
+  std::vector<lawnch::Result> query(const std::string &term) override {
+    return do_google_query(term);
+  }
+};
+
+LAWNCH_PLUGIN_DEFINE(GooglePlugin)

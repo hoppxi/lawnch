@@ -268,7 +268,15 @@ void Application::on_search_results(
 
 void Application::on_keyboard_execute(std::string cmd) {
   if (!cmd.empty()) {
-    search_engine->record_usage(cmd);
+    int idx = keyboard->get_selected_index();
+    bool should_record = true;
+    if (idx >= 0 && idx < (int)current_results.size()) {
+      should_record = current_results[idx].track_history;
+    }
+
+    if (should_record) {
+      search_engine->record_usage(cmd);
+    }
     const auto &cfg = config_manager.Get();
     std::string final_cmd = cmd;
     if (!cfg.launch_prefix.empty()) {

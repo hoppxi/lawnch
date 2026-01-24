@@ -19,8 +19,12 @@ public:
   SearchResult get_help() const override;
   std::vector<SearchResult> query(const std::string &term) override;
 
+  bool allow_history() const override;
+  bool is_custom_sorted() const override;
+
 private:
   LawnchPluginVTable *vtable;
+  uint32_t flags = 0;
 };
 
 } // namespace Lawnch::Core::Search::Plugins

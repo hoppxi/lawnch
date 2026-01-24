@@ -2,7 +2,19 @@
 
 namespace Lawnch::Core::Search::Plugins {
 
-Adapter::Adapter(LawnchPluginVTable *vt) : vtable(vt) {}
+Adapter::Adapter(LawnchPluginVTable *vt) : vtable(vt) {
+  if (vtable && vtable->plugin_api_version >= 5) {
+    flags = vtable->flags;
+  }
+}
+
+bool Adapter::allow_history() const {
+  return !(flags & LAWNCH_PLUGIN_FLAG_DISABLE_HISTORY);
+}
+
+bool Adapter::is_custom_sorted() const {
+  return (flags & LAWNCH_PLUGIN_FLAG_DISABLE_SORT);
+}
 
 Adapter::~Adapter() {
   if (vtable && vtable->destroy) {
@@ -55,14 +67,11 @@ std::vector<SearchResult> Adapter::query(const std::string &term) {
     results.reserve(count);
     for (int i = 0; i < count; ++i) {
       results.push_back(SearchResult{
-          res[i].name ? res[i].name : "",
-          res[i].comment ? res[i].comment : "",
-          res[i].icon ? res[i].icon : "",
-          res[i].command ? res[i].command : "",
+          res[i].name ? res[i].name : "", res[i].comment ? res[i].comment : "",
+          res[i].icon ? res[i].icon : "", res[i].command ? res[i].command : "",
           res[i].type ? res[i].type : "",
-          res[i].preview_image_path ? res[i].preview_image_path : "",
-          0,
-      });
+          res[i].preview_image_path ? res[i].preview_image_path : "", 0,
+          allow_history(), is_custom_sorted()});
     }
   }
   return results;

@@ -66,15 +66,16 @@ std::vector<SearchResult> Engine::query(const std::string &term) {
 
   auto sort_results = [this](std::vector<SearchResult> &res) {
     for (auto &r : res) {
-      r.score = history_manager.get_score(r.command);
+      if (r.track_history) {
+        r.score = history_manager.get_score(r.command);
+      } else {
+        r.score = 0;
+      }
     }
-    std::sort(res.begin(), res.end(),
-              [](const SearchResult &a, const SearchResult &b) {
-                if (a.score != b.score) {
-                  return a.score > b.score;
-                }
-                return a.name < b.name;
-              });
+    std::stable_sort(res.begin(), res.end(),
+                     [](const SearchResult &a, const SearchResult &b) {
+                       return a.score > b.score;
+                     });
   };
 
   plugin_manager.ensure_plugin_for_trigger(term);

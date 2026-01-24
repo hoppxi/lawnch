@@ -1,4 +1,4 @@
-#include "lawnch_plugin_api.h"
+#include "PluginBase.hpp"
 #include <algorithm>
 #include <array>
 #include <cctype>
@@ -12,11 +12,6 @@
 #include <vector>
 
 namespace {
-char *c_strdup(const std::string &s) {
-  char *cstr = new char[s.length() + 1];
-  std::strcpy(cstr, s.c_str());
-  return cstr;
-}
 
 std::string exec(const char *cmd) {
   std::array<char, 128> buffer;
@@ -41,24 +36,27 @@ bool contains_ignore_case(const std::string &str, const std::string &sub) {
   return (it != str.end());
 }
 
-std::vector<LawnchResult> do_clip_query(const std::string &term) {
-  std::vector<LawnchResult> results;
+std::vector<lawnch::Result> do_clip_query(const std::string &term) {
+  std::vector<lawnch::Result> results;
   std::string output;
   try {
     output = exec("cliphist list");
   } catch (const std::exception &e) {
-    results.push_back({c_strdup("Clipboard unavailable"), c_strdup(e.what()),
-                       c_strdup("dialog-error"), c_strdup(""), c_strdup("info"),
-                       c_strdup("")});
-    return results;
+    lawnch::Result r;
+    r.name = "Clipboard unavailable";
+    r.comment = e.what();
+    r.icon = "dialog-error";
+    r.type = "info";
+    return {r};
   }
 
   if (output.empty()) {
-    results.push_back({c_strdup("Clipboard unavailable"),
-                       c_strdup("cliphist not found or empty"),
-                       c_strdup("dialog-error"), c_strdup(""), c_strdup("info"),
-                       c_strdup("")});
-    return results;
+    lawnch::Result r;
+    r.name = "Clipboard unavailable";
+    r.comment = "cliphist not found or empty";
+    r.icon = "dialog-error";
+    r.type = "info";
+    return {r};
   }
 
   std::stringstream ss(output);
@@ -78,17 +76,23 @@ std::vector<LawnchResult> do_clip_query(const std::string &term) {
     if (content.size() > 100)
       content = content.substr(0, 100) + "…";
 
-    results.push_back({c_strdup(content), c_strdup("Cliphist ID: " + id),
-                       c_strdup("edit-paste"),
-                       c_strdup("cliphist decode " + id + " | wl-copy"),
-                       c_strdup("clipboard"), c_strdup("")});
+    lawnch::Result r;
+    r.name = content;
+    r.comment = "Cliphist ID: " + id;
+    r.icon = "edit-paste";
+    r.command = "cliphist decode " + id + " | wl-copy";
+    r.type = "clipboard";
+
+    results.push_back(r);
   }
 
   if (results.empty() && !term.empty()) {
-    results.push_back({c_strdup("No matches"),
-                       c_strdup("Clipboard history exists but no match"),
-                       c_strdup("dialog-information"), c_strdup(""),
-                       c_strdup("info"), c_strdup("")});
+    lawnch::Result r;
+    r.name = "No matches";
+    r.comment = "Clipboard history exists but no match";
+    r.icon = "dialog-information";
+    r.type = "info";
+    results.push_back(r);
   }
 
   return results;
@@ -96,60 +100,26 @@ std::vector<LawnchResult> do_clip_query(const std::string &term) {
 
 } // namespace
 
-void plugin_init(const LawnchHostApi *host) {}
-void plugin_destroy(void) {}
+class ClipboardPlugin : public lawnch::Plugin {
+public:
+  std::vector<std::string> get_triggers() override { return {":clip", ":c"}; }
 
-const char **plugin_get_triggers(void) {
-  static const char *triggers[] = {":clip", ":c", nullptr};
-  return triggers;
-}
-
-LawnchResult *plugin_get_help(void) {
-  LawnchResult *result = new LawnchResult;
-  result->name = c_strdup(":clip / :c");
-  result->comment = c_strdup("Clipboard history");
-  result->icon = c_strdup("edit-paste");
-  result->command = c_strdup("");
-  result->type = c_strdup("help");
-  result->preview_image_path = c_strdup("");
-  return result;
-}
-
-void plugin_free_results(LawnchResult *results, int num_results) {
-  if (!results)
-    return;
-  for (int i = 0; i < num_results; ++i) {
-    delete[] results[i].name;
-    delete[] results[i].comment;
-    delete[] results[i].icon;
-    delete[] results[i].command;
-    delete[] results[i].type;
-    delete[] results[i].preview_image_path;
+  lawnch::Result get_help() override {
+    lawnch::Result r;
+    r.name = ":clip / :c";
+    r.comment = "Clipboard history";
+    r.icon = "edit-paste";
+    r.type = "help";
+    return r;
   }
-  delete[] results;
-}
 
-LawnchResult *plugin_query(const char *term, int *num_results) {
-  auto results_vec = do_clip_query(term);
-  *num_results = results_vec.size();
-  if (*num_results == 0) {
-    return nullptr;
+  std::vector<lawnch::Result> query(const std::string &term) override {
+    return do_clip_query(term);
   }
-  LawnchResult *result_arr = new LawnchResult[*num_results];
-  // Manually copy since vector contains allocated char*
-  for (size_t i = 0; i < results_vec.size(); ++i) {
-    result_arr[i] = results_vec[i];
+
+  uint32_t get_flags() const override {
+    return LAWNCH_PLUGIN_FLAG_DISABLE_HISTORY;
   }
-  return result_arr;
-}
+};
 
-static LawnchPluginVTable g_vtable = {.plugin_api_version =
-                                          LAWNCH_PLUGIN_API_VERSION,
-                                      .init = plugin_init,
-                                      .destroy = plugin_destroy,
-                                      .get_triggers = plugin_get_triggers,
-                                      .get_help = plugin_get_help,
-                                      .query = plugin_query,
-                                      .free_results = plugin_free_results};
-
-PLUGIN_API LawnchPluginVTable *lawnch_plugin_entry(void) { return &g_vtable; }
+LAWNCH_PLUGIN_DEFINE(ClipboardPlugin)

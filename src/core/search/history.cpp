@@ -6,6 +6,8 @@
 #include <fstream>
 #include <vector>
 
+#include "../config/manager.hpp"
+
 namespace Lawnch::Core::Search {
 
 namespace fs = std::filesystem;
@@ -24,6 +26,9 @@ void HistoryManager::find_cache_path() {
 }
 
 void HistoryManager::load() {
+  if (!Config::Manager::Instance().Get().general_history)
+    return;
+
   std::ifstream file(cache_path);
   if (!file.is_open()) {
     return;
@@ -61,6 +66,9 @@ void HistoryManager::load() {
 }
 
 void HistoryManager::save() {
+  if (!Config::Manager::Instance().Get().general_history)
+    return;
+
   std::ofstream file(cache_path);
   if (!file.is_open()) {
     Lawnch::Logger::log("HistoryManager", Lawnch::Logger::LogLevel::ERROR,
@@ -83,6 +91,9 @@ void HistoryManager::save() {
 }
 
 void HistoryManager::increment(const std::string &command) {
+  if (!Config::Manager::Instance().Get().general_history)
+    return;
+
   if (command.empty())
     return;
   history[command]++;
@@ -90,6 +101,9 @@ void HistoryManager::increment(const std::string &command) {
 }
 
 int HistoryManager::get_score(const std::string &command) const {
+  if (!Config::Manager::Instance().Get().general_history)
+    return 0;
+
   auto it = history.find(command);
   if (it != history.end()) {
     return it->second;

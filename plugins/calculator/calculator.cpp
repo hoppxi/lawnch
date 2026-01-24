@@ -1,4 +1,4 @@
-#include "lawnch_plugin_api.h"
+#include "PluginBase.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -13,14 +13,7 @@
 #include <string>
 #include <vector>
 
-// namespace.
 namespace {
-
-char *c_strdup(const std::string &s) {
-  char *cstr = new char[s.length() + 1];
-  std::strcpy(cstr, s.c_str());
-  return cstr;
-}
 
 enum class TokenType {
   Number,
@@ -65,7 +58,8 @@ const std::map<std::string, FuncDef> functions = {
     {"min", {[](auto a) { return std::min(a[0], a[1]); }, 2}},
     {"max", {[](auto a) { return std::max(a[0], a[1]); }, 2}},
     {"pow", {[](auto a) { return std::pow(a[0], a[1]); }, 2}},
-    {"factorial", {[](auto a) { return factorial_impl(a[0]); }, 1}}};
+    {"factorial", {[](auto a) { return factorial_impl(a[0]); }, 1}},
+    {"!", {[](auto a) { return factorial_impl(a[0]); }, 1}}};
 
 int precedence(const std::string &op) {
   if (op == "+" || op == "-")
@@ -212,7 +206,7 @@ double evaluate(const std::vector<Token> &tokens) {
   return values.top();
 }
 
-std::vector<LawnchResult> do_calc_query(const std::string &expr) {
+std::vector<lawnch::Result> do_calc_query(const std::string &expr) {
   std::string input = expr;
   input.erase(std::remove_if(input.begin(), input.end(),
                              [](char c) {
@@ -223,10 +217,12 @@ std::vector<LawnchResult> do_calc_query(const std::string &expr) {
               input.end());
 
   if (input.empty()) {
-    return {{c_strdup("Calculator"),
-             c_strdup("Supports: sin, cos, sqrt, pow, log..."),
-             c_strdup("accessories-calculator"), c_strdup(""), c_strdup("calc"),
-             c_strdup("")}};
+    lawnch::Result r;
+    r.name = "Calculator";
+    r.comment = "Supports: sin, cos, sqrt, pow, log...";
+    r.icon = "accessories-calculator";
+    r.type = "calc";
+    return {r};
   }
 
   try {
@@ -240,70 +236,41 @@ std::vector<LawnchResult> do_calc_query(const std::string &expr) {
     ss << result;
     std::string out = ss.str();
 
-    return {{c_strdup(out.c_str()), c_strdup("Click to copy result"),
-             c_strdup("accessories-calculator"),
-             c_strdup(("echo -n '" + out + "' | wl-copy").c_str()),
-             c_strdup("calc"), c_strdup("")}};
+    lawnch::Result r;
+    r.name = out;
+    r.comment = "Click to copy result";
+    r.icon = "accessories-calculator";
+    r.command = "echo -n '" + out + "' | wl-copy";
+    r.type = "calc";
+    return {r};
   } catch (const std::exception &e) {
-    return {{c_strdup((std::string("Error: ") + e.what()).c_str()),
-             c_strdup(input.c_str()), c_strdup("dialog-error"), c_strdup(""),
-             c_strdup("calc"), c_strdup("")}};
+    lawnch::Result r;
+    r.name = std::string("Error: ") + e.what();
+    r.comment = input;
+    r.icon = "dialog-error";
+    r.type = "calc";
+    return {r};
   }
 }
 
 } // namespace
 
-void plugin_init(const LawnchHostApi *host) { /* No state to init */ }
-void plugin_destroy(void) { /* No state to destroy */ }
+class CalculatorPlugin : public lawnch::Plugin {
+public:
+  std::vector<std::string> get_triggers() override { return {":calc", "="}; }
 
-const char **plugin_get_triggers(void) {
-  static const char *triggers[] = {":calc", "=", nullptr};
-  return triggers;
-}
-
-LawnchResult *plugin_get_help(void) {
-  LawnchResult *result = new LawnchResult;
-  result->name = c_strdup(":calc / =");
-  result->comment = c_strdup("Calculator");
-  result->icon = c_strdup("accessories-calculator");
-  result->command = c_strdup("");
-  result->type = c_strdup("help");
-  result->preview_image_path = c_strdup("");
-  return result;
-}
-
-void plugin_free_results(LawnchResult *results, int num_results) {
-  if (!results)
-    return;
-  for (int i = 0; i < num_results; ++i) {
-    delete[] results[i].name;
-    delete[] results[i].comment;
-    delete[] results[i].icon;
-    delete[] results[i].command;
-    delete[] results[i].type;
-    delete[] results[i].preview_image_path;
+  lawnch::Result get_help() override {
+    lawnch::Result r;
+    r.name = ":calc / =";
+    r.comment = "Calculator";
+    r.icon = "accessories-calculator";
+    r.type = "help";
+    return r;
   }
-  delete[] results;
-}
 
-LawnchResult *plugin_query(const char *term, int *num_results) {
-  auto results_vec = do_calc_query(term);
-  *num_results = results_vec.size();
-  if (*num_results == 0) {
-    return nullptr;
+  std::vector<lawnch::Result> query(const std::string &expr) override {
+    return do_calc_query(expr);
   }
-  LawnchResult *result_arr = new LawnchResult[*num_results];
-  std::copy(results_vec.begin(), results_vec.end(), result_arr);
-  return result_arr;
-}
+};
 
-static LawnchPluginVTable g_vtable = {.plugin_api_version =
-                                          LAWNCH_PLUGIN_API_VERSION,
-                                      .init = plugin_init,
-                                      .destroy = plugin_destroy,
-                                      .get_triggers = plugin_get_triggers,
-                                      .get_help = plugin_get_help,
-                                      .query = plugin_query,
-                                      .free_results = plugin_free_results};
-
-PLUGIN_API LawnchPluginVTable *lawnch_plugin_entry(void) { return &g_vtable; }
+LAWNCH_PLUGIN_DEFINE(CalculatorPlugin)

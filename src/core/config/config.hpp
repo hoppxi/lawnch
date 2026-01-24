@@ -19,6 +19,7 @@ struct Config {
   int general_history_max_size;
   bool general_clear_on_exit;
   std::string general_locale;
+  bool general_history;
 
   // launch
   std::string launch_app_cmd;

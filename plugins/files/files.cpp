@@ -1,4 +1,4 @@
-#include "lawnch_plugin_api.h"
+#include "PluginBase.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -15,6 +15,8 @@
 
 namespace fs = std::filesystem;
 
+namespace {
+
 struct FileEntry {
   fs::path path;
   std::string name;
@@ -30,39 +32,12 @@ struct DirIndex {
   std::once_flag once;
 };
 
-static std::unordered_map<std::string, DirIndex> g_indexes;
-static std::mutex g_index_map_mutex;
-
-static size_t g_max_results = 50;
-static int g_max_depth = 4;
-
-static char *c_strdup(const std::string &s) {
-  char *c = new char[s.size() + 1];
-  std::memcpy(c, s.c_str(), s.size() + 1);
-  return c;
-}
-
-static std::string to_lower(std::string s) {
-  std::transform(s.begin(), s.end(), s.begin(),
-                 [](unsigned char c) { return std::tolower(c); });
-  return s;
-}
-
-static std::string expand_home(const std::string &p) {
-  if (!p.empty() && p[0] == '~') {
-    const char *home = std::getenv("HOME");
-    if (home)
-      return std::string(home) + p.substr(1);
-  }
-  return p;
-}
-
-static bool is_hidden(const fs::path &p) {
+bool is_hidden(const fs::path &p) {
   auto name = p.filename().string();
   return !name.empty() && name[0] == '.';
 }
 
-static void scan_dir(DirIndex *index, fs::path root, int max_depth) {
+void scan_dir(DirIndex *index, fs::path root, int max_depth) {
   index->scanning = true;
 
   std::vector<std::pair<fs::path, int>> stack;
@@ -92,7 +67,10 @@ static void scan_dir(DirIndex *index, fs::path root, int max_depth) {
         FileEntry fe;
         fe.path = e.path();
         fe.name = fe.path.filename().string();
-        fe.name_lower = to_lower(fe.name);
+        std::string lower = fe.name;
+        std::transform(lower.begin(), lower.end(), lower.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+        fe.name_lower = lower;
         fe.is_dir = is_dir;
 
         {
@@ -114,36 +92,7 @@ static void scan_dir(DirIndex *index, fs::path root, int max_depth) {
   index->scanning = false;
 }
 
-static void parse_query(const std::string &term, fs::path &out_dir,
-                        std::string &out_query) {
-  out_dir = expand_home("~");
-  out_query = term;
-
-  auto pos = term.find(":dir");
-  if (pos == std::string::npos)
-    return;
-
-  size_t start = term.find_first_not_of(" ", pos + 4);
-  if (start == std::string::npos)
-    return;
-
-  if (term[start] == '\'' || term[start] == '"') {
-    char q = term[start];
-    size_t end = term.find(q, start + 1);
-    if (end != std::string::npos) {
-      out_dir = expand_home(term.substr(start + 1, end - start - 1));
-      out_query = term.substr(end + 1);
-    }
-  } else {
-    size_t end = term.find(' ', start);
-    out_dir = expand_home(term.substr(start, end - start));
-    out_query = end == std::string::npos ? "" : term.substr(end);
-  }
-
-  out_query.erase(0, out_query.find_first_not_of(" "));
-}
-
-static std::string get_icon_for_file(const FileEntry &f) {
+std::string get_icon_for_file(const FileEntry &f) {
   if (f.is_dir) {
     return "folder-symbolic";
   }
@@ -254,133 +203,183 @@ static std::string get_icon_for_file(const FileEntry &f) {
   return "text-x-generic"; // Final fallback
 }
 
-void plugin_init(const LawnchHostApi *host) {
-  if (const char *v = host->get_config_value(host, "max_results")) {
-    try {
-      g_max_results = std::stoul(v);
-    } catch (...) {
-    }
-  }
+} // namespace
 
-  if (const char *v = host->get_config_value(host, "max_depth")) {
-    try {
-      g_max_depth = std::stoi(v);
-    } catch (...) {
-    }
-  }
-}
+class FilesPlugin : public lawnch::Plugin {
+private:
+  std::unordered_map<std::string, DirIndex> indexes_;
+  std::mutex index_map_mutex_;
+  size_t max_results_ = 50;
+  int max_depth_ = 4;
 
-void plugin_destroy(void) {
-  std::lock_guard lock(g_index_map_mutex);
-  g_indexes.clear();
-}
-
-const char **plugin_get_triggers(void) {
-  static const char *triggers[] = {":file", ":f", nullptr};
-  return triggers;
-}
-
-LawnchResult *plugin_get_help(void) {
-  LawnchResult *r = new LawnchResult;
-  r->name = c_strdup(":file / :f");
-  r->comment = c_strdup("Search files (:dir <path>)");
-  r->icon = c_strdup("folder-symbolic");
-  r->command = c_strdup("");
-  r->type = c_strdup("help");
-  r->preview_image_path = c_strdup("");
-  return r;
-}
-
-LawnchResult *plugin_query(const char *term, int *num_results) {
-  fs::path dir;
-  std::string query;
-  parse_query(term, dir, query);
-
-  if (!fs::exists(dir)) {
-    *num_results = 0;
-    return nullptr;
-  }
-
-  DirIndex *index;
-  {
-    std::lock_guard lock(g_index_map_mutex);
-    index = &g_indexes[dir.string()];
-  }
-
-  std::call_once(index->once, [&]() {
-    std::thread(scan_dir, index, dir, g_max_depth).detach();
-  });
-
-  std::string q = to_lower(query);
-  std::vector<LawnchResult> out;
-  out.reserve(g_max_results);
-
-  const char *editor = std::getenv("EDITOR") ?: "nano";
-  const char *terminal = std::getenv("TERMINAL") ?: "xterm";
-
-  {
-    std::shared_lock lock(index->mutex);
-
-    for (const auto &f : index->files) {
-      if (!q.empty() && f.name_lower.find(q) == std::string::npos)
-        continue;
-
-      std::string cmd = f.is_dir ? std::string(terminal) + " -e " + editor +
-                                       " \"" + f.path.string() + "\""
-                                 : "xdg-open \"" + f.path.string() + "\"";
-
-      LawnchResult r;
-      r.name = c_strdup(f.name);
-      r.comment = c_strdup(f.path.string());
-
-      std::string icon_name = get_icon_for_file(f);
-      r.icon = c_strdup(icon_name.c_str());
-
-      r.command = c_strdup(cmd);
-      r.type = c_strdup("plugin");
-
-      if (icon_name == "image-x-generic") {
-        r.preview_image_path = c_strdup(f.path.string());
-      } else {
-        r.preview_image_path = c_strdup("");
+  std::string to_lower(const std::string &s) {
+    if (host_ && host_->str_api && host_->str_api->to_lower_copy) {
+      char *res = host_->str_api->to_lower_copy(s.c_str());
+      if (res) {
+        std::string ret(res);
+        if (host_->str_api->free_str)
+          host_->str_api->free_str(res);
+        else
+          free(res);
+        return ret;
       }
+    }
+    // Fallback
+    std::string ret = s;
+    std::transform(ret.begin(), ret.end(), ret.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    return ret;
+  }
 
-      out.push_back(r);
-      if (out.size() >= g_max_results)
-        break;
+  std::string expand_home(const std::string &p) {
+    if (host_ && host_->fs_api && host_->fs_api->expand_tilde) {
+      char *res = host_->fs_api->expand_tilde(p.c_str());
+      if (res) {
+        std::string s(res);
+        if (host_->fs_api->free_path)
+          host_->fs_api->free_path(res);
+        else
+          free(res);
+        return s;
+      }
+    }
+    // Fallback
+    if (!p.empty() && p[0] == '~') {
+      const char *home = std::getenv("HOME");
+      if (home)
+        return std::string(home) + p.substr(1);
+    }
+    return p;
+  }
+
+  void parse_query(const std::string &term, fs::path &out_dir,
+                   std::string &out_query) {
+    out_dir = expand_home("~");
+    out_query = term;
+
+    auto pos = term.find(":dir");
+    if (pos == std::string::npos)
+      return;
+
+    size_t start = term.find_first_not_of(" ", pos + 4);
+    if (start == std::string::npos)
+      return;
+
+    if (term[start] == '\'' || term[start] == '"') {
+      char q = term[start];
+      size_t end = term.find(q, start + 1);
+      if (end != std::string::npos) {
+        out_dir = expand_home(term.substr(start + 1, end - start - 1));
+        out_query = term.substr(end + 1);
+      }
+    } else {
+      size_t end = term.find(' ', start);
+      out_dir = expand_home(term.substr(start, end - start));
+      out_query = end == std::string::npos ? "" : term.substr(end);
+    }
+
+    out_query.erase(0, out_query.find_first_not_of(" "));
+  }
+
+  std::vector<lawnch::Result> do_file_query(const std::string &term) {
+    fs::path dir;
+    std::string query_str;
+    parse_query(term, dir, query_str);
+
+    if (!fs::exists(dir)) {
+      return {};
+    }
+
+    DirIndex *index;
+    {
+      std::lock_guard lock(index_map_mutex_);
+      index = &indexes_[dir.string()];
+    }
+
+    std::call_once(index->once, [&]() {
+      std::thread(scan_dir, index, dir, max_depth_).detach();
+    });
+
+    std::string q = to_lower(query_str);
+    std::vector<lawnch::Result> out;
+    out.reserve(max_results_);
+
+    const char *editor = std::getenv("EDITOR") ?: "nano";
+    const char *terminal = std::getenv("TERMINAL") ?: "xterm";
+
+    {
+      std::shared_lock lock(index->mutex);
+
+      for (const auto &f : index->files) {
+        if (!q.empty() && f.name_lower.find(q) == std::string::npos)
+          continue;
+
+        std::string cmd = f.is_dir ? std::string(terminal) + " -e " + editor +
+                                         " \"" + f.path.string() + "\""
+                                   : "xdg-open \"" + f.path.string() + "\"";
+
+        lawnch::Result r;
+        r.name = f.name;
+        r.comment = f.path.string();
+
+        std::string icon_name = get_icon_for_file(f);
+        r.icon = icon_name;
+
+        r.command = cmd;
+        r.type = "plugin";
+
+        if (icon_name == "image-x-generic") {
+          r.preview_image_path = f.path.string();
+        }
+
+        out.push_back(r);
+        if (out.size() >= max_results_)
+          break;
+      }
+    }
+
+    return out;
+  }
+
+public:
+  void init(const LawnchHostApi *host) override {
+    Plugin::init(host);
+    if (const char *v = host->get_config_value(host, "max_results")) {
+      try {
+        max_results_ = std::stoul(v);
+      } catch (...) {
+      }
+    }
+    if (const char *v = host->get_config_value(host, "max_depth")) {
+      try {
+        max_depth_ = std::stoi(v);
+      } catch (...) {
+      }
     }
   }
 
-  if (out.empty()) {
-    *num_results = 0;
-    return nullptr;
+  void destroy() override {
+    std::lock_guard lock(index_map_mutex_);
+    for (auto &[path, idx] : indexes_) {
+      idx.stop = true;
+    }
+    indexes_.clear();
   }
 
-  LawnchResult *arr = new LawnchResult[out.size()];
-  std::copy(out.begin(), out.end(), arr);
-  *num_results = out.size();
-  return arr;
-}
+  std::vector<std::string> get_triggers() override { return {":file", ":f"}; }
 
-void plugin_free_results(LawnchResult *results, int n) {
-  for (int i = 0; i < n; ++i) {
-    delete[] results[i].name;
-    delete[] results[i].comment;
-    delete[] results[i].icon;
-    delete[] results[i].command;
-    delete[] results[i].type;
-    delete[] results[i].preview_image_path;
+  lawnch::Result get_help() override {
+    lawnch::Result r;
+    r.name = ":file / :f";
+    r.comment = "Search files (:dir <path>)";
+    r.icon = "folder-symbolic";
+    r.type = "help";
+    return r;
   }
-  delete[] results;
-}
 
-static LawnchPluginVTable g_vtable = {.plugin_api_version =
-                                          LAWNCH_PLUGIN_API_VERSION,
-                                      .init = plugin_init,
-                                      .destroy = plugin_destroy,
-                                      .get_triggers = plugin_get_triggers,
-                                      .get_help = plugin_get_help,
-                                      .query = plugin_query,
-                                      .free_results = plugin_free_results};
+  std::vector<lawnch::Result> query(const std::string &term) override {
+    return do_file_query(term);
+  }
+};
 
-PLUGIN_API LawnchPluginVTable *lawnch_plugin_entry(void) { return &g_vtable; }
+LAWNCH_PLUGIN_DEFINE(FilesPlugin)

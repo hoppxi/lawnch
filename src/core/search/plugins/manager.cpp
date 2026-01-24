@@ -154,9 +154,6 @@ static char *s_str_to_lower(const char *s) {
 static char *s_str_unescape(const char *s) {
   return copy_str(Lawnch::Str::unescape(s ? s : ""));
 }
-static char *s_str_escape(const char *s) {
-  return copy_str(Lawnch::Str::escape(s ? s : ""));
-}
 static char *s_str_replace_all(const char *s, const char *from,
                                const char *to) {
   return copy_str(

@@ -1,9 +1,7 @@
 #pragma once
 
 #include "lawnch_plugin_api.h"
-#include <algorithm>
 #include <cstring>
-#include <memory>
 #include <string>
 #include <vector>
 

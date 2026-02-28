@@ -36,40 +36,24 @@
         "type": "github"
       }
     },
-    "home-manager": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1767525999,
-        "narHash": "sha256-1E9xlYlyl3EnUrwxoaJMTK7dFrC2llL/TJ+T4xIcXDY=",
-        "owner": "nix-community",
-        "repo": "home-manager",
-        "rev": "7d5927b63cea63deb655b3e8421ae17ebb9feac2",
-        "type": "github"
-      },
-      "original": {
-        "owner": "nix-community",
-        "repo": "home-manager",
-        "type": "github"
-      }
-    },
-    "lawnch-plugin-api": {
+    "lawnch-plugins": {
       "inputs": {
         "flake-utils": "flake-utils_2",
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "path": "./packages/lawnch-plugin-api",
-        "type": "path"
+        "lastModified": 1772187717,
+        "narHash": "sha256-+0cdmND06uVMgP/HJh4oMU31g++HfEVlZOkhTHvbZ2A=",
+        "owner": "hoppxi",
+        "repo": "lawnch-plugins",
+        "rev": "feac70ca33ac3cba56e16b212d29f87a8cdd2c86",
+        "type": "github"
       },
       "original": {
-        "path": "./packages/lawnch-plugin-api",
-        "type": "path"
-      },
-      "parent": []
+        "owner": "hoppxi",
+        "repo": "lawnch-plugins",
+        "type": "github"
+      }
     },
     "nixpkgs": {
       "locked": {
@@ -106,8 +90,7 @@
     "root": {
       "inputs": {
         "flake-utils": "flake-utils",
-        "home-manager": "home-manager",
-        "lawnch-plugin-api": "lawnch-plugin-api",
+        "lawnch-plugins": "lawnch-plugins",
         "nixpkgs": "nixpkgs_2"
       }
     },

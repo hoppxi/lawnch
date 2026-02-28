@@ -4,6 +4,8 @@ project(lawnch LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+include(GNUInstallDirs)
+
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "" FORCE)
 endif()
@@ -36,7 +38,6 @@ if(NOT WAYLAND_SCANNER_EXECUTABLE)
   message(FATAL_ERROR "wayland-scanner not found.")
 endif()
 
-# Wayland Protocols
 pkg_get_variable(WAYLAND_PROTOCOLS_DIR wayland-protocols pkgdatadir)
 pkg_get_variable(WLR_PROTO_DIR wlr-protocols pkgdatadir)
 
@@ -70,7 +71,6 @@ add_custom_command(
   DEPENDS ${WLR_LAYER_SHELL_XML}
 )
 
-# protocol library
 add_library(wayland_protocols STATIC
   ${WLR_LAYER_SHELL_CLIENT_HEADER}
   ${WLR_LAYER_SHELL_PRIVATE_CODE}
@@ -81,15 +81,26 @@ set_target_properties(wayland_protocols PROPERTIES LINKER_LANGUAGE C)
 target_include_directories(wayland_protocols PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 
 file(GLOB_RECURSE SOURCES
-  src/core/*.cpp
-  src/helpers/*.cpp
-  src/ipc/*.cpp
-  src/cli/*.cpp
-  src/app/*.cpp
-  src/main.cpp
+  src/*.cpp
+  src/**/*.cpp
 )
 
 add_executable(lawnch ${SOURCES})
+
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+  target_compile_options(lawnch PRIVATE
+    -O3
+    -flto
+    -fno-plt
+    -ffast-math
+  )
+  target_link_options(lawnch PRIVATE
+    -flto
+    -Wl,--as-needed
+    -Wl,-O1
+  )
+endif()
+
 target_include_directories(lawnch PRIVATE
   src
   ${CMAKE_CURRENT_BINARY_DIR}
@@ -110,4 +121,13 @@ target_link_libraries(lawnch PRIVATE
   ${FONTCONFIG_LIBRARIES}
   dl
   rt
+)
+
+install(TARGETS lawnch
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+file(GLOB_RECURSE THEME_FILES "${CMAKE_CURRENT_SOURCE_DIR}/themes/*.ini")
+install(FILES ${THEME_FILES}
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/lawnch/themes
 )

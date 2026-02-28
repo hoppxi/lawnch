@@ -4,11 +4,7 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
-    home-manager = {
-      url = "github:nix-community/home-manager";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    lawnch-plugin-api.url = "path:./packages/lawnch-plugin-api";
+    lawnch-plugins.url = "github:hoppxi/lawnch-plugins";
   };
 
   outputs =
@@ -16,27 +12,14 @@
       self,
       nixpkgs,
       flake-utils,
-      lawnch-plugin-api,
+      lawnch-plugins,
       ...
     }:
-    let
-      inherit (nixpkgs) lib;
-
-      pluginsDir = ./plugins;
-      knownPlugins =
-        if builtins.pathExists pluginsDir then
-          lib.mapAttrs (name: type: "${pluginsDir}/${name}") (
-            lib.filterAttrs (n: v: v == "directory") (builtins.readDir pluginsDir)
-          )
-        else
-          { };
-    in
     flake-utils.lib.eachDefaultSystem (
       system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
-
-        lawnch-plugin-api-pkg = lawnch-plugin-api.packages.${system}.default;
+        lawnch-plugin-api = lawnch-plugins.packages.${system}.plugin-api;
 
         nativeBuildPkgs = with pkgs; [
           gcc
@@ -56,70 +39,70 @@
           fontconfig
           libffi
           expat
-          lawnch-plugin-api-pkg
+          lawnch-plugin-api
         ];
 
-        lawnch-unwrapped = pkgs.stdenv.mkDerivation {
-          pname = "lawnch-unwrapped";
-          version = "0.1.0";
-          src = ./.;
-
-          nativeBuildInputs = nativeBuildPkgs;
-          buildInputs = buildPkgs;
-
-          enableParallelBuilding = true;
-
-          installPhase = ''
-            runHook preInstall
-            mkdir -p $out/bin
-            cp lawnch $out/bin/lawnch
-
-            mkdir -p $out/lib/lawnch/
-            cp -r $src/themes $out/lib/lawnch/
-
-            runHook postInstall
-          '';
+        desktopItem = pkgs.makeDesktopItem {
+          name = "lawnch";
+          desktopName = "Lawnch";
+          exec = "lawnch";
+          icon = "lawnch";
+          comment = "A lightweight launcher for Wayland";
+          type = "Application";
+          categories = [ "Utility" ];
+          terminal = false;
+          noDisplay = true;
         };
-
-        lawnch = pkgs.writeShellScriptBin "lawnch" ''
-          ${lawnch-unwrapped}/bin/lawnch "$@"
-        '';
       in
       {
-        packages.default = lawnch;
-        packages.lawnch-plugin-api = lawnch-plugin-api-pkg;
-        packages.lawnch-unwrapped = lawnch-unwrapped;
+        packages.default = pkgs.stdenv.mkDerivation {
+          pname = "lawnch";
+          version = "0.1.0-alpha";
 
-        lib.knownPlugins = knownPlugins;
+          src = ./.;
+
+          cmakeFlags = [
+            "-DCMAKE_BUILD_TYPE=Release"
+            "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON"
+          ];
+
+          nativeBuildInputs = nativeBuildPkgs ++ [ pkgs.copyDesktopItems ];
+          buildInputs = buildPkgs;
+          desktopItems = [ desktopItem ];
+
+          enableParallelBuilding = true;
+        };
 
         devShells.default = pkgs.mkShell {
           nativeBuildInputs = nativeBuildPkgs;
           buildInputs = buildPkgs;
-
-          shellHook = ''
-            export WLR_PROTOCOLS_DIR=${pkgs.wlr-protocols}
-          '';
         };
       }
     )
-    // {
-      homeModules.default =
-        {
-          config,
-          lib,
-          pkgs,
-          ...
-        }:
-        let
-          system = pkgs.stdenv.hostPlatform.system;
-          lawnchPackage = self.packages.${system}.default;
-          lawnchUnwrappedPackage = self.packages.${system}.lawnch-unwrapped;
-        in
-        import ./nix/default.nix {
-          inherit pkgs knownPlugins;
-          lawnch = lawnchPackage;
-          lawnch-unwrapped = lawnchUnwrappedPackage;
-          lawnch-plugin-api = self.packages.${system}.lawnch-plugin-api;
-        } { inherit config lib; };
-    };
+    // (
+      let
+        mkModule =
+          platform:
+          {
+            config,
+            lib,
+            pkgs,
+            ...
+          }:
+          let
+            system = pkgs.stdenv.hostPlatform.system;
+          in
+          import ./nix/default.nix {
+            inherit pkgs;
+            lawnch = self.packages.${system}.default;
+            available-plugins = lawnch-plugins.packages.${system};
+            platform = platform;
+          } { inherit config lib; };
+
+      in
+      {
+        homeModules.default = mkModule "home-manager";
+        nixosModules.default = mkModule "nixos";
+      }
+    );
 }

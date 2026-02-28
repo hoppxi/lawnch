@@ -14,6 +14,25 @@
 
 namespace Lawnch::App {
 
+namespace {
+bool starts_with_help_trigger(const std::string &text) {
+  return text.rfind(":h", 0) == 0 || text.rfind(":help", 0) == 0;
+}
+
+std::string extract_primary_trigger(const std::string &name) {
+  for (size_t i = 0; i < name.size(); ++i) {
+    if (name[i] == ':') {
+      size_t end = name.find_first_of(" /", i);
+      if (end == std::string::npos) {
+        end = name.size();
+      }
+      return name.substr(i, end - i);
+    }
+  }
+  return "";
+}
+} // namespace
+
 Application::Application(std::unique_ptr<IPC::Server> server,
                          std::optional<std::string> config_path_override,
                          std::optional<std::string> merge_config_path,
@@ -250,6 +269,13 @@ void Application::render_frame_impl() {
 void Application::on_keyboard_update() {
   std::string text = keyboard->get_text();
   current_results = search_engine->query(text);
+  if (current_results.empty()) {
+    const auto &cfg = config_manager.Get();
+    if (cfg.results_show_help_on_empty && !starts_with_help_trigger(text)) {
+      std::string help_query = text.empty() ? ":h" : ":h " + text;
+      current_results = search_engine->query(help_query);
+    }
+  }
   on_search_results(current_results);
 }
 
@@ -267,6 +293,18 @@ void Application::on_search_results(
 }
 
 void Application::on_keyboard_execute(std::string cmd) {
+  int sel = keyboard->get_selected_index();
+  if (sel >= 0 && sel < static_cast<int>(current_results.size())) {
+    const auto &result = current_results[sel];
+    if (result.type == "help") {
+      std::string trigger = extract_primary_trigger(result.name);
+      if (!trigger.empty()) {
+        keyboard->set_text(trigger + " ");
+        return;
+      }
+    }
+  }
+
   if (!cmd.empty()) {
     int idx = keyboard->get_selected_index();
     bool should_record = true;

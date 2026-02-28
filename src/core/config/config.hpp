@@ -40,6 +40,7 @@ struct Config {
   int window_height;
   std::string window_anchor;
   Padding window_margin;
+  Padding window_padding;
   int window_border_radius;
   int window_border_width;
   Color window_background_color;
@@ -65,6 +66,7 @@ struct Config {
   Color input_selection_color;
   Color input_selection_text_color;
   Padding input_padding;
+  Padding input_margin;
   int input_border_radius;
   int input_border_width;
   Color input_border_color;
@@ -83,6 +85,7 @@ struct Config {
   int input_prompt_border_width;
   Color input_prompt_border_color;
   Padding input_prompt_padding;
+  Padding input_prompt_margin;
 
   // results
   Padding results_margin;
@@ -100,6 +103,8 @@ struct Config {
   Color results_scrollbar_bg_color;
   std::string results_scroll_mode;
   bool results_reverse;
+  int results_max_results;
+  bool results_show_help_on_empty;
 
   // result item
   std::string result_item_font_family;
@@ -115,6 +120,7 @@ struct Config {
   int result_item_icon_size;
   int result_item_icon_padding_right;
   Padding result_item_padding;
+  Padding result_item_margin;
   int result_item_border_radius;
   int result_item_border_width;
   Color result_item_border_color;
@@ -137,6 +143,7 @@ struct Config {
   bool preview_hide_icon_if_fallback;
   bool preview_fallback_icon;
   Padding preview_padding;
+  Padding preview_margin;
   Color preview_background_color;
   int preview_vertical_spacing;
   int preview_horizontal_spacing;
@@ -158,6 +165,7 @@ struct Config {
   Color results_count_text_color;
   std::string results_count_text_align;
   Padding results_count_padding;
+  Padding results_count_margin;
 
   // clock
   bool clock_enable;
@@ -167,6 +175,7 @@ struct Config {
   std::string clock_font_weight;
   Color clock_text_color;
   Padding clock_padding;
+  Padding clock_margin;
   std::string clock_text_align;
 
   // plugins

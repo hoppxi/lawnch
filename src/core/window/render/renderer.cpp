@@ -39,7 +39,8 @@ double estimate_component_height(const std::string &name,
         cfg.input_font_family, cfg.input_font_size, cfg.input_font_weight);
     BLFontMetrics fm = font.metrics();
     return fm.ascent + fm.descent + cfg.input_padding.top +
-           cfg.input_padding.bottom;
+           cfg.input_padding.bottom + cfg.input_margin.top +
+           cfg.input_margin.bottom;
   }
   if (name == "input_prompt" && cfg.input_prompt_enable) {
     BLFont font = Lawnch::Gfx::get_font(cfg.input_prompt_font_family,
@@ -47,7 +48,8 @@ double estimate_component_height(const std::string &name,
                                         cfg.input_prompt_font_weight);
     BLFontMetrics fm = font.metrics();
     return fm.ascent + fm.descent + cfg.input_prompt_padding.top +
-           cfg.input_prompt_padding.bottom;
+           cfg.input_prompt_padding.bottom + cfg.input_prompt_margin.top +
+           cfg.input_prompt_margin.bottom;
   }
   if (name == "results_count" && cfg.results_count_enable) {
     BLFont font = Lawnch::Gfx::get_font(cfg.results_count_font_family,
@@ -55,17 +57,20 @@ double estimate_component_height(const std::string &name,
                                         cfg.results_count_font_weight);
     BLFontMetrics fm = font.metrics();
     return fm.ascent + fm.descent + cfg.results_count_padding.top +
-           cfg.results_count_padding.bottom;
+           cfg.results_count_padding.bottom + cfg.results_count_margin.top +
+           cfg.results_count_margin.bottom;
   }
   if (name == "clock" && cfg.clock_enable) {
     BLFont font = Lawnch::Gfx::get_font(
         cfg.clock_font_family, cfg.clock_font_size, cfg.clock_font_weight);
     BLFontMetrics fm = font.metrics();
     return fm.ascent + fm.descent + cfg.clock_padding.top +
-           cfg.clock_padding.bottom;
+           cfg.clock_padding.bottom + cfg.clock_margin.top +
+           cfg.clock_margin.bottom;
   }
   if (name == "preview" && cfg.preview_enable && !state.results.empty()) {
-    return Components::Preview::get_height(cfg, state);
+    return Components::Preview::get_height(cfg, state) +
+           cfg.preview_margin.top + cfg.preview_margin.bottom;
   }
   return 0;
 }
@@ -117,9 +122,11 @@ void Renderer::render(BLContext &ctx, int width, int height,
 void Renderer::render_vertical(BLContext &ctx, int width, int height,
                                const Config::Config &cfg,
                                const RenderState &state) {
-  double available_w = width - (cfg.window_border_width * 2);
-  double x = cfg.window_border_width;
-  double total_available_h = height - (cfg.window_border_width * 2);
+  double available_w = width - (cfg.window_border_width * 2) -
+                       cfg.window_padding.left - cfg.window_padding.right;
+  double x = cfg.window_border_width + cfg.window_padding.left;
+  double total_available_h = height - (cfg.window_border_width * 2) -
+                             cfg.window_padding.top - cfg.window_padding.bottom;
 
   auto unique_order = get_unique_order(cfg.layout_order);
 
@@ -136,7 +143,7 @@ void Renderer::render_vertical(BLContext &ctx, int width, int height,
   if (results_h < 0)
     results_h = 0;
 
-  double current_y = cfg.window_border_width;
+  double current_y = cfg.window_border_width + cfg.window_padding.top;
 
   for (const auto &comp_name : unique_order) {
     if (comp_name == "background")
@@ -156,6 +163,39 @@ void Renderer::render_vertical(BLContext &ctx, int width, int height,
     if (comp_h <= 0)
       continue;
 
+    // Apply margins
+    double margin_top = 0;
+    double margin_bottom = 0;
+    double margin_left = 0;
+    double margin_right = 0;
+
+    if (comp_name == "input") {
+      margin_top = cfg.input_margin.top;
+      margin_bottom = cfg.input_margin.bottom;
+      margin_left = cfg.input_margin.left;
+      margin_right = cfg.input_margin.right;
+    } else if (comp_name == "clock") {
+      margin_top = cfg.clock_margin.top;
+      margin_bottom = cfg.clock_margin.bottom;
+      margin_left = cfg.clock_margin.left;
+      margin_right = cfg.clock_margin.right;
+    } else if (comp_name == "results_count") {
+      margin_top = cfg.results_count_margin.top;
+      margin_bottom = cfg.results_count_margin.bottom;
+      margin_left = cfg.results_count_margin.left;
+      margin_right = cfg.results_count_margin.right;
+    } else if (comp_name == "preview") {
+      margin_top = cfg.preview_margin.top;
+      margin_bottom = cfg.preview_margin.bottom;
+      margin_left = cfg.preview_margin.left;
+      margin_right = cfg.preview_margin.right;
+    }
+
+    current_y += margin_top;
+    double draw_h = comp_h - (margin_top + margin_bottom);
+    double draw_x = x + margin_left;
+    double draw_w = available_w - (margin_left + margin_right);
+
     if (comp_name == "input") {
       if (!cfg.input_visible)
         continue;
@@ -165,36 +205,56 @@ void Renderer::render_vertical(BLContext &ctx, int width, int height,
           dynamic_cast<Components::InputPrompt *>(prompt_comp_it->second.get());
 
       if (prompt_comp && cfg.input_prompt_enable) {
-        double prompt_width = prompt_comp->calculate_width(cfg);
+        double prompt_margin_left = cfg.input_prompt_margin.left;
+        double prompt_margin_right = cfg.input_prompt_margin.right;
+        double prompt_margin_top = cfg.input_prompt_margin.top;
+        double prompt_margin_bottom = cfg.input_prompt_margin.bottom;
+
+        double prompt_width = prompt_comp->calculate_width(cfg) +
+                              prompt_margin_left + prompt_margin_right;
         double prompt_comp_h =
             estimate_component_height("input_prompt", cfg, state);
-        double input_width = available_w - prompt_width;
+
+        double input_width = draw_w - prompt_width;
         bool prompt_on_left = cfg.input_prompt_position != "right";
 
-        double prompt_x = prompt_on_left ? x : x + input_width;
-        double input_x = prompt_on_left ? x + prompt_width : x;
+        // Prompt Draw Props
+        double prompt_draw_x = prompt_on_left
+                                   ? draw_x + prompt_margin_left
+                                   : draw_x + input_width + prompt_margin_left;
+        double prompt_draw_y = current_y + prompt_margin_top - margin_top;
+        prompt_draw_y = current_y + prompt_margin_top - margin_top;
+        prompt_draw_y = (current_y - margin_top) + prompt_margin_top;
 
-        ComponentContext prompt_ctx{ctx,       width,        height,
-                                    cfg,       state,        prompt_x,
-                                    current_y, prompt_width, prompt_comp_h};
+        double prompt_draw_h =
+            prompt_comp_h - (prompt_margin_top + prompt_margin_bottom);
+        double prompt_draw_w =
+            prompt_width - (prompt_margin_left + prompt_margin_right);
+
+        // Input
+        double input_draw_x = prompt_on_left ? draw_x + prompt_width : draw_x;
+
+        ComponentContext prompt_ctx{
+            ctx,           width,         height,        cfg,          state,
+            prompt_draw_x, prompt_draw_y, prompt_draw_w, prompt_draw_h};
         prompt_comp->draw(prompt_ctx);
 
         ComponentContext input_ctx{ctx,       width,       height,
-                                   cfg,       state,       input_x,
-                                   current_y, input_width, comp_h};
+                                   cfg,       state,       input_draw_x,
+                                   current_y, input_width, draw_h};
         auto result = input_comp->draw(input_ctx);
-        current_y += result.used_height;
+        current_y += draw_h + margin_bottom;
       } else {
-        ComponentContext comp_ctx{ctx, width,     height,      cfg,   state,
-                                  x,   current_y, available_w, comp_h};
+        ComponentContext comp_ctx{ctx,    width,     height, cfg,   state,
+                                  draw_x, current_y, draw_w, draw_h};
         auto result = it->second->draw(comp_ctx);
-        current_y += result.used_height;
+        current_y += result.used_height + margin_bottom;
       }
     } else {
-      ComponentContext comp_ctx{ctx, width,     height,      cfg,   state,
-                                x,   current_y, available_w, comp_h};
+      ComponentContext comp_ctx{ctx,    width,     height, cfg,   state,
+                                draw_x, current_y, draw_w, draw_h};
       auto result = it->second->draw(comp_ctx);
-      current_y += result.used_height;
+      current_y += result.used_height + margin_bottom;
     }
   }
 }
@@ -203,29 +263,47 @@ void Renderer::render_with_side_preview(BLContext &ctx, int width, int height,
                                         const Config::Config &cfg,
                                         const RenderState &state,
                                         bool preview_on_left) {
-  double available_w = width - (cfg.window_border_width * 2);
+  double available_w = width - (cfg.window_border_width * 2) -
+                       cfg.window_padding.left - cfg.window_padding.right;
   double preview_w = (available_w * cfg.layout_preview_width_percent) / 100.0;
   double content_w = available_w - preview_w;
 
-  double preview_x = preview_on_left ? cfg.window_border_width
-                                     : cfg.window_border_width + content_w;
-  double content_x = preview_on_left ? cfg.window_border_width + preview_w
-                                     : cfg.window_border_width;
+  double preview_x =
+      preview_on_left
+          ? cfg.window_border_width + cfg.window_padding.left
+          : cfg.window_border_width + cfg.window_padding.left + content_w;
+  double content_x =
+      preview_on_left
+          ? cfg.window_border_width + cfg.window_padding.left + preview_w
+          : cfg.window_border_width + cfg.window_padding.left;
 
-  double total_available_h = height - (cfg.window_border_width * 2);
+  double total_available_h = height - (cfg.window_border_width * 2) -
+                             cfg.window_padding.top - cfg.window_padding.bottom;
 
   if (cfg.preview_enable && !state.results.empty()) {
     auto it = components.find("preview");
     if (it != components.end()) {
-      ComponentContext preview_ctx{ctx,
-                                   width,
-                                   height,
-                                   cfg,
-                                   state,
-                                   preview_x,
-                                   static_cast<double>(cfg.window_border_width),
-                                   preview_w,
-                                   total_available_h};
+      double p_margin_left = cfg.preview_margin.left;
+      double p_margin_right = cfg.preview_margin.right;
+      double p_margin_top = cfg.preview_margin.top;
+      double p_margin_bottom = cfg.preview_margin.bottom;
+
+      double p_draw_x = preview_x + p_margin_left;
+      double p_draw_w = preview_w - (p_margin_left + p_margin_right);
+      double p_draw_y =
+          cfg.window_border_width + cfg.window_padding.top + p_margin_top;
+      double p_draw_h = total_available_h - (p_margin_top + p_margin_bottom);
+
+      ComponentContext preview_ctx{
+          ctx,
+          width,
+          height,
+          cfg,
+          state,
+          p_draw_x,
+          static_cast<double>(cfg.window_border_width + cfg.window_padding.top),
+          p_draw_w,
+          p_draw_h};
       it->second->draw(preview_ctx);
     }
   }
@@ -243,7 +321,7 @@ void Renderer::render_with_side_preview(BLContext &ctx, int width, int height,
   if (results_h < 0)
     results_h = 0;
 
-  double current_y = cfg.window_border_width;
+  double current_y = cfg.window_border_width + cfg.window_padding.top;
 
   for (const auto &comp_name : unique_order) {
     if (comp_name == "background" || comp_name == "preview")
@@ -263,6 +341,33 @@ void Renderer::render_with_side_preview(BLContext &ctx, int width, int height,
     if (comp_h <= 0)
       continue;
 
+    double margin_top = 0;
+    double margin_bottom = 0;
+    double margin_left = 0;
+    double margin_right = 0;
+
+    if (comp_name == "input") {
+      margin_top = cfg.input_margin.top;
+      margin_bottom = cfg.input_margin.bottom;
+      margin_left = cfg.input_margin.left;
+      margin_right = cfg.input_margin.right;
+    } else if (comp_name == "clock") {
+      margin_top = cfg.clock_margin.top;
+      margin_bottom = cfg.clock_margin.bottom;
+      margin_left = cfg.clock_margin.left;
+      margin_right = cfg.clock_margin.right;
+    } else if (comp_name == "results_count") {
+      margin_top = cfg.results_count_margin.top;
+      margin_bottom = cfg.results_count_margin.bottom;
+      margin_left = cfg.results_count_margin.left;
+      margin_right = cfg.results_count_margin.right;
+    }
+
+    current_y += margin_top;
+    double draw_h = comp_h - (margin_top + margin_bottom);
+    double draw_x = content_x + margin_left;
+    double draw_w = content_w - (margin_left + margin_right);
+
     if (comp_name == "input") {
       auto input_comp = it->second.get();
       auto prompt_comp_it = components.find("input_prompt");
@@ -270,36 +375,52 @@ void Renderer::render_with_side_preview(BLContext &ctx, int width, int height,
           dynamic_cast<Components::InputPrompt *>(prompt_comp_it->second.get());
 
       if (prompt_comp && cfg.input_prompt_enable) {
-        double prompt_width = prompt_comp->calculate_width(cfg);
+        double prompt_margin_left = cfg.input_prompt_margin.left;
+        double prompt_margin_right = cfg.input_prompt_margin.right;
+        double prompt_margin_top = cfg.input_prompt_margin.top;
+        double prompt_margin_bottom = cfg.input_prompt_margin.bottom;
+
+        double prompt_width = prompt_comp->calculate_width(cfg) +
+                              prompt_margin_left + prompt_margin_right;
         double prompt_comp_h =
             estimate_component_height("input_prompt", cfg, state);
-        double input_width = content_w - prompt_width;
+
+        double input_width = draw_w - prompt_width;
         bool prompt_on_left = cfg.input_prompt_position != "right";
 
-        double prompt_x = prompt_on_left ? content_x : content_x + input_width;
-        double input_x = prompt_on_left ? content_x + prompt_width : content_x;
+        double prompt_draw_y = (current_y - margin_top) + prompt_margin_top;
+        double prompt_draw_h =
+            prompt_comp_h - (prompt_margin_top + prompt_margin_bottom);
+        double prompt_draw_w =
+            prompt_width - (prompt_margin_left + prompt_margin_right);
 
-        ComponentContext prompt_ctx{ctx,       width,        height,
-                                    cfg,       state,        prompt_x,
-                                    current_y, prompt_width, prompt_comp_h};
+        double prompt_draw_x = prompt_on_left
+                                   ? draw_x + prompt_margin_left
+                                   : draw_x + input_width + prompt_margin_left;
+
+        double input_draw_x = prompt_on_left ? draw_x + prompt_width : draw_x;
+
+        ComponentContext prompt_ctx{
+            ctx,           width,         height,        cfg,          state,
+            prompt_draw_x, prompt_draw_y, prompt_draw_w, prompt_draw_h};
         prompt_comp->draw(prompt_ctx);
 
         ComponentContext input_ctx{ctx,       width,       height,
-                                   cfg,       state,       input_x,
-                                   current_y, input_width, comp_h};
+                                   cfg,       state,       input_draw_x,
+                                   current_y, input_width, draw_h};
         auto result = input_comp->draw(input_ctx);
-        current_y += result.used_height;
+        current_y += draw_h + margin_bottom;
       } else {
-        ComponentContext comp_ctx{ctx,       width,     height,    cfg,   state,
-                                  content_x, current_y, content_w, comp_h};
+        ComponentContext comp_ctx{ctx,    width,     height, cfg,   state,
+                                  draw_x, current_y, draw_w, draw_h};
         auto result = it->second->draw(comp_ctx);
-        current_y += result.used_height;
+        current_y += result.used_height + margin_bottom;
       }
     } else {
-      ComponentContext comp_ctx{ctx,       width,     height,    cfg,   state,
-                                content_x, current_y, content_w, comp_h};
+      ComponentContext comp_ctx{ctx,    width,     height, cfg,   state,
+                                draw_x, current_y, draw_w, draw_h};
       auto result = it->second->draw(comp_ctx);
-      current_y += result.used_height;
+      current_y += result.used_height + margin_bottom;
     }
   }
 }
@@ -335,7 +456,8 @@ int Renderer::get_visible_count(int height, const Config::Config &cfg) {
   double results_start_y = start_y + cfg.results_margin.top;
   double available_h = height - results_start_y - cfg.results_margin.bottom -
                        preview_h - clock_h - cfg.results_padding.top -
-                       cfg.results_padding.bottom;
+                       cfg.results_padding.bottom - cfg.window_padding.top -
+                       cfg.window_padding.bottom;
 
   return std::max(1, (int)std::floor(available_h / cached_metrics.item_height));
 }

@@ -25,6 +25,10 @@ public:
 private:
   LawnchPluginVTable *vtable;
   uint32_t flags = 0;
+  mutable bool triggers_cached = false;
+  mutable std::vector<std::string> cached_triggers;
+  mutable bool help_cached = false;
+  mutable SearchResult cached_help;
 };
 
 } // namespace Lawnch::Core::Search::Plugins

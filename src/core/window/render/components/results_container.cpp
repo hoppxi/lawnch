@@ -32,7 +32,8 @@ void ResultsContainer::update_metrics(const Config::Config &cfg) const {
 
   cached_item_height =
       (cfg.result_item_padding.top + cfg.result_item_padding.bottom) +
-      item_inner_h + cfg.results_spacing;
+      item_inner_h + cfg.results_spacing + cfg.result_item_margin.top +
+      cfg.result_item_margin.bottom;
   metrics_valid = true;
 }
 
@@ -76,8 +77,15 @@ void ResultsContainer::draw_result_item(BLContext &ctx,
   int border_w = is_selected ? cfg.result_item_selected_border_width
                              : cfg.result_item_border_width;
 
-  BLRoundRect item_rect =
-      Lawnch::Gfx::rounded_rect(item_x, item_y, item_w, item_h, radius);
+  double draw_x_rect = item_x + cfg.result_item_margin.left;
+  double draw_y_rect = item_y + cfg.result_item_margin.top;
+  double draw_w_rect =
+      item_w - (cfg.result_item_margin.left + cfg.result_item_margin.right);
+  double draw_h_rect =
+      item_h - (cfg.result_item_margin.top + cfg.result_item_margin.bottom);
+
+  BLRoundRect item_rect = Lawnch::Gfx::rounded_rect(
+      draw_x_rect, draw_y_rect, draw_w_rect, draw_h_rect, radius);
 
   if (bg_color.a > 0) {
     ctx.set_fill_style(Lawnch::Gfx::toBLColor(bg_color));
@@ -90,9 +98,9 @@ void ResultsContainer::draw_result_item(BLContext &ctx,
     ctx.stroke_round_rect(item_rect);
   }
 
-  double draw_x = item_x + cfg.result_item_padding.left;
-  double draw_w =
-      item_w - (cfg.result_item_padding.left + cfg.result_item_padding.right);
+  double draw_x = draw_x_rect + cfg.result_item_padding.left;
+  double draw_w = draw_w_rect - (cfg.result_item_padding.left +
+                                 cfg.result_item_padding.right);
 
   double current_icon_size = 0;
   if (cfg.result_item_enable_icon) {
@@ -116,7 +124,7 @@ void ResultsContainer::draw_result_item(BLContext &ctx,
     if (cfg.result_item_text_align == "center") {
       text_x_pos = item_x + (item_w / 2.0);
     } else if (cfg.result_item_text_align == "right") {
-      text_x_pos = item_x + item_w - cfg.result_item_padding.right;
+      text_x_pos = draw_x_rect + draw_w_rect - cfg.result_item_padding.right;
     }
 
     double name_y;
@@ -134,7 +142,7 @@ void ResultsContainer::draw_result_item(BLContext &ctx,
     }
 
     ctx.save();
-    ctx.clip_to_rect(BLRect(draw_x, item_y, draw_w, item_h));
+    ctx.clip_to_rect(BLRect(draw_x, draw_y_rect, draw_w, draw_h_rect));
 
     std::string display_name = result.name;
     if (cfg.result_item_text_align != "center" &&

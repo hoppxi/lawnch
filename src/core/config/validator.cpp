@@ -98,6 +98,7 @@ static const std::set<std::string> VALID_CONFIG_KEYS = {
     "results.border_color",
     "results.scrollbar_color",
     "results.scrollbar_bg_color",
+    "results.show_help_on_empty",
 
     // result_item
     "result_item.font_family",

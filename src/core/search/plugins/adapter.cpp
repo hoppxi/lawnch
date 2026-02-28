@@ -29,24 +29,35 @@ void Adapter::init_with_api(const LawnchHostApi *host_api) {
 }
 
 std::vector<std::string> Adapter::get_triggers() const {
-  std::vector<std::string> result;
+  if (triggers_cached) {
+    return cached_triggers;
+  }
+  cached_triggers.clear();
   if (vtable && vtable->get_triggers) {
     const char **triggers = vtable->get_triggers();
     while (triggers && *triggers) {
-      result.emplace_back(*triggers);
+      cached_triggers.emplace_back(*triggers);
       triggers++;
     }
   }
-  return result;
+  triggers_cached = true;
+  return cached_triggers;
 }
 
 SearchResult Adapter::get_help() const {
+  if (help_cached) {
+    return cached_help;
+  }
+
   if (vtable && vtable->get_help) {
     LawnchResult *r_ptr = vtable->get_help();
-    if (!r_ptr)
-      return SearchMode::get_help();
+    if (!r_ptr) {
+      cached_help = SearchMode::get_help();
+      help_cached = true;
+      return cached_help;
+    }
     LawnchResult r = *r_ptr;
-    return SearchResult{
+    cached_help = SearchResult{
         r.name ? r.name : "",
         r.comment ? r.comment : "",
         r.icon ? r.icon : "",
@@ -55,8 +66,15 @@ SearchResult Adapter::get_help() const {
         r.preview_image_path ? r.preview_image_path : "",
         0,
     };
+    if (vtable->free_results) {
+      vtable->free_results(r_ptr, 1);
+    }
+    help_cached = true;
+    return cached_help;
   }
-  return SearchMode::get_help();
+  cached_help = SearchMode::get_help();
+  help_cached = true;
+  return cached_help;
 }
 
 std::vector<SearchResult> Adapter::query(const std::string &term) {
@@ -72,6 +90,9 @@ std::vector<SearchResult> Adapter::query(const std::string &term) {
           res[i].type ? res[i].type : "",
           res[i].preview_image_path ? res[i].preview_image_path : "", 0,
           allow_history(), is_custom_sorted()});
+    }
+    if (vtable->free_results) {
+      vtable->free_results(res, count);
     }
   }
   return results;

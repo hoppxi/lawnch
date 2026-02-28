@@ -154,6 +154,9 @@ static char *s_str_to_lower(const char *s) {
 static char *s_str_unescape(const char *s) {
   return copy_str(Lawnch::Str::unescape(s ? s : ""));
 }
+static char *s_str_escape(const char *s) {
+  return copy_str(Lawnch::Str::escape(s ? s : ""));
+}
 static char *s_str_replace_all(const char *s, const char *from,
                                const char *to) {
   return copy_str(
@@ -277,10 +280,91 @@ void Manager::load_plugins() {
 void Manager::generate_triggers_cache() {
   Lawnch::Logger::log("PluginManager", Lawnch::Logger::LogLevel::INFO,
                       "Generating plugin triggers cache...");
+  m_loaded_triggers.clear();
+  m_loaded_help.clear();
+
   for (const auto &plugin_name : m_config.enabled_plugins) {
-    load_plugin(plugin_name);
+    void *handle = nullptr;
+    std::string found_path;
+    for (const auto &dir : m_plugin_dirs) {
+      std::string path =
+          (fs::path(dir) / plugin_name / (plugin_name + ".so")).string();
+      if (fs::exists(path)) {
+        handle = dlopen(path.c_str(), RTLD_LAZY);
+        if (handle) {
+          found_path = path;
+          break;
+        } else {
+          std::stringstream err_ss;
+          err_ss << "dlopen failed for '" << path << "': " << dlerror();
+          Lawnch::Logger::log("PluginManager", Lawnch::Logger::LogLevel::ERROR,
+                              err_ss.str());
+        }
+      }
+    }
+
+    if (!handle) {
+      std::stringstream err_ss;
+      err_ss << "Cannot find or load plugin " << plugin_name << ".so";
+      Lawnch::Logger::log("PluginManager", Lawnch::Logger::LogLevel::ERROR,
+                          err_ss.str());
+      continue;
+    }
+
+    using entry_func = LawnchPluginVTable *(*)();
+    entry_func entry = (entry_func)dlsym(handle, "lawnch_plugin_entry");
+    if (!entry) {
+      std::stringstream err_ss;
+      err_ss << "Cannot find symbol 'lawnch_plugin_entry' in " << found_path
+             << ": " << dlerror();
+      Lawnch::Logger::log("PluginManager", Lawnch::Logger::LogLevel::ERROR,
+                          err_ss.str());
+      dlclose(handle);
+      continue;
+    }
+
+    LawnchPluginVTable *vtable = entry();
+    if (!vtable) {
+      std::stringstream err_ss;
+      err_ss << "'lawnch_plugin_entry' in " << found_path << " returned null.";
+      Lawnch::Logger::log("PluginManager", Lawnch::Logger::LogLevel::ERROR,
+                          err_ss.str());
+      dlclose(handle);
+      continue;
+    }
+
+    std::vector<std::string> triggers;
+    if (vtable->get_triggers) {
+      const char **plugin_triggers = vtable->get_triggers();
+      while (plugin_triggers && *plugin_triggers) {
+        triggers.emplace_back(*plugin_triggers);
+        plugin_triggers++;
+      }
+    }
+    m_loaded_triggers[plugin_name] = triggers;
+
+    SearchResult help;
+    if (vtable->get_help) {
+      if (LawnchResult *r_ptr = vtable->get_help()) {
+        LawnchResult r = *r_ptr;
+        help = SearchResult{
+            r.name ? r.name : "",
+            r.comment ? r.comment : "",
+            r.icon ? r.icon : "",
+            r.command ? r.command : "",
+            r.type ? r.type : "",
+            r.preview_image_path ? r.preview_image_path : "",
+            0,
+        };
+      }
+    }
+    m_loaded_help[plugin_name] = help;
+
+    dlclose(handle);
   }
+
   save_triggers_cache();
+  load_triggers_cache();
 }
 
 void Manager::save_triggers_cache() {
@@ -297,12 +381,6 @@ void Manager::save_triggers_cache() {
     return;
   }
 
-  if (m_plugins.size() != m_api_contexts.size()) {
-    Lawnch::Logger::log("PluginManager", Lawnch::Logger::LogLevel::ERROR,
-                        "Plugin/Context mismatch, cannot save cache.");
-    return;
-  }
-
   std::vector<std::string> sorted_plugins = m_config.enabled_plugins;
   std::sort(sorted_plugins.begin(), sorted_plugins.end());
   file << "CONFIG_SIGNATURE:";
@@ -311,10 +389,32 @@ void Manager::save_triggers_cache() {
   }
   file << "\n";
 
-  for (size_t i = 0; i < m_plugins.size(); ++i) {
-    std::string name = m_api_contexts[i]->plugin_name;
-    auto triggers = m_plugins[i]->get_triggers();
-    auto help = m_plugins[i]->get_help();
+  for (const auto &name : sorted_plugins) {
+    std::vector<std::string> triggers;
+    SearchResult help;
+    auto triggers_it = m_loaded_triggers.find(name);
+    auto help_it = m_loaded_help.find(name);
+    if (triggers_it != m_loaded_triggers.end()) {
+      triggers = triggers_it->second;
+    }
+    if (help_it != m_loaded_help.end()) {
+      help = help_it->second;
+    }
+
+    if (triggers_it == m_loaded_triggers.end() ||
+        help_it == m_loaded_help.end()) {
+      for (size_t i = 0; i < m_api_contexts.size(); ++i) {
+        if (m_api_contexts[i]->plugin_name == name) {
+          if (triggers_it == m_loaded_triggers.end()) {
+            triggers = m_plugins[i]->get_triggers();
+          }
+          if (help_it == m_loaded_help.end()) {
+            help = m_plugins[i]->get_help();
+          }
+          break;
+        }
+      }
+    }
 
     file << "PLUGIN:" << name << "\n";
     for (const auto &t : triggers) {
@@ -342,6 +442,9 @@ void Manager::load_triggers_cache() {
   std::string current_plugin;
   std::vector<std::string> current_triggers;
   SearchResult current_help;
+
+  m_lazy_triggers.clear();
+  m_cached_help.clear();
 
   if (std::getline(file, line)) {
     if (line.rfind("CONFIG_SIGNATURE:", 0) == 0) {
@@ -521,8 +624,12 @@ void Manager::load_plugin(const std::string &name) {
   };
 
   adapter->init_with_api(&context->host_api);
+  auto triggers = adapter->get_triggers();
+  m_loaded_triggers[name] = triggers;
+  m_loaded_help[name] = adapter->get_help();
+  m_plugin_triggers[adapter.get()] = triggers;
 
-  for (const auto &trigger : adapter->get_triggers()) {
+  for (const auto &trigger : triggers) {
     m_trigger_map[trigger] = adapter.get();
   }
 
@@ -539,11 +646,56 @@ void Manager::load_plugin(const std::string &name) {
 const std::vector<SearchResult> &Manager::get_all_help() const {
   if (m_cached_help.empty() && plugins_loaded) {
     auto &mutable_this = const_cast<Manager &>(*this);
-    for (const auto &plugin : m_plugins) {
-      mutable_this.m_cached_help.push_back(plugin->get_help());
+    for (size_t i = 0; i < m_plugins.size(); ++i) {
+      const auto &name = m_api_contexts[i]->plugin_name;
+      auto help_it = m_loaded_help.find(name);
+      if (help_it != m_loaded_help.end()) {
+        mutable_this.m_cached_help.push_back(help_it->second);
+      } else {
+        mutable_this.m_cached_help.push_back(m_plugins[i]->get_help());
+      }
     }
   }
   return m_cached_help;
+}
+
+const std::vector<std::string> &
+Manager::get_triggers_for(const SearchMode *plugin) const {
+  static const std::vector<std::string> empty;
+  auto it = m_plugin_triggers.find(plugin);
+  if (it != m_plugin_triggers.end()) {
+    return it->second;
+  }
+  return empty;
+}
+
+SearchMode *Manager::find_plugin_for_query(const std::string &term,
+                                           std::string &out_query) {
+  ensure_plugins_loaded();
+
+  for (const auto &[trigger, plugin_name] : m_lazy_triggers) {
+    if (term == trigger) {
+      out_query.clear();
+      load_plugin(plugin_name);
+      for (size_t i = 0; i < m_api_contexts.size(); ++i) {
+        if (m_api_contexts[i]->plugin_name == plugin_name) {
+          return m_plugins[i].get();
+        }
+      }
+      return nullptr;
+    }
+    if (term.rfind(trigger + " ", 0) == 0) {
+      out_query = term.substr(trigger.length() + 1);
+      load_plugin(plugin_name);
+      for (size_t i = 0; i < m_api_contexts.size(); ++i) {
+        if (m_api_contexts[i]->plugin_name == plugin_name) {
+          return m_plugins[i].get();
+        }
+      }
+      return nullptr;
+    }
+  }
+  return nullptr;
 }
 
 } // namespace Lawnch::Core::Search::Plugins

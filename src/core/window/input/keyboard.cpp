@@ -18,6 +18,14 @@ void Keyboard::set_result_count(int count) {
     selected_index = std::max(0, count - 1);
 }
 
+void Keyboard::set_text(const std::string &text, bool notify) {
+  search_text = text;
+  caret_position = search_text.size();
+  if (notify) {
+    callbacks.on_update();
+  }
+}
+
 void Keyboard::set_results_command(int index, const std::string &cmd) {
   if (index >= 0 && index < (int)current_commands.size()) {
     current_commands[index] = cmd;

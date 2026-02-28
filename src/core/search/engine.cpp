@@ -1,8 +1,8 @@
 #include "engine.hpp"
-#include "../../helpers/string.hpp"
-#include "providers/modes.hpp"
-
 #include "../../helpers/logger.hpp"
+#include "../../helpers/string.hpp"
+#include "../config/manager.hpp"
+#include "providers/modes.hpp"
 #include <algorithm>
 
 namespace Lawnch::Core::Search {
@@ -76,22 +76,23 @@ std::vector<SearchResult> Engine::query(const std::string &term) {
                      [](const SearchResult &a, const SearchResult &b) {
                        return a.score > b.score;
                      });
-  };
 
-  plugin_manager.ensure_plugin_for_trigger(term);
+    int max_results = Config::Manager::Instance().Get().results_max_results;
+    if (max_results > 0 && res.size() > max_results) {
+      res.resize(max_results);
+    }
+  };
 
   std::string sub_query;
 
   if (forced_trigger.has_value()) {
     plugin_manager.ensure_plugin_for_trigger(forced_trigger.value());
 
-    for (const auto &plugin : plugin_manager.get_plugins()) {
-      if (check_trigger(forced_trigger.value(), plugin->get_triggers(),
-                        sub_query)) {
-        results = plugin->query(term);
-        sort_results(results);
-        return results;
-      }
+    if (auto *plugin = plugin_manager.find_plugin_for_query(
+            forced_trigger.value(), sub_query)) {
+      results = plugin->query(term);
+      sort_results(results);
+      return results;
     }
 
     for (auto &mode : modes) {
@@ -113,13 +114,11 @@ std::vector<SearchResult> Engine::query(const std::string &term) {
   if (term.empty() && initial_trigger.has_value()) {
     plugin_manager.ensure_plugin_for_trigger(initial_trigger.value());
 
-    for (const auto &plugin : plugin_manager.get_plugins()) {
-      if (check_trigger(initial_trigger.value(), plugin->get_triggers(),
-                        sub_query)) {
-        results = plugin->query("");
-        sort_results(results);
-        return results;
-      }
+    if (auto *plugin = plugin_manager.find_plugin_for_query(
+            initial_trigger.value(), sub_query)) {
+      results = plugin->query("");
+      sort_results(results);
+      return results;
     }
 
     for (auto &mode : modes) {
@@ -139,12 +138,10 @@ std::vector<SearchResult> Engine::query(const std::string &term) {
   if (term.empty())
     return {};
 
-  for (const auto &plugin : plugin_manager.get_plugins()) {
-    if (check_trigger(term, plugin->get_triggers(), sub_query)) {
-      results = plugin->query(sub_query);
-      sort_results(results);
-      return results;
-    }
+  if (auto *plugin = plugin_manager.find_plugin_for_query(term, sub_query)) {
+    results = plugin->query(sub_query);
+    sort_results(results);
+    return results;
   }
 
   if (check_trigger(term, {":help", ":h"}, sub_query)) {
@@ -178,13 +175,11 @@ std::vector<SearchResult> Engine::query(const std::string &term) {
   if (initial_trigger.has_value()) {
     plugin_manager.ensure_plugin_for_trigger(initial_trigger.value());
 
-    for (const auto &plugin : plugin_manager.get_plugins()) {
-      if (check_trigger(initial_trigger.value(), plugin->get_triggers(),
-                        sub_query)) {
-        results = plugin->query(term);
-        sort_results(results);
-        return results;
-      }
+    if (auto *plugin = plugin_manager.find_plugin_for_query(
+            initial_trigger.value(), sub_query)) {
+      results = plugin->query(term);
+      sort_results(results);
+      return results;
     }
 
     for (auto &mode : modes) {

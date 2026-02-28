@@ -32,12 +32,9 @@ std::vector<SearchResult> BinMode::query(const std::string &term) {
   std::call_once(path_init_flag, init_paths);
 
   std::vector<SearchResult> results;
-  results.reserve(50);
 
   for (const auto &dir : cached_paths) {
     for (const auto &entry : fs::directory_iterator(dir)) {
-      if (results.size() >= 20)
-        return results;
 
       const std::string name = entry.path().filename().string();
       if (!Lawnch::Str::contains_ic(name, term))

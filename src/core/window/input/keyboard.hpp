@@ -27,6 +27,7 @@ public:
   std::string get_result_command(int index) const;
 
   const std::string &get_text() const { return search_text; }
+  void set_text(const std::string &text, bool notify = true);
   int get_caret() const { return caret_position; }
   int get_selected_index() const { return selected_index; }
   void set_selected_index(int idx) { selected_index = idx; }

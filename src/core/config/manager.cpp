@@ -106,6 +106,8 @@ struct Manager::Impl {
     Bind("window", "anchor", config.window_anchor, std::string("top, center"));
     Bind("window", "margin", config.window_margin,
          Lawnch::Config::Padding(50, 0, 0, 0));
+    Bind("window", "padding", config.window_padding,
+         Lawnch::Config::Padding(0, 0, 0, 0));
     Bind("window", "background_color", config.window_background_color,
          {0.1, 0.1, 0.1, 0.9});
     Bind("window", "border_color", config.window_border_color,
@@ -141,6 +143,8 @@ struct Manager::Impl {
          {1.0, 1.0, 1.0, 1.0});
     Bind("input", "padding", config.input_padding,
          Lawnch::Config::Padding(12, 16, 12, 16));
+    Bind("input", "margin", config.input_margin,
+         Lawnch::Config::Padding(0, 0, 0, 0));
     Bind("input", "border_radius", config.input_border_radius, 8);
     Bind("input", "border_width", config.input_border_width, 2);
     Bind("input", "border_color", config.input_border_color,
@@ -169,6 +173,8 @@ struct Manager::Impl {
          {0.0, 0.0, 0.0, 0.0});
     Bind("input_prompt", "padding", config.input_prompt_padding,
          Lawnch::Config::Padding(0, 5, 0, 5));
+    Bind("input_prompt", "margin", config.input_prompt_margin,
+         Lawnch::Config::Padding(0, 0, 0, 0));
 
     // results
     Bind("results", "margin", config.results_margin,
@@ -193,6 +199,9 @@ struct Manager::Impl {
     Bind("results", "scroll_mode", config.results_scroll_mode,
          std::string("follow"));
     Bind("results", "reverse", config.results_reverse, false);
+    Bind("results", "max_results", config.results_max_results, 50);
+    Bind("results", "show_help_on_empty", config.results_show_help_on_empty,
+         false);
 
     // result item
     Bind("result_item", "font_family", config.result_item_font_family,
@@ -218,6 +227,8 @@ struct Manager::Impl {
          config.result_item_icon_padding_right, 12);
     Bind("result_item", "padding", config.result_item_padding,
          Lawnch::Config::Padding(10));
+    Bind("result_item", "margin", config.result_item_margin,
+         Lawnch::Config::Padding(0));
     Bind("result_item", "border_radius", config.result_item_border_radius, 6);
     Bind("result_item", "border_width", config.result_item_border_width, 0);
     Bind("result_item", "border_color", config.result_item_border_color,
@@ -250,6 +261,8 @@ struct Manager::Impl {
     Bind("preview", "icon_size", config.preview_icon_size, 64);
     Bind("preview", "padding", config.preview_padding,
          Lawnch::Config::Padding(10));
+    Bind("preview", "margin", config.preview_margin,
+         Lawnch::Config::Padding(0));
     Bind("preview", "background_color", config.preview_background_color,
          {0.0, 0.0, 0.0, 0.0});
     Bind("preview", "vertical_spacing", config.preview_vertical_spacing, 5);
@@ -290,6 +303,8 @@ struct Manager::Impl {
          std::string("right"));
     Bind("results_count", "padding", config.results_count_padding,
          Lawnch::Config::Padding(2, 8, 2, 8));
+    Bind("results_count", "margin", config.results_count_margin,
+         Lawnch::Config::Padding(0));
 
     // clock
     Bind("clock", "enable", config.clock_enable, false);
@@ -301,6 +316,7 @@ struct Manager::Impl {
     Bind("clock", "text_color", config.clock_text_color, {0.9, 0.9, 0.9, 1.0});
     Bind("clock", "padding", config.clock_padding,
          Lawnch::Config::Padding(10, 20, 10, 20));
+    Bind("clock", "margin", config.clock_margin, Lawnch::Config::Padding(0));
     Bind("clock", "text_align", config.clock_text_align, std::string("center"));
   }
 

@@ -2,6 +2,9 @@
 
 It is a lightweight and featureful alternative launcher for wayland. It is built with Blend2D, which is cpu-accelerated drawing library, letting the launcher to be small.
 
+> [!WARNING]
+> **This project is in early stage (v0.1.0-alpha).** Many features are untested, incomplete, or may crash. The configuration format, plugin API, technology stack, and overall architecture are all subject to drastic changes without notice between versions. Use at your own risk, until we reach stable version.
+
 ## Features
 
 - It has many plugins. and plugins can be switched even after launching the launcher with vim like key commands
@@ -25,17 +28,20 @@ It uses a filter command system kind of like vim. You can switch to specific plu
 
 ## Installation
 
-### Nixos
+### NixOS / Home Manager
 
-Lawnch has a flake with a home manager module.
+Lawnch has a flake with both a NixOS module and a Home Manager module.
 
 ```nix
 inputs = {
   lawnch.url = "github:hoppxi/lawnch";
   # ...
 };
+```
 
-# in your config
+#### Home Manager
+
+```nix
 imports = [
   inputs.lawnch.homeModules.default
 ];
@@ -49,19 +55,14 @@ programs.lawnch = {
   };
   plugins = {
     wallpapers = {
-      enable = true; # installs wallpapers plugin and configure the plugin
+      enable = true;
       settings = {
         dir = "~/Pictures/Wallpapers";
         command = "waul --set '{}'";
       };
     };
   };
-
   menus = {
-    # create menus that will be symlinked to the same dir to the config.ini
-    # by running `lawnch -m ~/.config/lawnch/powermenu.ini you can merge this setting with the main
-    # config and override some properties for the menu like in here for powermenu to not show input and
-    # to limit the window to the powermenu plugin context
     powermenu = {
       window.anchor = "center,center";
       launch.context = ":p";
@@ -71,7 +72,27 @@ programs.lawnch = {
     };
   };
 };
+```
 
+#### NixOS Module
+
+```nix
+imports = [
+  inputs.lawnch.nixosModules.default
+];
+
+programs.lawnch = {
+  enable = true;
+  package = inputs.lawnch.packages.${pkgs.system}.default;
+  settings = {
+    window.width = 600;
+    input.font_size = 12;
+  };
+  plugins = {
+    calculator.enable = true;
+    clipboard.enable = true;
+  };
+};
 ```
 
 ### Other distro
@@ -87,15 +108,9 @@ Requirements:
 git clone https://github.com/hoppxi/lawnch.git
 cd lawnch
 cmake -B build
-cmake --build build
-```
+cmake --build build -j$(nproc)
 
-Manage Plugins:
-
-```bash
-lawnch pm install ./plugins/clipboard
-lawnc  pm enable clipboard
-lawnch pm list
+cmake --install build # you might want to add sudo to install it system wide
 ```
 
 ## Configuration
@@ -135,6 +150,16 @@ max_results = 10
 you can find a complete config example at config/config.ini. Also you do not need config to run the app.
 
 ## Plugin
+
+Plugins are found at [https://github.com/hoppxi/lawnch-plugins](https://github.com/hoppxi/lawnch-plugins). Installing plugins is done using the buitin command `lawnch pm` like this:
+
+```bash
+lawnch pm install https://github.com/hoppxi/lawnch-plugins/{plugin-name}
+
+lawnch pm enable {plugin-name} # this will not work if you are on nixos and using symlinked config. instead, enable it in your config
+
+# list of plugins is also found in the repo, check it
+```
 
 It is simple to build plugins for lawnch, with the api you can do anything including query since it gives you the power to query whatever is entered to the input.
 

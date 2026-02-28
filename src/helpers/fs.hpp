@@ -18,4 +18,6 @@ std::filesystem::path get_socket_path(const std::string &filename);
 std::vector<std::string> get_data_dirs();
 std::vector<std::string> get_icon_dirs();
 
+std::string make_temp_dir(const std::string &prefix);
+
 } // namespace Lawnch::Fs

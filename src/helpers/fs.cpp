@@ -1,6 +1,8 @@
 #include "fs.hpp"
 #include <cstdlib>
 #include <pwd.h>
+#include <stdexcept>
+#include <string>
 #include <unistd.h>
 
 namespace Lawnch::Fs {
@@ -113,6 +115,18 @@ std::vector<std::string> get_icon_dirs() {
   icon_dirs.push_back("/var/lib/flatpak/exports/share/icons");
 
   return icon_dirs;
+}
+
+std::string make_temp_dir(const std::string &prefix) {
+  std::filesystem::path temp_base = std::filesystem::temp_directory_path();
+  std::string tmpl = (temp_base / (prefix + "-XXXXXX")).string();
+
+  if (mkdtemp(tmpl.data()) == nullptr) {
+    throw std::runtime_error(
+        "Failed to create temporary directory with prefix: " + prefix);
+  }
+
+  return tmpl;
 }
 
 } // namespace Lawnch::Fs

@@ -58,6 +58,36 @@ std::string unescape(std::string_view str) {
   return result;
 }
 
+std::string escape(std::string_view str) {
+  std::string result;
+  result.reserve(str.size() * 2);
+
+  for (char c : str) {
+    switch (c) {
+    case ' ':
+      result += "\\s";
+      break;
+    case '\n':
+      result += "\\n";
+      break;
+    case '\t':
+      result += "\\t";
+      break;
+    case '\r':
+      result += "\\r";
+      break;
+    case '\\':
+      result += "\\\\";
+      break;
+    default:
+      result += c;
+      break;
+    }
+  }
+
+  return result;
+}
+
 std::string replace_all(std::string str, const std::string &from,
                         const std::string &to) {
   if (from.empty())
@@ -111,6 +141,10 @@ bool contains_ic(std::string_view haystack, std::string_view needle) {
                            std::toupper(static_cast<unsigned char>(ch2));
                   });
   return (it != haystack.end());
+}
+
+bool is_url(const std::string &str) {
+  return str.rfind("https://", 0) == 0 || str.rfind("http://", 0) == 0;
 }
 
 int match_score(std::string_view input, std::string_view target) {

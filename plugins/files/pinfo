@@ -1,9 +1,0 @@
-[plugin]
-name=files
-version=0.1.0
-author=hoppxi
-description=files plugin
-url=https://github.com/hoppxi/lawnch
-
-[build]
-src=.

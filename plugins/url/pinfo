@@ -1,9 +1,0 @@
-[plugin]
-name=url
-version=0.1.0
-author=hoppxi
-description=url plugin
-url=https://github.com/hoppxi/lawnch
-
-[build]
-src=.

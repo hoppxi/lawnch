@@ -28,11 +28,17 @@ private:
                              const std::string &base_path);
   static void build(const std::string &plugin_dir);
   static void install(const std::string &plugin_dir);
+  static void install_from_url(const std::string &url);
   static void uninstall(const std::string &plugin_name);
   static void list(const std::string &filter);
   static void enable(const std::string &plugin_name);
   static void disable(const std::string &plugin_name);
   static void info(const std::string &plugin_name);
+
+  static std::string resolve_asset_var(const std::string &str,
+                                       const std::string &src_dir,
+                                       const std::string &build_dir,
+                                       const std::string &out_dir);
 };
 
 } // namespace Lawnch::CLI

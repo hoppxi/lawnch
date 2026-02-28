@@ -76,6 +76,6 @@ void Parser::print_help() {
       << "  -v, --version             Show version information\n";
 }
 
-void Parser::print_version() { std::cout << "Lawnch v0.1.0" << std::endl; }
+void Parser::print_version() { std::cout << "Lawnch v0.1.0-alpha" << std::endl; }
 
 } // namespace Lawnch::CLI

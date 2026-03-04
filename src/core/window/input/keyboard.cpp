@@ -14,6 +14,7 @@ Keyboard::Keyboard(History &h, KeyboardCallbacks cb)
 void Keyboard::set_result_count(int count) {
   result_count = count;
   current_commands.resize(count);
+  current_has_submenu.resize(count, false);
   if (selected_index >= count)
     selected_index = std::max(0, count - 1);
 }
@@ -39,6 +40,19 @@ std::string Keyboard::get_result_command(int index) const {
   return "";
 }
 
+void Keyboard::set_result_has_submenu(int index, bool has) {
+  if (index >= 0 && index < (int)current_has_submenu.size()) {
+    current_has_submenu[index] = has;
+  }
+}
+
+bool Keyboard::get_result_has_submenu(int index) const {
+  if (index >= 0 && index < (int)current_has_submenu.size()) {
+    return current_has_submenu[index];
+  }
+  return false;
+}
+
 void Keyboard::clear() {
   search_text.clear();
   caret_position = 0;
@@ -46,6 +60,7 @@ void Keyboard::clear() {
   selected_index = 0;
   result_count = 0;
   current_commands.clear();
+  current_has_submenu.clear();
 }
 
 void Keyboard::push_undo() { history.push(search_text); }
@@ -333,6 +348,22 @@ void Keyboard::handle_key(uint32_t keycode, xkb_keysym_t sym,
         search_text.erase(caret_position, pos - caret_position);
         callbacks.on_update();
       }
+    }
+    break;
+
+  case Action::SUBMENU_ENTER:
+    if (selected_index >= 0 && selected_index < result_count &&
+        get_result_has_submenu(selected_index)) {
+      std::string cmd = get_result_command(selected_index);
+      if (callbacks.on_submenu_enter) {
+        callbacks.on_submenu_enter(cmd);
+      }
+    }
+    break;
+
+  case Action::SUBMENU_BACK:
+    if (callbacks.on_submenu_back) {
+      callbacks.on_submenu_back();
     }
     break;
 

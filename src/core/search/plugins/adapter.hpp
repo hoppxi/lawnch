@@ -18,6 +18,8 @@ public:
   std::vector<std::string> get_triggers() const override;
   SearchResult get_help() const override;
   std::vector<SearchResult> query(const std::string &term) override;
+  std::vector<SearchResult> query_submenu(const std::string &result_command,
+                                          const std::string &term) override;
 
   bool allow_history() const override;
   bool is_custom_sorted() const override;

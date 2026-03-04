@@ -9,6 +9,8 @@ public:
     return {":apps", ":a"};
   }
   std::vector<SearchResult> query(const std::string &term) override;
+  std::vector<SearchResult> query_submenu(const std::string &result_command,
+                                          const std::string &term) override;
   SearchResult get_help() const override {
     return {
         ":apps / :a",

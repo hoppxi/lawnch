@@ -127,6 +127,11 @@ install(TARGETS lawnch
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
+target_compile_definitions(lawnch PRIVATE
+  LAWNCH_VERSION="0.2.0-alpha"
+  LAWNCH_PLUGIN_API_VERSION_STR="${LawnchPluginApi_VERSION}"
+)
+
 file(GLOB_RECURSE THEME_FILES "${CMAKE_CURRENT_SOURCE_DIR}/themes/*.ini")
 install(FILES ${THEME_FILES}
   DESTINATION ${CMAKE_INSTALL_DATADIR}/lawnch/themes

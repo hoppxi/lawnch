@@ -114,6 +114,10 @@ Application::Application(std::unique_ptr<IPC::Server> server,
   kb_cb.on_execute = [this](std::string s) { this->on_keyboard_execute(s); };
   kb_cb.on_stop = [this]() { this->on_keyboard_stop(); };
   kb_cb.on_render = [this]() { this->on_keyboard_render(); };
+  kb_cb.on_submenu_enter = [this](const std::string &cmd) {
+    this->on_submenu_enter(cmd);
+  };
+  kb_cb.on_submenu_back = [this]() { this->on_submenu_back(); };
 
   keyboard = std::make_unique<Core::Window::Input::Keyboard>(history, kb_cb);
   const auto &cfg = Core::Config::Manager::Instance().Get();
@@ -268,6 +272,19 @@ void Application::render_frame_impl() {
 
 void Application::on_keyboard_update() {
   std::string text = keyboard->get_text();
+
+  if (!nav_stack.empty()) {
+    current_results =
+        search_engine->query_submenu(nav_stack.top().submenu_command, text);
+    if (current_results.empty()) {
+      current_results.push_back({"No sub-menu items", "No results found",
+                                 "dialog-information", "", "info", "", 0, false,
+                                 false, false});
+    }
+    on_search_results(current_results);
+    return;
+  }
+
   current_results = search_engine->query(text);
   if (current_results.empty()) {
     const auto &cfg = config_manager.Get();
@@ -287,6 +304,7 @@ void Application::on_search_results(
 
   for (size_t i = 0; i < results.size(); ++i) {
     keyboard->set_results_command(i, results[i].command);
+    keyboard->set_result_has_submenu(i, results[i].has_submenu);
   }
 
   render_frame();
@@ -325,7 +343,51 @@ void Application::on_keyboard_execute(std::string cmd) {
   }
 }
 
-void Application::on_keyboard_stop() { stop(); }
+void Application::on_keyboard_stop() {
+  if (!nav_stack.empty()) {
+    on_submenu_back();
+    return;
+  }
+  stop();
+}
+
+void Application::on_submenu_enter(const std::string &result_command) {
+  NavStackEntry entry;
+  entry.results = current_results;
+  entry.search_text = keyboard->get_text();
+  entry.selected_index = keyboard->get_selected_index();
+  entry.scroll_offset = scroll_offset;
+  entry.submenu_command = result_command;
+  nav_stack.push(std::move(entry));
+
+  auto sub_results = search_engine->query_submenu(result_command, "");
+  if (sub_results.empty()) {
+    sub_results.push_back(
+        {"No sub-menu items", "Press Escape or Shift+Tab to go back",
+         "dialog-information", "", "info", "", 0, false, false, false});
+  }
+
+  keyboard->set_text("", false);
+  current_results = sub_results;
+  scroll_offset = 0;
+  keyboard->set_selected_index(0);
+  on_search_results(current_results);
+}
+
+void Application::on_submenu_back() {
+  if (nav_stack.empty())
+    return;
+
+  NavStackEntry entry = std::move(nav_stack.top());
+  nav_stack.pop();
+
+  current_results = std::move(entry.results);
+  scroll_offset = entry.scroll_offset;
+
+  keyboard->set_text(entry.search_text, false);
+  keyboard->set_selected_index(entry.selected_index);
+  on_search_results(current_results);
+}
 
 void Application::on_keyboard_render() {
   int sel = keyboard->get_selected_index();

@@ -90,6 +90,10 @@ std::string KeybindingManager::action_to_string(Action action) const {
     return "nav_word_fwd";
   case Action::DELETE_WORD_FWD:
     return "delete_word_fwd";
+  case Action::SUBMENU_ENTER:
+    return "submenu_enter";
+  case Action::SUBMENU_BACK:
+    return "submenu_back";
   default:
     return "none";
   }
@@ -140,6 +144,10 @@ Action KeybindingManager::string_to_action(const std::string &str) const {
     return Action::NAV_WORD_FWD;
   if (str == "delete_word_fwd")
     return Action::DELETE_WORD_FWD;
+  if (str == "submenu_enter")
+    return Action::SUBMENU_ENTER;
+  if (str == "submenu_back")
+    return Action::SUBMENU_BACK;
   return Action::NONE;
 }
 
@@ -181,6 +189,9 @@ void KeybindingManager::load_defaults() {
   bindings[{XKB_KEY_BackSpace, MOD_CTRL}] = Action::DELETE_WORD_BACK;
   bindings[{XKB_KEY_Delete, MOD_CTRL}] = Action::DELETE_WORD_FWD;
   bindings[{XKB_KEY_w, MOD_CTRL}] = Action::DELETE_WORD_BACK; // Ctrl+W
+
+  bindings[{XKB_KEY_Tab, MOD_NONE}] = Action::SUBMENU_ENTER;
+  bindings[{XKB_KEY_ISO_Left_Tab, MOD_SHIFT}] = Action::SUBMENU_BACK;
 }
 
 void KeybindingManager::load_vim() {
@@ -199,7 +210,9 @@ void KeybindingManager::load_vim() {
   bindings[{XKB_KEY_p, MOD_CTRL}] = Action::NAV_UP;
   bindings[{XKB_KEY_n, MOD_CTRL}] = Action::NAV_DOWN;
 
-  // using ctrl to avoid typing conflict
+  // submenu navigation
+  bindings[{XKB_KEY_l, MOD_ALT}] = Action::SUBMENU_ENTER;
+  bindings[{XKB_KEY_h, MOD_ALT}] = Action::SUBMENU_BACK;
 }
 
 void KeybindingManager::load_config() {
@@ -260,7 +273,6 @@ void KeybindingManager::load_config() {
       continue;
     }
 
-    // remove existing bindings for this action to override default behavior
     for (auto it = bindings.begin(); it != bindings.end();) {
       if (it->second == action) {
         it = bindings.erase(it);

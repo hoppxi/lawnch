@@ -57,7 +57,7 @@
       {
         packages.default = pkgs.stdenv.mkDerivation {
           pname = "lawnch";
-          version = "0.1.0-alpha";
+          version = "0.2.0-alpha";
 
           src = ./.;
 

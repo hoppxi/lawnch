@@ -4,6 +4,7 @@
 #include <chrono>
 #include <memory>
 #include <optional>
+#include <stack>
 #include <thread>
 #include <vector>
 
@@ -71,6 +72,8 @@ private:
   void on_keyboard_execute(std::string cmd);
   void on_keyboard_stop();
   void on_keyboard_render();
+  void on_submenu_enter(const std::string &result_command);
+  void on_submenu_back();
 
   void on_pointer_scroll(double delta);
 
@@ -82,6 +85,16 @@ private:
   void render_frame_impl();
 
   std::mutex render_mutex;
+
+  // Sub-menu navigation stack (infinite depth)
+  struct NavStackEntry {
+    std::vector<Core::Search::SearchResult> results;
+    std::string search_text;
+    std::string submenu_command;
+    int selected_index;
+    int scroll_offset;
+  };
+  std::stack<NavStackEntry> nav_stack;
 };
 
 } // namespace Lawnch::App

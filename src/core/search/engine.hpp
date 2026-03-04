@@ -18,6 +18,8 @@ public:
   void set_forced_mode(const std::string &trigger);
   void set_initial_mode(const std::string &trigger);
   std::vector<SearchResult> query(const std::string &term);
+  std::vector<SearchResult> query_submenu(const std::string &result_command,
+                                          const std::string &term);
 
   void record_usage(const std::string &command);
 

@@ -1,7 +1,16 @@
 #include "parser.hpp"
 #include <iostream>
+#include <lawnch_plugin_api.h>
 #include <string>
 #include <vector>
+
+#ifndef LAWNCH_VERSION
+#define LAWNCH_VERSION "unknown"
+#endif
+
+#ifndef LAWNCH_PLUGIN_API_VERSION_STR
+#define LAWNCH_PLUGIN_API_VERSION_STR "unknown"
+#endif
 
 namespace Lawnch::CLI {
 
@@ -76,6 +85,11 @@ void Parser::print_help() {
       << "  -v, --version             Show version information\n";
 }
 
-void Parser::print_version() { std::cout << "Lawnch v0.1.0-alpha" << std::endl; }
+void Parser::print_version() {
+  std::cout << "lawnch v" << LAWNCH_VERSION << "\n"
+            << "lawnch-plugin-api v" << LAWNCH_PLUGIN_API_VERSION_STR << "\n"
+            << "lawnch-plugin-api-version " << LAWNCH_PLUGIN_API_VERSION
+            << "\n";
+}
 
 } // namespace Lawnch::CLI

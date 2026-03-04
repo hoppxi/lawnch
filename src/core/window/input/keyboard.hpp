@@ -13,6 +13,8 @@ struct KeyboardCallbacks {
   std::function<void(std::string)> on_execute;
   std::function<void()> on_stop;
   std::function<void()> on_render;
+  std::function<void(const std::string &result_command)> on_submenu_enter;
+  std::function<void()> on_submenu_back;
 };
 
 class Keyboard {
@@ -24,7 +26,9 @@ public:
 
   void set_result_count(int count);
   void set_results_command(int index, const std::string &cmd);
+  void set_result_has_submenu(int index, bool has);
   std::string get_result_command(int index) const;
+  bool get_result_has_submenu(int index) const;
 
   const std::string &get_text() const { return search_text; }
   void set_text(const std::string &text, bool notify = true);
@@ -48,6 +52,7 @@ private:
 
   int result_count = 0;
   std::vector<std::string> current_commands;
+  std::vector<bool> current_has_submenu;
 
   void push_undo();
   bool is_modifier(xkb_keysym_t sym);

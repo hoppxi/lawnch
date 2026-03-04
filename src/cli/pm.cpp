@@ -11,19 +11,6 @@
 
 namespace Lawnch::CLI {
 
-std::string PluginManager::resolve_asset_var(const std::string &str,
-                                             const std::string &src_dir,
-                                             const std::string &build_dir,
-                                             const std::string &out_dir) {
-  std::string result = str;
-
-  Str::replace_all(result, "$build", build_dir);
-  Str::replace_all(result, "$src", src_dir);
-  Str::replace_all(result, "$out", out_dir);
-
-  return result;
-}
-
 void PluginManager::print_help() {
   std::cout << "Usage: lawnch pm <command> [arguments]\n\n"
             << "Commands:\n"
@@ -41,14 +28,7 @@ void PluginManager::print_help() {
             << "  lawnch pm install "
                "https://github.com/user/plugins-repo/plugin-name\n"
             << "    Clone a monorepo and install a specific plugin from\n"
-            << "    plugins/<plugin-name>/.\n\n"
-            << "Asset Variables (in pinfo [assets] section):\n"
-            << "  $src   - Plugin source root (where pinfo lives)\n"
-            << "  $build - Build directory (<plugin-dir>/build)\n"
-            << "  $out   - Install destination (~/.local/share/lawnch/plugins/"
-               "<name>/assets/)\n"
-            << "  Example: $src/emoji.json=$out/emoji.json\n"
-            << "           $build/mybin=$out/mybin-renamed\n";
+            << "    plugins/<plugin-name>/.\n";
 }
 
 int PluginManager::handle_command(const std::vector<std::string> &args) {
@@ -63,7 +43,9 @@ int PluginManager::handle_command(const std::vector<std::string> &args) {
     if (command == "build") {
       if (args.size() < 2)
         throw std::runtime_error("Missing plugin directory");
-      build(args[1]);
+      std::string temp_build = build(args[1]);
+      std::cout << "Build output in: " << temp_build << "\n";
+      std::cout << "Note: clean up with 'rm -rf " << temp_build << "'\n";
     } else if (command == "install") {
       if (args.size() < 2)
         throw std::runtime_error("Missing plugin directory or URL");
@@ -135,45 +117,6 @@ PluginManager::parse_plugin_info(const std::string &plugin_dir_or_file) {
       continue;
     }
 
-    // assets section: lines use <source>=<dest> format with variables
-    if (current_section == "assets") {
-      auto start = line.find_first_not_of(" \t");
-      auto end = line.find_last_not_of(" \t");
-      if (start == std::string::npos)
-        continue;
-      std::string asset_line = line.substr(start, end - start + 1);
-
-      std::string src, dest;
-
-      // $src/file=$out/file
-      auto eq_pos = asset_line.find('=');
-
-      if (eq_pos != std::string::npos) {
-        src = asset_line.substr(0, eq_pos);
-        dest = asset_line.substr(eq_pos + 1);
-      } else {
-        src = asset_line;
-        dest = std::filesystem::path(asset_line).filename().string();
-      }
-
-      auto trim = [](std::string &s) {
-        auto a = s.find_first_not_of(" \t");
-        auto b = s.find_last_not_of(" \t");
-        if (a == std::string::npos) {
-          s.clear();
-        } else {
-          s = s.substr(a, b - a + 1);
-        }
-      };
-      trim(src);
-      trim(dest);
-
-      if (!src.empty()) {
-        info.assets.push_back({src, dest});
-      }
-      continue;
-    }
-
     auto delimiterPos = line.find('=');
     if (delimiterPos == std::string::npos)
       continue;
@@ -227,18 +170,19 @@ void PluginManager::validate_pinfo(const PluginInfo &info,
   }
 }
 
-void PluginManager::build(const std::string &plugin_dir) {
+std::string PluginManager::build(const std::string &plugin_dir) {
   if (!std::filesystem::exists(plugin_dir)) {
     throw std::runtime_error("Directory not found: " + plugin_dir);
   }
 
-  std::filesystem::path build_dir = std::filesystem::path(plugin_dir) / "build";
-  std::filesystem::create_directories(build_dir);
-
   PluginInfo info = parse_plugin_info(plugin_dir);
   validate_pinfo(info, plugin_dir);
-  std::filesystem::path source_path =
-      std::filesystem::path(plugin_dir) / info.src_dir;
+
+  std::filesystem::path abs_path = std::filesystem::absolute(plugin_dir);
+  std::filesystem::path source_path = abs_path / info.src_dir;
+
+  std::string temp_dir = Fs::make_temp_dir("lawnch-pm-build");
+  std::filesystem::path build_dir = std::filesystem::path(temp_dir);
 
   std::cout << "--- Configuring plugin '" << info.name << "' v" << info.version
             << " ---\n";
@@ -254,101 +198,43 @@ void PluginManager::build(const std::string &plugin_dir) {
   std::string cmd_config = "cmake -S \"" + source_path.string() + "\" -B \"" +
                            build_dir.string() + "\"";
   if (std::system(cmd_config.c_str()) != 0) {
+    std::filesystem::remove_all(temp_dir);
     throw std::runtime_error("CMake configuration failed");
   }
 
   std::cout << "--- Building plugin ---\n";
   std::string cmd_build = "cmake --build \"" + build_dir.string() + "\"";
   if (std::system(cmd_build.c_str()) != 0) {
+    std::filesystem::remove_all(temp_dir);
     throw std::runtime_error("Build failed");
   }
+
+  return temp_dir;
 }
 
 void PluginManager::install(const std::string &plugin_dir) {
-  build(plugin_dir);
+  std::string temp_build_dir = build(plugin_dir);
+
   PluginInfo info = parse_plugin_info(plugin_dir);
-
-  std::filesystem::path path(plugin_dir);
-  std::filesystem::path abs_path = std::filesystem::absolute(path);
   std::string plugin_name = info.name;
-
-  std::filesystem::path build_dir = abs_path / "build";
-  std::filesystem::path so_file;
-  bool found = false;
-
-  if (std::filesystem::exists(build_dir)) {
-    for (const auto &entry : std::filesystem::directory_iterator(build_dir)) {
-      if (entry.path().extension() == ".so") {
-        so_file = entry.path();
-        found = true;
-        break;
-      }
-    }
-  }
-
-  if (!found) {
-    throw std::runtime_error("Built plugin file (.so) not found in " +
-                             build_dir.string());
-  }
 
   std::filesystem::path data_home = Lawnch::Fs::get_data_home();
   std::filesystem::path plugin_install_dir =
       data_home / "lawnch" / "plugins" / plugin_name;
-  std::filesystem::path assets_install_dir = plugin_install_dir / "assets";
 
   std::cout << "--- Installing plugin '" << plugin_name << "' ---\n";
   std::filesystem::create_directories(plugin_install_dir);
 
-  std::filesystem::copy_file(so_file,
-                             plugin_install_dir / (plugin_name + ".so"),
-                             std::filesystem::copy_options::overwrite_existing);
-
-  std::filesystem::copy_file(abs_path / "pinfo", plugin_install_dir / "pinfo",
-                             std::filesystem::copy_options::overwrite_existing);
-
-  if (!info.assets.empty()) {
-    std::string src_var = abs_path.string();
-    std::string build_var = build_dir.string();
-    std::string out_var = assets_install_dir.string();
-
-    std::filesystem::create_directories(assets_install_dir);
-
-    for (const auto &[raw_src, raw_dest] : info.assets) {
-      std::string resolved_src =
-          resolve_asset_var(raw_src, src_var, build_var, out_var);
-      std::string resolved_dest =
-          resolve_asset_var(raw_dest, src_var, build_var, out_var);
-
-      std::filesystem::path asset_src(resolved_src);
-      if (!asset_src.is_absolute()) {
-        asset_src = abs_path / resolved_src;
-      }
-
-      std::filesystem::path asset_dest(resolved_dest);
-      if (!asset_dest.is_absolute()) {
-        asset_dest = assets_install_dir / resolved_dest;
-      }
-
-      if (std::filesystem::exists(asset_src)) {
-        std::filesystem::create_directories(asset_dest.parent_path());
-        if (std::filesystem::is_directory(asset_src)) {
-          std::filesystem::copy(
-              asset_src, asset_dest,
-              std::filesystem::copy_options::recursive |
-                  std::filesystem::copy_options::overwrite_existing);
-        } else {
-          std::filesystem::copy_file(
-              asset_src, asset_dest,
-              std::filesystem::copy_options::overwrite_existing);
-        }
-        std::cout << "    Asset: " << asset_src.string() << " -> "
-                  << asset_dest.string() << "\n";
-      } else {
-        std::cerr << "Warning: Asset " << raw_src << " not found at "
-                  << asset_src << "\n";
-      }
-    }
+  std::string cmd_install = "cmake --install \"" + temp_build_dir +
+                            "\" --prefix \"" + plugin_install_dir.string() +
+                            "\"";
+  if (std::system(cmd_install.c_str()) != 0) {
+    std::filesystem::remove_all(temp_build_dir);
+    throw std::runtime_error("cmake --install failed");
   }
+
+  std::cout << "--- Cleaning up build ---\n";
+  std::filesystem::remove_all(temp_build_dir);
 
   std::cout << "Plugin '" << plugin_name << "' installed successfully.\n";
   std::cout

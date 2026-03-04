@@ -217,4 +217,22 @@ std::vector<SearchResult> Engine::query(const std::string &term) {
   return results;
 }
 
+std::vector<SearchResult>
+Engine::query_submenu(const std::string &result_command,
+                      const std::string &term) {
+  for (auto &mode : modes) {
+    auto sub = mode->query_submenu(result_command, term);
+    if (!sub.empty())
+      return sub;
+  }
+
+  for (auto &plugin : plugin_manager.get_plugins()) {
+    auto sub = plugin->query_submenu(result_command, term);
+    if (!sub.empty())
+      return sub;
+  }
+
+  return {};
+}
+
 } // namespace Lawnch::Core::Search

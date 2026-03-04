@@ -36,7 +36,9 @@ enum class Action {
   QUERY_HISTORY_DOWN,
   NAV_WORD_BACK,
   NAV_WORD_FWD,
-  DELETE_WORD_FWD
+  DELETE_WORD_FWD,
+  SUBMENU_ENTER,
+  SUBMENU_BACK
 };
 
 enum class Preset { DEFAULT, VIM };

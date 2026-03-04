@@ -16,6 +16,7 @@ struct SearchResult {
   int score = 0;
   bool track_history = true;
   bool use_custom_sort = false;
+  bool has_submenu = false;
 };
 
 using ResultsCallback = std::function<void(const std::vector<SearchResult> &)>;
@@ -25,6 +26,10 @@ public:
   virtual ~SearchMode() = default;
   virtual std::vector<std::string> get_triggers() const = 0;
   virtual std::vector<SearchResult> query(const std::string &term) = 0;
+  virtual std::vector<SearchResult>
+  query_submenu(const std::string &result_command, const std::string &term) {
+    return {};
+  }
   virtual SearchResult get_help() const {
     auto t = get_triggers();
     std::string primary = t.empty() ? "" : t[0];

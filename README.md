@@ -3,15 +3,17 @@
 It is a lightweight and featureful alternative launcher for wayland. It is built with Blend2D, which is cpu-accelerated drawing library, letting the launcher to be small.
 
 > [!WARNING]
-> **This project is in early stage (v0.2.0-alpha).** Many features are untested, incomplete, or may crash. The configuration format, plugin API, technology stack, and overall architecture are all subject to drastic changes without notice between versions. Use at your own risk, until we reach stable version.
+> **This project is in early stage (v0.3.0-alpha).** Many features are untested, incomplete, or may crash. The configuration format, plugin API, technology stack, and overall architecture are all subject to drastic changes without notice between versions. Use at your own risk, until we reach stable version.
 
 ## Features
 
-- It has many plugins. and plugins can be switched even after launching the launcher with vim like key commands
-- It is customizable with lots of components like preview included
-- It has builtin plugin manager with nixos supported well with home-manager
-- It has builtin theme to play around without you having to do any config
-- It is lightweight and very fast by loading only the needed part of the app or plugin with lazy loading
+- customizable with lots of components like preview included
+- support for submenu section like in apps for desktop action section and for file navigation
+- support for uwsm managed session
+- many plugins those can be switched even after launching the launcher with vim like key commands
+- builtin plugin manager with nixos supported well including home-manager
+- builtin theme and presets to play around without you having to do any config
+- lightweight and very fast by loading only the needed part of the app or plugin with lazy loading
 
 ## Usage
 
@@ -34,16 +36,17 @@ Lawnch has a flake with both a NixOS module and a Home Manager module.
 
 ```nix
 inputs = {
-  lawnch.url = "github:hoppxi/lawnch";
+  lawnch = {
+    url = "github:hoppxi/lawnch";
+    inputs.follows.nixpkgs = "nixpkgs";
+  };
   # ...
 };
 ```
 
-#### Home Manager
-
 ```nix
 imports = [
-  inputs.lawnch.homeModules.default
+  inputs.lawnch.homeModules.default # or inputs.lawnch.nixosModules.default if using nixosConfigurations
 ];
 
 programs.lawnch = {
@@ -51,46 +54,22 @@ programs.lawnch = {
   package = inputs.lawnch.packages.${pkgs.system}.default;
   settings = {
     window.width = 600;
-    input.font_size = 12;
+    input.font.size = 12;
   };
   plugins = {
     wallpapers = {
       enable = true;
       settings = {
         dir = "~/Pictures/Wallpapers";
-        command = "waul --set '{}'";
+        command = "awww --set '{}'";
       };
     };
   };
   menus = {
     powermenu = {
-      window.anchor = "center,center";
-      launch.context = ":p";
-      results_count.enable = false;
-      layout.order = "results";
-      input.visible = false;
+      widget.input.visible = false;
+      launch.scope = ":p";
     };
-  };
-};
-```
-
-#### NixOS Module
-
-```nix
-imports = [
-  inputs.lawnch.nixosModules.default
-];
-
-programs.lawnch = {
-  enable = true;
-  package = inputs.lawnch.packages.${pkgs.system}.default;
-  settings = {
-    window.width = 600;
-    input.font_size = 12;
-  };
-  plugins = {
-    calculator.enable = true;
-    clipboard.enable = true;
   };
 };
 ```
@@ -101,7 +80,7 @@ Requirements:
 
 - `cmake`, `gcc`, `pkg-config`
 - `wayland`, `wayland-scanner`, `wlr-protocols`
-- `blend2d`, `inih`, `libxkbcommon`, `nanosvg`
+- `blend2d`, `inih`, `tomlplusplus`, `libxkbcommon`, `nanosvg`
 - `fontconfig`, `libffi`, `expat`
 
 ```bash
@@ -115,39 +94,29 @@ cmake --install build # you might want to add sudo to install it system wide
 
 ## Configuration
 
-Configuration loaded from `~/.config/lawnch/config.ini`.
+Configuration loaded from `~/.config/lawnch/config.toml`.
 
-```ini
+```toml
 [window]
-width=500
-height=400
-background_color=rgba(40, 40, 40, 0.80)
-border_color=rgba(69, 133, 136, 0.80)
-border_radius=12
+width           = 500
+height          = 410
+anchor          = "top, center"
+margin          = [140, 0, 0, 0]
 
-[input]
-font_family=Inter
-font_size=10
-text_color=rgba(235, 219, 178, 1)
-horizontal_align=fill
+[widget.input]
+font            = { family = "JetBrainsMono NerdFont", size = 15, weight = "normal" }
+text            = "#EBDBB2"
 
-[results]
-selected_background_color=rgba(69, 133, 136, 0.8)
-icon_size=24
+[widget.input.prompt]
+enable          = true
+text            = " >>"
 
-[plugins]
-powermenu=true
-wallpapers=true
-calculator=true
-
-# Plugin specific settings
-[plugin/wallpapers]
-dir = ~/Pictures/Wallpapers
-max_results = 10
-
+[plugin.powermenu]
+enable          = false
+order           = ["lockscreen", "shutdown", "reboot", "suspend", "hibernate"]
 ```
 
-you can find a complete config example at config/config.ini. Also you do not need config to run the app.
+you can find a complete config example at [config/config.toml](https://github.com/hoppxi/lawnch/tree/main/config/config.toml). Lawnch has default configuration built in so you do not need config file to start the app and try.
 
 ## Plugin
 

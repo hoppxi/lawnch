@@ -13,20 +13,20 @@ with lib;
     };
 
     settings = mkOption {
-      type = types.attrsOf types.attrs;
+      type = types.attrs;
       default = { };
-      description = "Config keys (converted to INI format).";
+      description = "Config keys (converted to TOML format).";
     };
 
     menus = mkOption {
       type = types.attrsOf types.attrs;
       default = { };
-      description = "Extra menu configurations. Each key becomes a <name>.ini file.";
+      description = "Extra menu configurations. Each key becomes a <name>.toml file.";
       example = literalExpression ''
         {
           powermenu = {
-            input.visible = false;
-            launch.start_with = ":p";
+            widget.input.visible = false;
+            launch.scope = ":p";
           };
         }
       '';
@@ -49,7 +49,7 @@ with lib;
               settings = mkOption {
                 type = types.attrs;
                 default = { };
-                description = "Plugin specific settings added to config.ini.";
+                description = "Plugin specific settings added to config.toml.";
               };
             };
           }

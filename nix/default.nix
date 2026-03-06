@@ -15,26 +15,24 @@ with lib;
 
 let
   cfg = config.programs.lawnch;
-  toIni = pkgs.formats.ini { };
+  toTOML = pkgs.formats.toml { };
   isHm = platform == "home-manager";
 
   generateFullConfig =
     let
       enabledPlugins = filterAttrs (_: v: v.enable) cfg.plugins;
 
-      pluginSections = mapAttrs' (
-        name: pcfg: nameValuePair "plugin/${name}" pcfg.settings
-      ) enabledPlugins;
-
-      enabledPluginsList = {
-        plugins = mapAttrs (_: _: true) enabledPlugins;
+      pluginSections = {
+        plugin = mapAttrs (
+          name: pcfg: { enable = true; } // pcfg.settings
+        ) enabledPlugins;
       };
 
-      finalSettings = cfg.settings // pluginSections // enabledPluginsList;
+      finalSettings = cfg.settings // pluginSections;
     in
-    toIni.generate "config.ini" finalSettings;
+    toTOML.generate "config.toml" finalSettings;
 
-  menuSources = mapAttrs (name: val: toIni.generate "${name}.ini" val) cfg.menus;
+  menuSources = mapAttrs (name: val: toTOML.generate "${name}.toml" val) cfg.menus;
 
   pluginPackages =
     let
@@ -57,8 +55,8 @@ let
   ++ pluginPackages;
 
   lawnchConfig = mkMerge [
-    { "lawnch/config.ini".source = generateFullConfig; }
-    (mapAttrs' (name: src: nameValuePair "lawnch/${name}.ini" { source = src; }) menuSources)
+    { "lawnch/config.toml".source = generateFullConfig; }
+    (mapAttrs' (name: src: nameValuePair "lawnch/${name}.toml" { source = src; }) menuSources)
   ];
 
 in

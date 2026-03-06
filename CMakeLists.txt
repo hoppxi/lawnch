@@ -132,7 +132,12 @@ target_compile_definitions(lawnch PRIVATE
   LAWNCH_PLUGIN_API_VERSION_STR="${LawnchPluginApi_VERSION}"
 )
 
-file(GLOB_RECURSE THEME_FILES "${CMAKE_CURRENT_SOURCE_DIR}/themes/*.ini")
+file(GLOB THEME_FILES "${CMAKE_CURRENT_SOURCE_DIR}/config/themes/*.toml")
 install(FILES ${THEME_FILES}
   DESTINATION ${CMAKE_INSTALL_DATADIR}/lawnch/themes
+)
+
+file(GLOB PRESET_FILES "${CMAKE_CURRENT_SOURCE_DIR}/config/presets/*.toml")
+install(FILES ${PRESET_FILES}
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/lawnch/presets
 )

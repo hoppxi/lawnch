@@ -29,6 +29,7 @@ set(BLEND2D_LIBRARIES ${BLEND2D_LIBRARY})
 pkg_check_modules(XKBCOMMON REQUIRED xkbcommon)
 pkg_check_modules(WLR_PROTOCOLS REQUIRED wlr-protocols)
 find_path(NANOSVG_INCLUDE_DIR NAMES nanosvg.h PATH_SUFFIXES nanosvg)
+pkg_check_modules(TOMLPLUSPLUS REQUIRED tomlplusplus)
 pkg_check_modules(INIH REQUIRED inih)
 pkg_check_modules(FONTCONFIG REQUIRED fontconfig)
 find_package(LawnchPluginApi REQUIRED)
@@ -108,6 +109,7 @@ target_include_directories(lawnch PRIVATE
   ${BLEND2D_INCLUDE_DIRS}
   ${XKBCOMMON_INCLUDE_DIRS}
   ${NANOSVG_INCLUDE_DIR}
+  ${TOMLPLUSPLUS_INCLUDE_DIRS}
   ${INIH_INCLUDE_DIRS}
   ${FONTCONFIG_INCLUDE_DIRS}
 )
@@ -128,7 +130,7 @@ install(TARGETS lawnch
 )
 
 target_compile_definitions(lawnch PRIVATE
-  LAWNCH_VERSION="0.2.0-alpha"
+  LAWNCH_VERSION="0.3.0-alpha"
   LAWNCH_PLUGIN_API_VERSION_STR="${LawnchPluginApi_VERSION}"
 )
 

@@ -16,7 +16,7 @@ void ResultsContainer::update_metrics(const Config::Config &cfg) const {
   double name_h = metrics.ascent + metrics.descent;
 
   double comment_h = 0;
-  if (cfg.result_item_enable_comment) {
+  if (cfg.result_item_comment_enable) {
     BLFont cfont = Lawnch::Gfx::get_font(cfg.result_item_font_family,
                                          cfg.result_item_comment_font_size,
                                          cfg.result_item_comment_font_weight);
@@ -26,13 +26,13 @@ void ResultsContainer::update_metrics(const Config::Config &cfg) const {
 
   double text_gap = 4.0;
   double item_inner_h = name_h;
-  if (cfg.result_item_enable_comment) {
+  if (cfg.result_item_comment_enable) {
     item_inner_h += text_gap + comment_h;
   }
 
   cached_item_height =
       (cfg.result_item_padding.top + cfg.result_item_padding.bottom) +
-      item_inner_h + cfg.results_spacing + cfg.result_item_margin.top +
+      item_inner_h + cfg.results_gap + cfg.result_item_margin.top +
       cfg.result_item_margin.bottom;
   metrics_valid = true;
 }
@@ -63,13 +63,13 @@ void ResultsContainer::draw_result_item(BLContext &ctx,
 
   double center_y = item_y + (item_h / 2.0);
 
-  auto bg_color = is_selected ? cfg.result_item_selected_background_color
-                              : cfg.result_item_background_color;
+  auto bg_color = is_selected ? cfg.result_item_selected_background
+                              : cfg.result_item_background;
   auto border_color = is_selected ? cfg.result_item_selected_border_color
                                   : cfg.result_item_border_color;
-  auto text_color = is_selected ? cfg.result_item_selected_text_color
-                                : cfg.result_item_text_color;
-  auto comment_color_cfg = is_selected ? cfg.result_item_selected_comment_color
+  auto text_color = is_selected ? cfg.result_item_selected_text
+                                : cfg.result_item_text;
+  auto comment_color_cfg = is_selected ? cfg.result_item_selected_comment
                                        : cfg.result_item_comment_color;
 
   int radius = is_selected ? cfg.result_item_selected_border_radius
@@ -103,7 +103,7 @@ void ResultsContainer::draw_result_item(BLContext &ctx,
                                  cfg.result_item_padding.right);
 
   double current_icon_size = 0;
-  if (cfg.result_item_enable_icon) {
+  if (cfg.result_item_icon_show) {
     double max_icon_h = item_h * 0.8;
     current_icon_size = std::min((double)cfg.result_item_icon_size, max_icon_h);
 
@@ -112,7 +112,7 @@ void ResultsContainer::draw_result_item(BLContext &ctx,
     Icons::Manager::Instance().render_icon(ctx, result.icon, std::floor(draw_x),
                                            icon_y, current_icon_size);
 
-    double icon_gap = current_icon_size + cfg.result_item_icon_padding_right;
+    double icon_gap = current_icon_size + cfg.result_item_icon_gap;
     draw_x += icon_gap;
     draw_w -= icon_gap;
   }
@@ -121,16 +121,16 @@ void ResultsContainer::draw_result_item(BLContext &ctx,
     ctx.set_fill_style(Lawnch::Gfx::toBLColor(text_color));
     double text_x_pos = draw_x;
 
-    if (cfg.result_item_text_align == "center") {
+    if (cfg.result_item_align == "center") {
       text_x_pos = item_x + (item_w / 2.0);
-    } else if (cfg.result_item_text_align == "right") {
+    } else if (cfg.result_item_align == "right") {
       text_x_pos = draw_x_rect + draw_w_rect - cfg.result_item_padding.right;
     }
 
     double name_y;
     double comment_y = 0;
 
-    if (cfg.result_item_enable_comment && !result.comment.empty()) {
+    if (cfg.result_item_comment_enable && !result.comment.empty()) {
       double total_text_h = (fm.ascent + fm.descent) + (cm.ascent + cm.descent);
       double start_text_y = center_y - (total_text_h / 2.0);
 
@@ -145,30 +145,30 @@ void ResultsContainer::draw_result_item(BLContext &ctx,
     ctx.clip_to_rect(BLRect(draw_x, draw_y_rect, draw_w, draw_h_rect));
 
     std::string display_name = result.name;
-    if (cfg.result_item_text_align != "center" &&
-        cfg.result_item_text_align != "right") {
+    if (cfg.result_item_align != "center" &&
+        cfg.result_item_align != "right") {
       display_name = Lawnch::Gfx::truncate_text(result.name, font, draw_w);
     }
 
     double final_text_x = text_x_pos;
-    if (cfg.result_item_text_align == "center" ||
-        cfg.result_item_text_align == "right") {
+    if (cfg.result_item_align == "center" ||
+        cfg.result_item_align == "right") {
       BLGlyphBuffer gb;
       gb.set_utf8_text(display_name.c_str(), display_name.size());
       font.shape(gb);
       BLTextMetrics tm;
       font.get_text_metrics(gb, tm);
 
-      if (cfg.result_item_text_align == "center") {
+      if (cfg.result_item_align == "center") {
         final_text_x -= (tm.advance.x / 2.0);
       } else {
         final_text_x -= tm.advance.x;
       }
     }
 
-    if (cfg.result_item_enable_highlight && !search_text.empty()) {
+    if (cfg.result_item_highlight_enable && !search_text.empty()) {
       auto highlight_color = is_selected
-                                 ? cfg.result_item_selected_highlight_color
+                                 ? cfg.result_item_selected_highlight
                                  : cfg.result_item_highlight_color;
       BLFont highlight_font = Lawnch::Gfx::get_font(
           cfg.result_item_font_family, cfg.result_item_font_size,
@@ -229,26 +229,26 @@ void ResultsContainer::draw_result_item(BLContext &ctx,
                          display_name.c_str());
     }
 
-    if (cfg.result_item_enable_comment && !result.comment.empty()) {
+    if (cfg.result_item_comment_enable && !result.comment.empty()) {
       ctx.set_fill_style(Lawnch::Gfx::toBLColor(comment_color_cfg));
 
       std::string display_comment = result.comment;
-      if (cfg.result_item_text_align != "center" &&
-          cfg.result_item_text_align != "right") {
+      if (cfg.result_item_align != "center" &&
+          cfg.result_item_align != "right") {
         display_comment =
             Lawnch::Gfx::truncate_text(result.comment, comment_font, draw_w);
       }
 
       double final_comment_x = text_x_pos;
-      if (cfg.result_item_text_align == "center" ||
-          cfg.result_item_text_align == "right") {
+      if (cfg.result_item_align == "center" ||
+          cfg.result_item_align == "right") {
         BLGlyphBuffer gb;
         gb.set_utf8_text(display_comment.c_str(), display_comment.size());
         comment_font.shape(gb);
         BLTextMetrics tm;
         comment_font.get_text_metrics(gb, tm);
 
-        if (cfg.result_item_text_align == "center") {
+        if (cfg.result_item_align == "center") {
           final_comment_x -= (tm.advance.x / 2.0);
         } else {
           final_comment_x -= tm.advance.x;
@@ -284,7 +284,7 @@ ComponentResult ResultsContainer::draw(ComponentContext &context) {
   int visible_count = std::max(1, (int)std::floor(available_h / item_height));
 
   bool show_scrollbar =
-      cfg.results_enable_scrollbar && total_results > visible_count;
+      cfg.results_scrollbar_enable && total_results > visible_count;
 
   double content_x =
       context.x + cfg.results_margin.left + cfg.results_padding.left;
@@ -306,8 +306,8 @@ ComponentResult ResultsContainer::draw(ComponentContext &context) {
   double container_h =
       context.available_h - cfg.results_margin.top - cfg.results_margin.bottom;
 
-  if (cfg.results_background_color.a > 0) {
-    ctx.set_fill_style(Lawnch::Gfx::toBLColor(cfg.results_background_color));
+  if (cfg.results_background.a > 0) {
+    ctx.set_fill_style(Lawnch::Gfx::toBLColor(cfg.results_background));
     ctx.fill_round_rect(Lawnch::Gfx::rounded_rect(container_x, container_y,
                                                   container_w, container_h,
                                                   cfg.results_border_radius));
@@ -343,7 +343,7 @@ ComponentResult ResultsContainer::draw(ComponentContext &context) {
       item_y = std::floor(items_start_y + rel_i * item_height);
     }
 
-    double item_h = std::floor(item_height - cfg.results_spacing);
+    double item_h = std::floor(item_height - cfg.results_gap);
     bool is_sel = (i == state.selected_index);
 
     draw_result_item(ctx, cfg, res, content_x, item_y, content_w, item_h,
@@ -358,9 +358,9 @@ ComponentResult ResultsContainer::draw(ComponentContext &context) {
     double track_y = items_start_y;
     double track_h = available_h;
 
-    if (cfg.results_scrollbar_bg_color.a > 0) {
+    if (cfg.results_scrollbar_track.a > 0) {
       ctx.set_fill_style(
-          Lawnch::Gfx::toBLColor(cfg.results_scrollbar_bg_color));
+          Lawnch::Gfx::toBLColor(cfg.results_scrollbar_track));
       ctx.fill_round_rect(Lawnch::Gfx::rounded_rect(
           track_x, track_y, cfg.results_scrollbar_width, track_h,
           cfg.results_scrollbar_radius));
@@ -373,7 +373,7 @@ ComponentResult ResultsContainer::draw(ComponentContext &context) {
         (double)state.scroll_offset / (total_results - visible_count);
     double thumb_y = track_y + (scroll_progress * thumb_range);
 
-    ctx.set_fill_style(Lawnch::Gfx::toBLColor(cfg.results_scrollbar_color));
+    ctx.set_fill_style(Lawnch::Gfx::toBLColor(cfg.results_scrollbar_thumb));
     ctx.fill_round_rect(
         Lawnch::Gfx::rounded_rect(track_x, thumb_y, cfg.results_scrollbar_width,
                                   thumb_h, cfg.results_scrollbar_radius));

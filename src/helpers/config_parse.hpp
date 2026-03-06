@@ -20,7 +20,9 @@ struct Color {
 std::vector<int> parseIntList(const std::string &value);
 std::vector<std::string> parseStringList(const std::string &value);
 Padding parsePadding(const std::string &value);
+Padding parsePaddingFromArray(const std::vector<int64_t> &values);
 bool parseBool(const std::string &s);
 Color parseColor(const std::string &s);
+Color parseHexColor(const std::string &hex);
 
 } // namespace Lawnch::Config

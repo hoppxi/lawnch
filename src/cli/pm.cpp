@@ -9,6 +9,8 @@
 #include <set>
 #include <sstream>
 
+#include <toml++/toml.hpp>
+
 namespace Lawnch::CLI {
 
 void PluginManager::print_help() {
@@ -418,42 +420,32 @@ static void update_config(const std::string &plugin_name, bool enabled) {
   }
 
   std::filesystem::path config_path =
-      Lawnch::Fs::get_config_home() / "lawnch" / "config.ini";
+      Lawnch::Fs::get_config_home() / "lawnch" / "config.toml";
   std::filesystem::create_directories(config_path.parent_path());
 
-  std::vector<std::string> lines;
-  bool plugins_section_found = false;
-  bool key_found = false;
-
+  toml::table tbl;
   if (std::filesystem::exists(config_path)) {
-    std::ifstream file_in(config_path);
-    std::string line;
-    while (std::getline(file_in, line)) {
-      if (line.find("[plugins]") != std::string::npos) {
-        plugins_section_found = true;
-      }
-
-      if (plugins_section_found && line.find(plugin_name + "=") == 0) {
-        lines.push_back(plugin_name + "=" + (enabled ? "true" : "false"));
-        key_found = true;
-      } else {
-        lines.push_back(line);
-      }
+    try {
+      tbl = toml::parse_file(config_path.string());
+    } catch (const toml::parse_error &e) {
+      throw std::runtime_error("Failed to parse config: " +
+                               std::string(e.what()));
     }
-    file_in.close();
   }
 
-  std::ofstream file_out(config_path);
-  for (const auto &l : lines) {
-    file_out << l << "\n";
+  if (!tbl.contains("plugin")) {
+    tbl.insert_or_assign("plugin", toml::table{});
   }
+  auto *plugin_tbl = tbl["plugin"].as_table();
 
-  if (!key_found) {
-    if (!plugins_section_found) {
-      file_out << "\n[plugins]\n";
-    }
-    file_out << plugin_name << "=" << (enabled ? "true" : "false") << "\n";
+  if (!plugin_tbl->contains(plugin_name)) {
+    plugin_tbl->insert_or_assign(plugin_name, toml::table{});
   }
+  auto *entry = (*plugin_tbl)[plugin_name].as_table();
+  entry->insert_or_assign("enable", enabled);
+
+  std::ofstream out(config_path);
+  out << tbl;
 }
 
 void PluginManager::enable(const std::string &plugin_name) {

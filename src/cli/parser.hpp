@@ -9,7 +9,8 @@ struct Options {
   bool help = false;
   bool version = false;
   bool kill = false;
-  int verbosity = 3;
+  bool verbose = false;
+  bool print_logs = false;
   std::optional<std::string> config_path;
   std::optional<std::string> merge_config_path;
 };

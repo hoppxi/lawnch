@@ -68,7 +68,7 @@ public:
       if (!item.visible)
         continue;
       if (!first)
-        height += cfg.preview_vertical_spacing;
+        height += cfg.preview_gap_v;
       height += item.height;
       first = false;
     }
@@ -79,8 +79,8 @@ public:
     double preview_h = get_total_height();
     double preview_w = available_w;
 
-    if (cfg.preview_background_color.a > 0) {
-      ctx.set_fill_style(Lawnch::Gfx::toBLColor(cfg.preview_background_color));
+    if (cfg.preview_background.a > 0) {
+      ctx.set_fill_style(Lawnch::Gfx::toBLColor(cfg.preview_background));
       ctx.fill_rect(x, y, preview_w, preview_h);
     }
 
@@ -96,7 +96,7 @@ public:
       if (!item.visible)
         continue;
       if (!first)
-        current_y += cfg.preview_vertical_spacing;
+        current_y += cfg.preview_gap_v;
 
       if (item.is_group) {
         draw_group(ctx, item, content_x, current_y, content_max_w);
@@ -117,7 +117,7 @@ private:
   BLImage preview_image;
 
   void parse_layout_string() {
-    for (const auto &raw_item : cfg.preview_show) {
+    for (const auto &raw_item : cfg.preview_composition) {
       if (raw_item.rfind("(", 0) == 0) {
         LayoutItem group;
         group.is_group = true;
@@ -150,8 +150,8 @@ private:
         if (!selected.preview_image_path.empty()) {
           std::filesystem::path image_path =
               ImageCache::ImageCache::Instance().get_image(
-                  selected.preview_image_path, cfg.preview_preview_image_size,
-                  cfg.preview_preview_image_size);
+                  selected.preview_image_path, cfg.preview_image_size,
+                  cfg.preview_image_size);
 
           if (!image_path.empty()) {
             if (BLImage *cached = get_cached_preview(image_path.string())) {
@@ -172,7 +172,7 @@ private:
         }
 
         if (image_failed) {
-          if (cfg.preview_fallback_icon) {
+          if (cfg.preview_icon_fallback) {
             item.is_fallback_icon = true;
           } else {
             item.visible = false;
@@ -184,8 +184,8 @@ private:
     for (auto &item : layout)
       check_image(item);
 
-    if (has_preview_image && image_failed && cfg.preview_fallback_icon &&
-        cfg.preview_hide_icon_if_fallback) {
+    if (has_preview_image && image_failed && cfg.preview_icon_fallback &&
+        cfg.preview_icon_hide_on_fallback) {
       std::function<void(LayoutItem &)> hide_icons = [&](LayoutItem &item) {
         if (item.is_group) {
           for (auto &child : item.children)
@@ -228,7 +228,7 @@ private:
 
         if (visible_children > 0) {
           double spacing_width =
-              (visible_children - 1) * cfg.preview_horizontal_spacing;
+              (visible_children - 1) * cfg.preview_gap_h;
           double content_max_w = available_w - cfg.preview_padding.left -
                                  cfg.preview_padding.right;
           double remaining_width = content_max_w - fixed_width - spacing_width;
@@ -248,7 +248,7 @@ private:
         for (const auto &child : item.children) {
           if (child.visible) {
             if (!first_child) {
-              total_w += cfg.preview_horizontal_spacing;
+              total_w += cfg.preview_gap_h;
             }
             total_w += child.width;
             first_child = false;
@@ -271,7 +271,7 @@ private:
     if (item.type == "icon") {
       item.width = item.height = cfg.preview_icon_size;
     } else if (item.type == "preview_image") {
-      item.width = item.height = cfg.preview_preview_image_size;
+      item.width = item.height = cfg.preview_image_size;
     } else if (item.type == "name" || item.type == "comment") {
       bool is_name = item.type == "name";
       if (!is_name && selected.comment.empty()) {
@@ -279,12 +279,12 @@ private:
         item.width = item.height = 0;
         return;
       }
-      BLFont font = is_name ? Gfx::get_font(cfg.preview_name_font_family,
-                                            cfg.preview_name_font_size,
-                                            cfg.preview_name_font_weight)
-                            : Gfx::get_font(cfg.preview_name_font_family,
-                                            cfg.preview_comment_font_size,
-                                            cfg.preview_comment_font_weight);
+      BLFont font = is_name ? Gfx::get_font(cfg.preview_title_font_family,
+                                            cfg.preview_title_font_size,
+                                            cfg.preview_title_font_weight)
+                            : Gfx::get_font(cfg.preview_title_font_family,
+                                            cfg.preview_description_font_size,
+                                            cfg.preview_description_font_weight);
       BLFontMetrics fm = font.metrics();
       item.height = fm.ascent + fm.descent;
     }
@@ -299,7 +299,7 @@ private:
       if (!child.visible)
         continue;
       if (!first_child)
-        current_x += cfg.preview_horizontal_spacing;
+        current_x += cfg.preview_gap_h;
 
       double child_y = y + (group.height - child.height) / 2.0;
       draw_item(ctx, child, current_x, child_y, child.width);
@@ -322,13 +322,13 @@ private:
         ctx.blit_image(BLPoint(draw_x, draw_y), preview_image);
       }
     } else if (item.type == "name") {
-      draw_text(ctx, selected.name, x, y, w_avail, cfg.preview_name_font_family,
-                cfg.preview_name_font_size, cfg.preview_name_font_weight,
-                cfg.preview_name_color);
+      draw_text(ctx, selected.name, x, y, w_avail, cfg.preview_title_font_family,
+                cfg.preview_title_font_size, cfg.preview_title_font_weight,
+                cfg.preview_title_color);
     } else if (item.type == "comment") {
       draw_text(ctx, selected.comment, x, y, w_avail,
-                cfg.preview_name_font_family, cfg.preview_comment_font_size,
-                cfg.preview_comment_font_weight, cfg.preview_comment_color);
+                cfg.preview_title_font_family, cfg.preview_description_font_size,
+                cfg.preview_description_font_weight, cfg.preview_description_color);
     }
   }
 

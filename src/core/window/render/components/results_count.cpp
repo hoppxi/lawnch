@@ -37,15 +37,15 @@ ComponentResult ResultsCount::draw(ComponentContext &context) {
   double avail_w = context.available_w - cfg.results_count_padding.left -
                    cfg.results_count_padding.right;
 
-  if (cfg.results_count_text_align == "center") {
+  if (cfg.results_count_align == "center") {
     text_x = context.x + cfg.results_count_padding.left +
              (avail_w - tm.advance.x) / 2.0;
-  } else if (cfg.results_count_text_align == "right") {
+  } else if (cfg.results_count_align == "right") {
     text_x = context.x + context.available_w - cfg.results_count_padding.right -
              tm.advance.x;
   }
 
-  ctx.set_fill_style(Lawnch::Gfx::toBLColor(cfg.results_count_text_color));
+  ctx.set_fill_style(Lawnch::Gfx::toBLColor(cfg.results_count_text));
   ctx.fill_utf8_text(BLPoint(text_x, text_y), count_font, count_text.c_str());
 
   return {context.available_w, count_h};

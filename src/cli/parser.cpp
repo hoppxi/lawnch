@@ -40,24 +40,10 @@ Options Parser::parse(int argc, char **argv) {
         std::cerr << "Error: --merge-config requires a path argument"
                   << std::endl;
       }
-    } else if (args[i] == "--verbosity") {
-      if (i + 1 < args.size()) {
-        try {
-          int val = std::stoi(args[i + 1]);
-          if (val >= 1 && val <= 4) {
-            options.verbosity = val;
-          } else {
-            std::cerr << "Error: --verbosity must be between 1 and 4"
-                      << std::endl;
-          }
-        } catch (const std::exception &) {
-          std::cerr << "Error: --verbosity requires a numeric argument"
-                    << std::endl;
-        }
-        i++; // Skip next arg
-      } else {
-        std::cerr << "Error: --verbosity requires a level (1-4)" << std::endl;
-      }
+    } else if (args[i] == "--verbose") {
+      options.verbose = true;
+    } else if (args[i] == "--print-logs" || args[i] == "-l") {
+      options.print_logs = true;
     }
   }
   return options;
@@ -78,9 +64,8 @@ void Parser::print_help() {
          "override "
          "defaults\n"
       << "      --kill                Kill the running instance of Lawnch\n"
-      << "      --verbosity <1-4>     Set log verbosity (1:Error, 2:Warn, "
-         "3:Info, "
-         "4:Debug)\n"
+      << "      --verbose             Enable verbose logging (debug + info)\n"
+      << "  -l, --print-logs          Log to stdout instead of file\n"
       << "  -h, --help                Show this help message\n"
       << "  -v, --version             Show version information\n";
 }

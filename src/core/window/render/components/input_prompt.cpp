@@ -4,7 +4,7 @@
 namespace Lawnch::Core::Window::Render::Components {
 
 double InputPrompt::calculate_width(const Config::Config &cfg) {
-  if (!cfg.input_prompt_enable || cfg.input_prompt_content.empty()) {
+  if (!cfg.input_prompt_enable || cfg.input_prompt_text.empty()) {
     return 0;
   }
 
@@ -13,7 +13,7 @@ double InputPrompt::calculate_width(const Config::Config &cfg) {
                                       cfg.input_prompt_font_weight);
 
   BLGlyphBuffer gb;
-  gb.set_utf8_text(cfg.input_prompt_content.c_str());
+  gb.set_utf8_text(cfg.input_prompt_text.c_str());
   font.shape(gb);
 
   BLTextMetrics tm;
@@ -27,16 +27,16 @@ ComponentResult InputPrompt::draw(ComponentContext &context) {
   auto &ctx = context.ctx;
   auto &cfg = context.cfg;
 
-  if (!cfg.input_prompt_enable || cfg.input_prompt_content.empty()) {
+  if (!cfg.input_prompt_enable || cfg.input_prompt_text.empty()) {
     return {0, 0};
   }
 
   BLRoundRect rect = Lawnch::Gfx::rounded_rect(
       context.x, context.y, context.available_w, context.available_h,
       cfg.input_prompt_border_radius);
-  if (cfg.input_prompt_background_color.a > 0) {
+  if (cfg.input_prompt_background.a > 0) {
     ctx.set_fill_style(
-        Lawnch::Gfx::toBLColor(cfg.input_prompt_background_color));
+        Lawnch::Gfx::toBLColor(cfg.input_prompt_background));
     ctx.fill_round_rect(rect);
   }
   if (cfg.input_prompt_border_width > 0) {
@@ -59,9 +59,9 @@ ComponentResult InputPrompt::draw(ComponentContext &context) {
   double text_y =
       content_y + (content_h - (fm.ascent + fm.descent)) / 2.0 + fm.ascent;
 
-  ctx.set_fill_style(Lawnch::Gfx::toBLColor(cfg.input_prompt_text_color));
+  ctx.set_fill_style(Lawnch::Gfx::toBLColor(cfg.input_prompt_color));
   ctx.fill_utf8_text(BLPoint(text_x, text_y), font,
-                     cfg.input_prompt_content.c_str());
+                     cfg.input_prompt_text.c_str());
 
   return {context.available_w, context.available_h};
 }

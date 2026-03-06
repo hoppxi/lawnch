@@ -38,7 +38,8 @@ enum class Action {
   NAV_WORD_FWD,
   DELETE_WORD_FWD,
   SUBMENU_ENTER,
-  SUBMENU_BACK
+  SUBMENU_BACK,
+  CONTEXT_SWITCH
 };
 
 enum class Preset { DEFAULT, VIM };
@@ -58,6 +59,8 @@ public:
   void set_preset(Preset p);
 
   [[nodiscard]] Action get_action(xkb_keysym_t key, uint32_t modifiers) const;
+  [[nodiscard]] std::string get_context_target(xkb_keysym_t key,
+                                               uint32_t modifiers) const;
   [[nodiscard]] std::string action_to_string(Action action) const;
   [[nodiscard]] Action string_to_action(const std::string &str) const;
 
@@ -69,6 +72,8 @@ private:
 
   std::unordered_map<std::pair<xkb_keysym_t, uint32_t>, Action, KeyHash>
       bindings;
+  std::unordered_map<std::pair<xkb_keysym_t, uint32_t>, std::string, KeyHash>
+      context_bindings;
   Preset current_preset = Preset::DEFAULT;
 };
 

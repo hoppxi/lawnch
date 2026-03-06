@@ -65,7 +65,8 @@ int main(int argc, char **argv) {
     }
 
     App::Application app(std::move(ipc_server), options.config_path,
-                         options.merge_config_path, options.verbosity);
+                         options.merge_config_path, options.verbose,
+                         options.print_logs);
     app.run();
   } catch (const std::exception &e) {
     std::cerr << "Fatal Error: " << e.what() << std::endl;

@@ -367,6 +367,15 @@ void Keyboard::handle_key(uint32_t keycode, xkb_keysym_t sym,
     }
     break;
 
+  case Action::CONTEXT_SWITCH: {
+    std::string target =
+        KeybindingManager::Instance().get_context_target(sym, mods);
+    if (!target.empty() && callbacks.on_context_switch) {
+      callbacks.on_context_switch(target);
+    }
+    break;
+  }
+
   case Action::NONE:
     char buf[128];
     if (xkb_state &&

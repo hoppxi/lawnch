@@ -28,7 +28,7 @@ ComponentResult InputBox::draw(ComponentContext &context) {
       Lawnch::Gfx::rounded_rect(input_box_x, input_box_y, input_box_w,
                                 input_box_h, cfg.input_border_radius);
 
-  auto bg = cfg.input_background_color;
+  auto bg = cfg.input_background;
   ctx.set_fill_style(Lawnch::Gfx::toBLColor(bg));
   ctx.fill_round_rect(rect);
 
@@ -55,9 +55,9 @@ ComponentResult InputBox::draw(ComponentContext &context) {
       input_box_w - (cfg.input_padding.left + cfg.input_padding.right);
   double x_offset = 0;
 
-  if (cfg.input_horizontal_align == "center") {
+  if (cfg.input_align == "center") {
     x_offset = (text_avail_w - text_width) / 2.0;
-  } else if (cfg.input_horizontal_align == "right") {
+  } else if (cfg.input_align == "right") {
     x_offset = text_avail_w - text_width;
   }
 
@@ -73,11 +73,11 @@ ComponentResult InputBox::draw(ComponentContext &context) {
     ctx.fill_rect(BLRect(draw_x, input_box_y + cfg.input_padding.top,
                          text_width, font_h));
 
-    auto txt_col = cfg.input_selection_text_color;
+    auto txt_col = cfg.input_selection_text;
     ctx.set_fill_style(Lawnch::Gfx::toBLColor(txt_col));
   } else {
     Lawnch::Config::Color c =
-        is_empty ? cfg.input_placeholder_color : cfg.input_text_color;
+        is_empty ? cfg.input_placeholder_color : cfg.input_text;
     ctx.set_fill_style(Lawnch::Gfx::toBLColor(c));
   }
 
@@ -99,9 +99,9 @@ ComponentResult InputBox::draw(ComponentContext &context) {
       font.get_text_metrics(gb_caret, cm);
       caret_x_offset = cm.advance.x;
     } else if (is_empty) {
-      if (cfg.input_horizontal_align == "center") {
+      if (cfg.input_align == "center") {
         draw_x = input_box_x + cfg.input_padding.left + (text_avail_w / 2.0);
-      } else if (cfg.input_horizontal_align == "right") {
+      } else if (cfg.input_align == "right") {
         draw_x = input_box_x + cfg.input_padding.left + text_avail_w;
       }
     }

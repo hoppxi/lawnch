@@ -36,7 +36,7 @@ std::string extract_primary_trigger(const std::string &name) {
 Application::Application(std::unique_ptr<IPC::Server> server,
                          std::optional<std::string> config_path_override,
                          std::optional<std::string> merge_config_path,
-                         int log_verbosity)
+                         bool verbose, bool print_logs)
     : ipc_server(std::move(server)),
       config_manager(Core::Config::Manager::Instance()),
       icon_manager(Core::Icons::Manager::Instance()),
@@ -44,12 +44,12 @@ Application::Application(std::unique_ptr<IPC::Server> server,
       last_render_time(std::chrono::steady_clock::now()) {
 
   std::filesystem::path log_path = Fs::get_log_path("lawnch");
-  Logger::init(log_path.string(),
-               static_cast<Logger::LogVerbosity>(log_verbosity));
+  Logger::init(log_path.string(), verbose, print_logs);
 
   Logger::log("App", Logger::LogLevel::INFO, "Initializing Application...");
   Logger::log("Logger", Logger::LogLevel::INFO,
-              "verbosity level " + std::to_string(log_verbosity));
+              std::string("verbose=") + (verbose ? "true" : "false") +
+                  " print_logs=" + (print_logs ? "true" : "false"));
 
   wakeup_fd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
   image_cache.set_render_callback([this]() {
@@ -76,7 +76,7 @@ Application::Application(std::unique_ptr<IPC::Server> server,
     if (!std::filesystem::exists(config_dir)) {
       std::filesystem::create_directories(config_dir);
     }
-    config_path = (config_dir / "config.ini").string();
+    config_path = (config_dir / "config.toml").string();
   }
 
   if (std::filesystem::exists(config_path)) {
@@ -98,12 +98,12 @@ Application::Application(std::unique_ptr<IPC::Server> server,
 
   search_engine = std::make_unique<Core::Search::Engine>(*plugin_manager);
 
-  if (!config_manager.Get().launch_context.empty()) {
-    search_engine->set_forced_mode(config_manager.Get().launch_context);
+  if (!config_manager.Get().launch_scope.empty()) {
+    search_engine->set_forced_mode(config_manager.Get().launch_scope);
   }
 
-  if (!config_manager.Get().launch_start_with.empty()) {
-    search_engine->set_initial_mode(config_manager.Get().launch_start_with);
+  if (!config_manager.Get().launch_initial.empty()) {
+    search_engine->set_initial_mode(config_manager.Get().launch_initial);
   }
 
   search_engine->set_async_callback(
@@ -118,6 +118,9 @@ Application::Application(std::unique_ptr<IPC::Server> server,
     this->on_submenu_enter(cmd);
   };
   kb_cb.on_submenu_back = [this]() { this->on_submenu_back(); };
+  kb_cb.on_context_switch = [this](const std::string &trigger) {
+    this->on_context_switch(trigger);
+  };
 
   keyboard = std::make_unique<Core::Window::Input::Keyboard>(history, kb_cb);
   const auto &cfg = Core::Config::Manager::Instance().Get();
@@ -288,7 +291,7 @@ void Application::on_keyboard_update() {
   current_results = search_engine->query(text);
   if (current_results.empty()) {
     const auto &cfg = config_manager.Get();
-    if (cfg.results_show_help_on_empty && !starts_with_help_trigger(text)) {
+    if (cfg.results_show_help && !starts_with_help_trigger(text)) {
       std::string help_query = text.empty() ? ":h" : ":h " + text;
       current_results = search_engine->query(help_query);
     }
@@ -335,8 +338,8 @@ void Application::on_keyboard_execute(std::string cmd) {
     }
     const auto &cfg = config_manager.Get();
     std::string final_cmd = cmd;
-    if (!cfg.launch_prefix.empty()) {
-      final_cmd = cfg.launch_prefix + " " + cmd;
+    if (!cfg.launch_wrapper.empty()) {
+      final_cmd = cfg.launch_wrapper + " " + cmd;
     }
     Proc::exec_detached(final_cmd);
     stop();
@@ -389,6 +392,16 @@ void Application::on_submenu_back() {
   on_search_results(current_results);
 }
 
+void Application::on_context_switch(const std::string &trigger) {
+  Logger::log("App", Logger::LogLevel::INFO, "Context switch to: " + trigger);
+
+  while (!nav_stack.empty()) {
+    nav_stack.pop();
+  }
+
+  keyboard->set_text(trigger + " ");
+}
+
 void Application::on_keyboard_render() {
   int sel = keyboard->get_selected_index();
 
@@ -410,7 +423,7 @@ void Application::on_pointer_scroll(double delta) {
       renderer.get_visible_count(layer_surface->get_height(), cfg);
   int total = (int)current_results.size();
 
-  if (cfg.results_scroll_mode == "fixed") {
+  if (cfg.results_scroll == "fixed") {
     int sel = keyboard->get_selected_index();
 
     if (delta > 0) { // scroll down

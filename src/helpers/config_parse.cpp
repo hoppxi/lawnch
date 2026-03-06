@@ -61,17 +61,32 @@ Padding parsePadding(const std::string &value) {
   }
 
   if (values.size() == 1) {
-    // padding=10 - all sides
     return Padding(values[0]);
   } else if (values.size() == 2) {
-    // padding=10,20 - vertical, horizontal
     return Padding(values[0], values[1], values[0], values[1]);
   } else if (values.size() == 3) {
-    // padding=10,20,30 - top, horizontal, bottom
     return Padding(values[0], values[1], values[2], values[1]);
   } else {
-    // padding=10,20,30,40 - top, right, bottom, left
     return Padding(values[0], values[1], values[2], values[3]);
+  }
+}
+
+Padding parsePaddingFromArray(const std::vector<int64_t> &values) {
+  if (values.empty()) {
+    return Padding(0);
+  }
+
+  if (values.size() == 1) {
+    return Padding(static_cast<int>(values[0]));
+  } else if (values.size() == 2) {
+    return Padding(static_cast<int>(values[0]), static_cast<int>(values[1]),
+                   static_cast<int>(values[0]), static_cast<int>(values[1]));
+  } else if (values.size() == 3) {
+    return Padding(static_cast<int>(values[0]), static_cast<int>(values[1]),
+                   static_cast<int>(values[2]), static_cast<int>(values[1]));
+  } else {
+    return Padding(static_cast<int>(values[0]), static_cast<int>(values[1]),
+                   static_cast<int>(values[2]), static_cast<int>(values[3]));
   }
 }
 
@@ -85,6 +100,12 @@ Color parseColor(const std::string &s) {
   Color c = {0, 0, 0, 1};
   std::string clean = Str::trim(s);
 
+  // try hex first
+  if (!clean.empty() && clean[0] == '#') {
+    return parseHexColor(clean);
+  }
+
+  // legacy rgba() format
   if (clean.rfind("rgba(", 0) == 0 && clean.back() == ')') {
     double r = 0, g = 0, b = 0, a = 1.0;
     if (std::sscanf(clean.c_str(), "rgba(%lf, %lf, %lf, %lf)", &r, &g, &b,
@@ -98,12 +119,43 @@ Color parseColor(const std::string &s) {
                   "Malformed color format: " + s + ". Expected rgba(r,g,b,a).");
     }
   } else {
-    // TODO: support for hex color format
-    // currenly only supports rgba color format
     Logger::log("Config", Logger::LogLevel::WARNING,
                 "Unsupported color format: " + s);
   }
   return c;
+}
+
+Color parseHexColor(const std::string &hex) {
+  Color c = {0, 0, 0, 1};
+  std::string h = hex;
+
+  if (h.empty() || h[0] != '#') {
+    Logger::log("Config", Logger::LogLevel::WARNING,
+                "Invalid hex color: " + hex);
+    return c;
+  }
+
+  h = h.substr(1); // strip #
+
+  unsigned int r = 0, g = 0, b = 0, a = 255;
+
+  if (h.size() == 6) {
+    // #RRGGBB
+    std::sscanf(h.c_str(), "%02x%02x%02x", &r, &g, &b);
+  } else if (h.size() == 8) {
+    // #RRGGBBAA
+    std::sscanf(h.c_str(), "%02x%02x%02x%02x", &r, &g, &b, &a);
+  } else {
+    Logger::log("Config", Logger::LogLevel::WARNING,
+                "Invalid hex color length: " + hex);
+    return c;
+  }
+
+  c.r = std::clamp(static_cast<double>(r) / 255.0, 0.0, 1.0);
+  c.g = std::clamp(static_cast<double>(g) / 255.0, 0.0, 1.0);
+  c.b = std::clamp(static_cast<double>(b) / 255.0, 0.0, 1.0);
+  c.a = std::clamp(static_cast<double>(a) / 255.0, 0.0, 1.0);
+
   return c;
 }
 

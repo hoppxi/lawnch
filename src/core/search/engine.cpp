@@ -77,7 +77,7 @@ std::vector<SearchResult> Engine::query(const std::string &term) {
                        return a.score > b.score;
                      });
 
-    int max_results = Config::Manager::Instance().Get().results_max_results;
+    int max_results = Config::Manager::Instance().Get().results_limit;
     if (max_results > 0 && res.size() > max_results) {
       res.resize(max_results);
     }

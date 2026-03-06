@@ -11,12 +11,16 @@ public:
   static void print_help();
 
 private:
-  static void install(const std::string &path);
-  static void install_all(const std::string &path);
-  static void uninstall(const std::string &name);
-  static void list();
+  static void install_theme(const std::string &path);
+  static void uninstall_theme(const std::string &name);
+  static void list_themes();
+
+  static void install_preset(const std::string &path);
+  static void uninstall_preset(const std::string &name);
+  static void list_presets();
+
   static void switch_theme(const std::string &name);
-  static bool validate(const std::string &path);
+  static void switch_preset(const std::string &name);
   static void current();
 };
 

@@ -17,7 +17,7 @@ ComponentResult Background::draw(ComponentContext &context) {
   BLRoundRect rect =
       Lawnch::Gfx::rounded_rect(0, 0, width, height, cfg.window_border_radius);
 
-  auto bg = cfg.window_background_color;
+  auto bg = cfg.window_background;
   ctx.set_fill_style(Lawnch::Gfx::toBLColor(bg));
   ctx.fill_round_rect(rect);
 

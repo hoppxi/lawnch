@@ -30,7 +30,7 @@ public:
   Application(std::unique_ptr<IPC::Server> server,
               std::optional<std::string> config_path,
               std::optional<std::string> merge_config_path,
-              int log_verbosity = 3);
+              bool verbose = false, bool print_logs = false);
   ~Application();
 
   void run();
@@ -74,6 +74,7 @@ private:
   void on_keyboard_render();
   void on_submenu_enter(const std::string &result_command);
   void on_submenu_back();
+  void on_context_switch(const std::string &trigger);
 
   void on_pointer_scroll(double delta);
 

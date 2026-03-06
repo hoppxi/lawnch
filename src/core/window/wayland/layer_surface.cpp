@@ -68,7 +68,7 @@ void LayerSurface::apply_config(const Config::Config &cfg) {
   zwlr_layer_surface_v1_set_anchor(layer_surface, anchor_opts);
 
   int exclusive_zone = -1;
-  if (cfg.window_exclusive_zone) {
+  if (cfg.window_exclusive) {
     if (has_top || has_bottom) {
       exclusive_zone = cfg.window_height;
     } else if (has_left || has_right) {
@@ -84,9 +84,9 @@ void LayerSurface::apply_config(const Config::Config &cfg) {
 
   uint32_t kb_interactivity =
       ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_EXCLUSIVE;
-  if (Lawnch::Str::iequals(cfg.window_keyboard_interactivity, "none")) {
+  if (Lawnch::Str::iequals(cfg.window_keyboard, "none")) {
     kb_interactivity = ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE;
-  } else if (Lawnch::Str::iequals(cfg.window_keyboard_interactivity,
+  } else if (Lawnch::Str::iequals(cfg.window_keyboard,
                                   "on_demand")) {
     kb_interactivity = ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_ON_DEMAND;
   }

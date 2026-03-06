@@ -1,5 +1,6 @@
 #include "../../../helpers/desktop_entry.hpp"
 #include "../../../helpers/fs.hpp"
+#include "../../../helpers/logger.hpp"
 #include "../../../helpers/process.hpp"
 #include "../../../helpers/string.hpp"
 #include "../../config/manager.hpp"
@@ -30,6 +31,8 @@ static std::once_flag g_index_once;
 static std::shared_mutex g_index_mutex;
 
 static void build_index() {
+  Logger::log("Apps", Logger::LogLevel::INFO, "Building application index...");
+
   auto data_dirs = ::Lawnch::Fs::get_data_dirs();
 
   std::vector<std::string> app_dirs;
@@ -80,6 +83,10 @@ static void build_index() {
 
   std::unique_lock lock(g_index_mutex);
   g_index = std::move(local_index);
+
+  Logger::log("Apps", Logger::LogLevel::INFO,
+              "Application index built: " + std::to_string(g_index.size()) +
+                  " entries");
 }
 
 std::vector<SearchResult> AppMode::query(const std::string &term) {
@@ -93,14 +100,25 @@ std::vector<SearchResult> AppMode::query(const std::string &term) {
 
   const auto &cfg = Config::Manager::Instance().Get();
   std::string terminal_cmd = cfg.general_terminal;
-  std::string terminal_flag = cfg.general_terminal_exec_flag;
+  std::string terminal_flag = cfg.general_terminal_flag;
 
   if (terminal_cmd == "auto" || terminal_cmd.empty()) {
     terminal_cmd = ::Lawnch::Proc::get_default_terminal();
   }
 
-  std::string app_cmd_template = cfg.launch_app_cmd;
-  std::string terminal_app_cmd_template = cfg.launch_terminal_app_cmd;
+  std::string app_cmd_template = cfg.providers_apps_command.empty()
+                                     ? cfg.launch_command
+                                     : cfg.providers_apps_command;
+  std::string terminal_app_cmd_template = cfg.launch_terminal_command;
+
+  bool use_uwsm = cfg.providers_apps_uwsm;
+  std::string uwsm_prefix = cfg.providers_apps_uwsm_prefix;
+  bool track_history = cfg.providers_apps_history;
+
+  if (use_uwsm) {
+    Logger::log("Apps", Logger::LogLevel::DEBUG,
+                "UWSM mode enabled with prefix: " + uwsm_prefix);
+  }
 
   std::vector<SearchResult> results;
   results.reserve(64);
@@ -122,8 +140,12 @@ std::vector<SearchResult> AppMode::query(const std::string &term) {
       cmd = ::Lawnch::Str::replace_all(app_cmd_template, "{}", app.exec);
     }
 
+    if (use_uwsm && !app.terminal) {
+      cmd = uwsm_prefix + " " + cmd;
+    }
+
     results.push_back({app.name, app.comment, app.icon, cmd, "app", "", score,
-                       true, false, !app.desktop_actions.empty()});
+                       track_history, false, !app.desktop_actions.empty()});
   }
 
   std::partial_sort(
@@ -134,6 +156,10 @@ std::vector<SearchResult> AppMode::query(const std::string &term) {
 
   if (results.size() > 50)
     results.resize(50);
+
+  Logger::log("Apps", Logger::LogLevel::DEBUG,
+              "Query '" + term + "' returned " +
+                  std::to_string(results.size()) + " results");
 
   return results;
 }
@@ -146,14 +172,14 @@ AppMode::query_submenu(const std::string &result_command,
 
   const auto &cfg = Config::Manager::Instance().Get();
   std::string terminal_cmd = cfg.general_terminal;
-  std::string terminal_flag = cfg.general_terminal_exec_flag;
+  std::string terminal_flag = cfg.general_terminal_flag;
 
   if (terminal_cmd == "auto" || terminal_cmd.empty()) {
     terminal_cmd = ::Lawnch::Proc::get_default_terminal();
   }
 
-  std::string app_cmd_template = cfg.launch_app_cmd;
-  std::string terminal_app_cmd_template = cfg.launch_terminal_app_cmd;
+  std::string app_cmd_template = cfg.launch_command;
+  std::string terminal_app_cmd_template = cfg.launch_terminal_command;
 
   const std::string term_lower = ::Lawnch::Str::to_lower_copy(term);
 

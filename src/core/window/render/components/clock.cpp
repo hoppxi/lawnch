@@ -43,15 +43,15 @@ ComponentResult Clock::draw(ComponentContext &context) {
   double avail_w =
       context.available_w - cfg.clock_padding.left - cfg.clock_padding.right;
 
-  if (cfg.clock_text_align == "center") {
+  if (cfg.clock_align == "center") {
     text_x =
         context.x + cfg.clock_padding.left + (avail_w - tm.advance.x) / 2.0;
-  } else if (cfg.clock_text_align == "right") {
+  } else if (cfg.clock_align == "right") {
     text_x = context.x + context.available_w - cfg.clock_padding.right -
              tm.advance.x;
   }
 
-  ctx.set_fill_style(Lawnch::Gfx::toBLColor(cfg.clock_text_color));
+  ctx.set_fill_style(Lawnch::Gfx::toBLColor(cfg.clock_text));
   ctx.fill_utf8_text(BLPoint(text_x, text_y), font, time_text.c_str());
 
   return {context.available_w, clock_h};

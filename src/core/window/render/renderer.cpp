@@ -107,12 +107,12 @@ void Renderer::render(BLContext &ctx, int width, int height,
   }
 
   bool use_side_preview =
-      cfg.preview_enable && (cfg.layout_preview_position == "left" ||
-                             cfg.layout_preview_position == "right");
+      cfg.preview_enable && (cfg.layout_preview_side == "left" ||
+                             cfg.layout_preview_side == "right");
 
-  if (use_side_preview && cfg.layout_preview_position == "left") {
+  if (use_side_preview && cfg.layout_preview_side == "left") {
     render_with_side_preview(ctx, width, height, cfg, state, true);
-  } else if (use_side_preview && cfg.layout_preview_position == "right") {
+  } else if (use_side_preview && cfg.layout_preview_side == "right") {
     render_with_side_preview(ctx, width, height, cfg, state, false);
   } else {
     render_vertical(ctx, width, height, cfg, state);
@@ -216,7 +216,7 @@ void Renderer::render_vertical(BLContext &ctx, int width, int height,
             estimate_component_height("input_prompt", cfg, state);
 
         double input_width = draw_w - prompt_width;
-        bool prompt_on_left = cfg.input_prompt_position != "right";
+        bool prompt_on_left = cfg.input_prompt_side != "right";
 
         // Prompt Draw Props
         double prompt_draw_x = prompt_on_left
@@ -265,7 +265,7 @@ void Renderer::render_with_side_preview(BLContext &ctx, int width, int height,
                                         bool preview_on_left) {
   double available_w = width - (cfg.window_border_width * 2) -
                        cfg.window_padding.left - cfg.window_padding.right;
-  double preview_w = (available_w * cfg.layout_preview_width_percent) / 100.0;
+  double preview_w = (available_w * cfg.layout_preview_ratio) / 100.0;
   double content_w = available_w - preview_w;
 
   double preview_x =
@@ -386,7 +386,7 @@ void Renderer::render_with_side_preview(BLContext &ctx, int width, int height,
             estimate_component_height("input_prompt", cfg, state);
 
         double input_width = draw_w - prompt_width;
-        bool prompt_on_left = cfg.input_prompt_position != "right";
+        bool prompt_on_left = cfg.input_prompt_side != "right";
 
         double prompt_draw_y = (current_y - margin_top) + prompt_margin_top;
         double prompt_draw_h =
@@ -441,7 +441,7 @@ int Renderer::get_visible_count(int height, const Config::Config &cfg) {
   }
 
   double preview_h = 0;
-  if (cfg.preview_enable && cfg.layout_preview_position == "bottom") {
+  if (cfg.preview_enable && cfg.layout_preview_side == "bottom") {
     preview_h = cfg.preview_icon_size + cfg.preview_padding.top +
                 cfg.preview_padding.bottom;
   }
@@ -470,7 +470,7 @@ void Renderer::update_metrics(const Config::Config &cfg) {
   double name_h = metrics.ascent + metrics.descent;
 
   double comment_h = 0;
-  if (cfg.result_item_enable_comment) {
+  if (cfg.result_item_comment_enable) {
     BLFont cfont = Lawnch::Gfx::get_font(cfg.result_item_font_family,
                                          cfg.result_item_comment_font_size,
                                          cfg.result_item_comment_font_weight);
@@ -480,13 +480,13 @@ void Renderer::update_metrics(const Config::Config &cfg) {
 
   double text_gap = 4.0;
   double item_inner_h = name_h;
-  if (cfg.result_item_enable_comment) {
+  if (cfg.result_item_comment_enable) {
     item_inner_h += text_gap + comment_h;
   }
 
   cached_metrics.item_height =
       (cfg.result_item_padding.top + cfg.result_item_padding.bottom) +
-      item_inner_h + cfg.results_spacing;
+      item_inner_h + cfg.results_gap;
   cached_metrics.valid = true;
 }
 

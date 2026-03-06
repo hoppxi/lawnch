@@ -94,7 +94,12 @@ std::vector<SearchResult> Adapter::query(const std::string &term) {
                       0,
                       allow_history(),
                       is_custom_sorted(),
-                      res[i].has_submenu != 0};
+#if LAWNCH_PLUGIN_API_VERSION >= 1
+                      res[i].has_submenu != 0
+#else
+                      false
+#endif
+      };
       results.push_back(sr);
     }
     if (vtable->free_results) {
@@ -108,6 +113,7 @@ std::vector<SearchResult>
 Adapter::query_submenu(const std::string &result_command,
                        const std::string &term) {
   std::vector<SearchResult> results;
+#if LAWNCH_PLUGIN_API_VERSION >= 1
   if (vtable && vtable->query_submenu) {
     int count = 0;
     LawnchResult *res =
@@ -131,6 +137,10 @@ Adapter::query_submenu(const std::string &result_command,
       vtable->free_results(res, count);
     }
   }
+#else
+  (void)result_command;
+  (void)term;
+#endif
   return results;
 }
 

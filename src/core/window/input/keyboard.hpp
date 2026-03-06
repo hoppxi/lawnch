@@ -15,6 +15,7 @@ struct KeyboardCallbacks {
   std::function<void()> on_render;
   std::function<void(const std::string &result_command)> on_submenu_enter;
   std::function<void()> on_submenu_back;
+  std::function<void(const std::string &trigger)> on_context_switch;
 };
 
 class Keyboard {

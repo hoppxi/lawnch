@@ -1,0 +1,84 @@
+[meta]
+name        = "Compact"
+description = "Minimal, tight spacing, small icons"
+
+[window]
+width           = 280
+height          = 315
+anchor          = "top, center"
+margin          = [50, 0, 0, 0]
+background      = "$surface"
+border          = { radius = 4, width = 1, color = "$primary" }
+exclusive       = false
+ignore-exclusive = false
+keyboard        = "exclusive"
+
+[widget.input]
+font            = { family = "monospace", size = 14, weight = "normal" }
+text            = "$on-surface"
+placeholder     = { text = ">>", color = "$outline" }
+background      = "$surface-dim"
+border          = { radius = 2, width = 1, color = "$surface-bright" }
+caret           = { width = 2.0, color = "$caret" }
+selection       = { color = "$selection", text = "$on-surface" }
+padding         = [6, 8, 6, 8]
+align           = "left"
+
+[widget.input.prompt]
+enable          = false
+
+[widget.results]
+margin          = [4, 0, 0, 0]
+padding         = [4, 4, 4, 4]
+gap             = 1
+border          = { radius = 2, width = 0 }
+scroll          = "follow"
+reverse         = false
+
+[widget.results.scrollbar]
+enable          = true
+width           = 2
+padding         = 2
+radius          = 2
+thumb           = "$primary"
+track           = "$surface-dim"
+
+[widget.results.item]
+font            = { family = "monospace", size = 14, weight = "normal" }
+text            = "$on-surface-variant"
+background      = "#00000000"
+border          = { radius = 2, width = 0, color = "#FFFFFF0D" }
+padding         = [4, 6, 4, 6]
+align           = "left"
+icon            = { size = 16, gap = 6, show = true }
+
+[widget.results.item.comment]
+enable          = true
+font            = { size = 10, weight = "normal" }
+text            = "$secondary"
+
+[widget.results.item.highlight]
+enable          = true
+font            = { weight = "bold" }
+text            = "$highlight"
+
+[widget.results.item.selected]
+text            = "$on-surface"
+background      = "$primary-container"
+border          = { radius = 2, width = 1, color = "$primary" }
+comment         = "$on-secondary-container"
+highlight       = "$match"
+
+[widget.preview]
+enable          = false
+
+[widget.results.count]
+enable          = true
+format          = "[{count}]"
+font            = { family = "monospace", size = 10, weight = "normal" }
+text            = "$outline"
+align           = "left"
+padding         = [2, 4, 2, 4]
+
+[widget.clock]
+enable          = false

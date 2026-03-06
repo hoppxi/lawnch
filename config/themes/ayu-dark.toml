@@ -1,0 +1,49 @@
+[meta]
+name                        = "Ayu Dark"
+author                      = "dempfi"
+variant                     = "dark"
+
+[colors]
+primary                     = "#39BAE6"
+on-primary                  = "#0A0E14"
+primary-container           = "#39BAE6A6"
+on-primary-container        = "#95E6CB"
+
+secondary                   = "#D2A6FF"
+on-secondary                = "#0A0E14"
+secondary-container         = "#D2A6FF33"
+on-secondary-container      = "#F07178"
+
+tertiary                    = "#FFB454"
+on-tertiary                 = "#0A0E14"
+tertiary-container          = "#FFB45433"
+on-tertiary-container       = "#E6B673"
+
+surface                     = "#0A0E14"
+surface-dim                 = "#06080A"
+surface-bright              = "#151A21"
+surface-container           = "#0D1017"
+surface-container-low       = "#0A0E14"
+surface-container-high      = "#151A21"
+surface-container-highest   = "#273747"
+on-surface                  = "#B3B1AD"
+on-surface-variant          = "#5C6773"
+
+outline                     = "#3E4B59"
+outline-variant             = "#151A21"
+
+error                       = "#F07178"
+on-error                    = "#0A0E14"
+error-container             = "#F0717833"
+on-error-container          = "#F07178"
+
+inverse-surface             = "#FFFFFF"
+inverse-on-surface          = "#0A0E14"
+inverse-primary             = "#C2D94C"
+
+caret                       = "#FFCC66"
+selection                   = "#274054"
+highlight                   = "#FFB454"
+highlight-active            = "#E6B673"
+match                       = "#C2D94C"
+scrim                       = "#00000080"

@@ -1,0 +1,49 @@
+[meta]
+name                        = "One Dark"
+author                      = "atom"
+variant                     = "dark"
+
+[colors]
+primary                     = "#61AFEF"
+on-primary                  = "#282C34"
+primary-container           = "#61AFEFA6"
+on-primary-container        = "#56B6C2"
+
+secondary                   = "#C678DD"
+on-secondary                = "#282C34"
+secondary-container         = "#C678DD33"
+on-secondary-container      = "#D292E6"
+
+tertiary                    = "#98C379"
+on-tertiary                 = "#282C34"
+tertiary-container          = "#98C37933"
+on-tertiary-container       = "#98C379"
+
+surface                     = "#282C34"
+surface-dim                 = "#21252B"
+surface-bright              = "#3E4451"
+surface-container           = "#3B4048"
+surface-container-low       = "#282C34"
+surface-container-high      = "#3E4451"
+surface-container-highest   = "#5C6370"
+on-surface                  = "#ABB2BF"
+on-surface-variant          = "#828997"
+
+outline                     = "#5C6370"
+outline-variant             = "#3E4451"
+
+error                       = "#E06C75"
+on-error                    = "#282C34"
+error-container             = "#E06C7533"
+on-error-container          = "#BE5046"
+
+inverse-surface             = "#ABB2BF"
+inverse-on-surface          = "#282C34"
+inverse-primary             = "#D19A66"
+
+caret                       = "#528BFF"
+selection                   = "#3E4451"
+highlight                   = "#E5C07B"
+highlight-active            = "#D19A66"
+match                       = "#98C379"
+scrim                       = "#00000080"

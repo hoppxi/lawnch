@@ -1,0 +1,49 @@
+[meta]
+name                        = "Tokyo Night"
+author                      = "enkia"
+variant                     = "dark"
+
+[colors]
+primary                     = "#7AA2F7"
+on-primary                  = "#1A1B26"
+primary-container           = "#7AA2F7A6"
+on-primary-container        = "#7DCFFF"
+
+secondary                   = "#BB9AF7"
+on-secondary                = "#1A1B26"
+secondary-container         = "#BB9AF733"
+on-secondary-container      = "#C0CAF5"
+
+tertiary                    = "#9ECE6A"
+on-tertiary                 = "#1A1B26"
+tertiary-container          = "#9ECE6A33"
+on-tertiary-container       = "#73DACA"
+
+surface                     = "#1A1B26"
+surface-dim                 = "#16161E"
+surface-bright              = "#292E42"
+surface-container           = "#24283B"
+surface-container-low       = "#1A1B26"
+surface-container-high      = "#292E42"
+surface-container-highest   = "#414868"
+on-surface                  = "#C0CAF5"
+on-surface-variant          = "#A9B1D6"
+
+outline                     = "#565F89"
+outline-variant             = "#414868"
+
+error                       = "#F7768E"
+on-error                    = "#1A1B26"
+error-container             = "#F7768E33"
+on-error-container          = "#DB4B4B"
+
+inverse-surface             = "#C0CAF5"
+inverse-on-surface          = "#1A1B26"
+inverse-primary             = "#E0AF68"
+
+caret                       = "#C0CAF5"
+selection                   = "#33467C"
+highlight                   = "#E0AF68"
+highlight-active            = "#FF9E64"
+match                       = "#9ECE6A"
+scrim                       = "#00000080"

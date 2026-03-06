@@ -1,0 +1,49 @@
+[meta]
+name                        = "Solarized Dark"
+author                      = "Ethan Schoonover"
+variant                     = "dark"
+
+[colors]
+primary                     = "#268BD2"
+on-primary                  = "#002B36"
+primary-container           = "#268BD2A6"
+on-primary-container        = "#2AA198"
+
+secondary                   = "#D33682"
+on-secondary                = "#002B36"
+secondary-container         = "#D3368233"
+on-secondary-container      = "#6C71C4"
+
+tertiary                    = "#B58900"
+on-tertiary                 = "#002B36"
+tertiary-container          = "#B5890033"
+on-tertiary-container       = "#CB4B16"
+
+surface                     = "#002B36"
+surface-dim                 = "#00212B"
+surface-bright              = "#073642"
+surface-container           = "#073642"
+surface-container-low       = "#002B36"
+surface-container-high      = "#073642"
+surface-container-highest   = "#586E75"
+on-surface                  = "#839496"
+on-surface-variant          = "#93A1A1"
+
+outline                     = "#586E75"
+outline-variant             = "#073642"
+
+error                       = "#DC322F"
+on-error                    = "#002B36"
+error-container             = "#DC322F33"
+on-error-container          = "#DC322F"
+
+inverse-surface             = "#FDF6E3"
+inverse-on-surface          = "#002B36"
+inverse-primary             = "#859900"
+
+caret                       = "#93A1A1"
+selection                   = "#073642"
+highlight                   = "#B58900"
+highlight-active            = "#CB4B16"
+match                       = "#859900"
+scrim                       = "#00000080"

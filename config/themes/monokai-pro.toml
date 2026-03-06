@@ -1,0 +1,49 @@
+[meta]
+name                        = "Monokai Pro"
+author                      = "monokai"
+variant                     = "dark"
+
+[colors]
+primary                     = "#A9DC76"
+on-primary                  = "#2D2A2E"
+primary-container           = "#A9DC76A6"
+on-primary-container        = "#78DCE8"
+
+secondary                   = "#FF6188"
+on-secondary                = "#2D2A2E"
+secondary-container         = "#FF618833"
+on-secondary-container      = "#FC9867"
+
+tertiary                    = "#AB9DF2"
+on-tertiary                 = "#2D2A2E"
+tertiary-container          = "#AB9DF233"
+on-tertiary-container       = "#AB9DF2"
+
+surface                     = "#2D2A2E"
+surface-dim                 = "#221F22"
+surface-bright              = "#403E41"
+surface-container           = "#3A3A3C"
+surface-container-low       = "#2D2A2E"
+surface-container-high      = "#403E41"
+surface-container-highest   = "#5B595C"
+on-surface                  = "#FCFCFA"
+on-surface-variant          = "#939293"
+
+outline                     = "#727072"
+outline-variant             = "#403E41"
+
+error                       = "#FF6188"
+on-error                    = "#2D2A2E"
+error-container             = "#FF618833"
+on-error-container          = "#FF6188"
+
+inverse-surface             = "#FCFCFA"
+inverse-on-surface          = "#2D2A2E"
+inverse-primary             = "#FFD866"
+
+caret                       = "#FCFCFA"
+selection                   = "#403E41"
+highlight                   = "#FFD866"
+highlight-active            = "#FC9867"
+match                       = "#A9DC76"
+scrim                       = "#00000080"

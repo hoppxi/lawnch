@@ -1,0 +1,49 @@
+[meta]
+name                        = "Gruvbox"
+author                      = "morhetz"
+variant                     = "dark"
+
+[colors]
+primary                     = "#458588"
+on-primary                  = "#EBDBB2"
+primary-container           = "#458588A6"
+on-primary-container        = "#83A598"
+
+secondary                   = "#689D6A"
+on-secondary                = "#EBDBB2"
+secondary-container         = "#689D6A33"
+on-secondary-container      = "#B8BB26"
+
+tertiary                    = "#D79921"
+on-tertiary                 = "#282828"
+tertiary-container          = "#FABD2F33"
+on-tertiary-container       = "#FABD2F"
+
+surface                     = "#282828"
+surface-dim                 = "#1D2021"
+surface-bright              = "#3C3836"
+surface-container           = "#32302F"
+surface-container-low       = "#282828"
+surface-container-high      = "#3C3836"
+surface-container-highest   = "#504945"
+on-surface                  = "#EBDBB2"
+on-surface-variant          = "#A89984"
+
+outline                     = "#7C6F64"
+outline-variant             = "#3C3836"
+
+error                       = "#FB4934"
+on-error                    = "#282828"
+error-container             = "#CC241D33"
+on-error-container          = "#FB4934"
+
+inverse-surface             = "#EBDBB2"
+inverse-on-surface          = "#282828"
+inverse-primary             = "#076678"
+
+caret                       = "#458588"
+selection                   = "#45858866"
+highlight                   = "#FFC800"
+highlight-active            = "#FFFF00"
+match                       = "#FE8019"
+scrim                       = "#00000080"

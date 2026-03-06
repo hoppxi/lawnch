@@ -1,0 +1,49 @@
+[meta]
+name                        = "Dracula"
+author                      = "Zeno Rocha"
+variant                     = "dark"
+
+[colors]
+primary                     = "#BD93F9"
+on-primary                  = "#F8F8F2"
+primary-container           = "#BD93F9A6"
+on-primary-container        = "#F8F8F2"
+
+secondary                   = "#50FA7B"
+on-secondary                = "#282A36"
+secondary-container         = "#50FA7B33"
+on-secondary-container      = "#50FA7B"
+
+tertiary                    = "#FFB86C"
+on-tertiary                 = "#282A36"
+tertiary-container          = "#FFB86C33"
+on-tertiary-container       = "#FFB86C"
+
+surface                     = "#282A36"
+surface-dim                 = "#21222C"
+surface-bright              = "#44475A"
+surface-container           = "#343746"
+surface-container-low       = "#282A36"
+surface-container-high      = "#44475A"
+surface-container-highest   = "#565970"
+on-surface                  = "#F8F8F2"
+on-surface-variant          = "#BFBFBF"
+
+outline                     = "#6272A4"
+outline-variant             = "#44475A"
+
+error                       = "#FF5555"
+on-error                    = "#282A36"
+error-container             = "#FF555533"
+on-error-container          = "#FF5555"
+
+inverse-surface             = "#F8F8F2"
+inverse-on-surface          = "#282A36"
+inverse-primary             = "#6C5CE7"
+
+caret                       = "#FF79C6"
+selection                   = "#44475AE6"
+highlight                   = "#F1FA8C"
+highlight-active            = "#FFB86C"
+match                       = "#FFB86C"
+scrim                       = "#00000080"

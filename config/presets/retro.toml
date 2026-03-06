@@ -1,0 +1,84 @@
+[meta]
+name        = "Retro Terminal"
+description = "Blocky, unrounded, monospace fonts and thick borders"
+
+[window]
+width           = 800
+height          = 400
+anchor          = "center"
+margin          = [0, 0, 0, 0]
+background      = "$surface"
+border          = { radius = 0, width = 4, color = "$primary" }
+exclusive       = false
+ignore-exclusive = true
+keyboard        = "exclusive"
+
+[widget.input]
+font            = { family = "monospace", size = 18, weight = "bold" }
+text            = "$on-surface"
+placeholder     = { text = "C:\\>", color = "$outline" }
+background      = "$surface"
+border          = { radius = 0, width = 0, color = "#00000000" }
+caret           = { width = 10.0, color = "$primary" }
+selection       = { color = "$selection", text = "$on-surface" }
+padding         = [15, 20, 15, 20]
+align           = "left"
+
+[widget.input.prompt]
+enable          = true
+
+[widget.results]
+margin          = [0, 0, 0, 0]
+padding         = [10, 10, 10, 10]
+gap             = 0
+border          = { radius = 0, width = 2, color = "$surface-container-highest" }
+scroll          = "follow"
+reverse         = false
+
+[widget.results.scrollbar]
+enable          = true
+width           = 12
+padding         = 0
+radius          = 0
+thumb           = "$primary"
+track           = "$surface-container-low"
+
+[widget.results.item]
+font            = { family = "monospace", size = 16, weight = "normal" }
+text            = "$on-surface-variant"
+background      = "$surface"
+border          = { radius = 0, width = 0, color = "#00000000" }
+padding         = [4, 10, 4, 10]
+align           = "left"
+icon            = { size = 0, gap = 0, show = false }
+
+[widget.results.item.comment]
+enable          = true
+font            = { size = 12, weight = "normal" }
+text            = "$secondary"
+
+[widget.results.item.highlight]
+enable          = true
+font            = { weight = "bold" }
+text            = "$tertiary"
+
+[widget.results.item.selected]
+text            = "$surface"
+background      = "$primary"
+border          = { radius = 0, width = 0, color = "$primary" }
+comment         = "$surface-dim"
+highlight       = "$inverse-surface"
+
+[widget.preview]
+enable          = false
+
+[widget.results.count]
+enable          = true
+format          = "TOTAL:{count}"
+font            = { family = "monospace", size = 14, weight = "bold" }
+text            = "$primary"
+align           = "right"
+padding         = [10, 20, 10, 20]
+
+[widget.clock]
+enable          = false

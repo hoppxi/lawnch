@@ -1,0 +1,49 @@
+[meta]
+name                        = "Solarized Light"
+author                      = "Ethan Schoonover"
+variant                     = "light"
+
+[colors]
+primary                     = "#268BD2"
+on-primary                  = "#FDF6E3"
+primary-container           = "#268BD233"
+on-primary-container        = "#268BD2"
+
+secondary                   = "#2AA198"
+on-secondary                = "#FDF6E3"
+secondary-container         = "#2AA19833"
+on-secondary-container      = "#2AA198"
+
+tertiary                    = "#B58900"
+on-tertiary                 = "#FDF6E3"
+tertiary-container          = "#B5890033"
+on-tertiary-container       = "#B58900"
+
+surface                     = "#FDF6E3"
+surface-dim                 = "#EEE8D5"
+surface-bright              = "#FDF6E3"
+surface-container           = "#F5EFDC"
+surface-container-low       = "#FDF6E3"
+surface-container-high      = "#EEE8D5"
+surface-container-highest   = "#E0DAC7"
+on-surface                  = "#657B83"
+on-surface-variant          = "#93A1A1"
+
+outline                     = "#93A1A1"
+outline-variant             = "#EEE8D5"
+
+error                       = "#DC322F"
+on-error                    = "#FDF6E3"
+error-container             = "#DC322F33"
+on-error-container          = "#DC322F"
+
+inverse-surface             = "#073642"
+inverse-on-surface          = "#FDF6E3"
+inverse-primary             = "#268BD2"
+
+caret                       = "#D33682"
+selection                   = "#EEE8D5E6"
+highlight                   = "#B58900"
+highlight-active            = "#CB4B16"
+match                       = "#CB4B16"
+scrim                       = "#00000080"

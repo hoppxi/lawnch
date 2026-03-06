@@ -1,0 +1,49 @@
+[meta]
+name                        = "Material Ocean"
+author                      = "equinusocio"
+variant                     = "dark"
+
+[colors]
+primary                     = "#82AAFF"
+on-primary                  = "#0F111A"
+primary-container           = "#82AAFFA6"
+on-primary-container        = "#89DDFF"
+
+secondary                   = "#C792EA"
+on-secondary                = "#0F111A"
+secondary-container         = "#C792EA33"
+on-secondary-container      = "#F07178"
+
+tertiary                    = "#C3E88D"
+on-tertiary                 = "#0F111A"
+tertiary-container          = "#C3E88D33"
+on-tertiary-container       = "#FFCB6B"
+
+surface                     = "#0F111A"
+surface-dim                 = "#090A0F"
+surface-bright              = "#1A1C25"
+surface-container           = "#131520"
+surface-container-low       = "#0F111A"
+surface-container-high      = "#1A1C25"
+surface-container-highest   = "#2F313E"
+on-surface                  = "#8F93A2"
+on-surface-variant          = "#464B5D"
+
+outline                     = "#464B5D"
+outline-variant             = "#1A1C25"
+
+error                       = "#FF5370"
+on-error                    = "#0F111A"
+error-container             = "#FF537033"
+on-error-container          = "#F07178"
+
+inverse-surface             = "#FFFFFF"
+inverse-on-surface          = "#0F111A"
+inverse-primary             = "#39ADB5"
+
+caret                       = "#FFCC00"
+selection                   = "#1A1C25"
+highlight                   = "#FFCB6B"
+highlight-active            = "#F78C6C"
+match                       = "#C3E88D"
+scrim                       = "#00000080"

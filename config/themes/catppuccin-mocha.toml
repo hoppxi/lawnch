@@ -1,0 +1,49 @@
+[meta]
+name                        = "Catppuccin Mocha"
+author                      = "catppuccin"
+variant                     = "dark"
+
+[colors]
+primary                     = "#89B4FA"
+on-primary                  = "#1E1E2E"
+primary-container           = "#89B4FAA6"
+on-primary-container        = "#89DCEB"
+
+secondary                   = "#CBA6F7"
+on-secondary                = "#1E1E2E"
+secondary-container         = "#CBA6F733"
+on-secondary-container      = "#F5C2E7"
+
+tertiary                    = "#A6E3A1"
+on-tertiary                 = "#1E1E2E"
+tertiary-container          = "#A6E3A133"
+on-tertiary-container       = "#94E2D5"
+
+surface                     = "#1E1E2E"
+surface-dim                 = "#181825"
+surface-bright              = "#313244"
+surface-container           = "#1E1E2E"
+surface-container-low       = "#11111B"
+surface-container-high      = "#313244"
+surface-container-highest   = "#45475A"
+on-surface                  = "#CDD6F4"
+on-surface-variant          = "#BAC2DE"
+
+outline                     = "#585B70"
+outline-variant             = "#313244"
+
+error                       = "#F38BA8"
+on-error                    = "#1E1E2E"
+error-container             = "#F38BA833"
+on-error-container          = "#EBA0AC"
+
+inverse-surface             = "#CDD6F4"
+inverse-on-surface          = "#1E1E2E"
+inverse-primary             = "#F9E2AF"
+
+caret                       = "#F5E0DC"
+selection                   = "#585B70"
+highlight                   = "#F9E2AF"
+highlight-active            = "#FAB387"
+match                       = "#A6E3A1"
+scrim                       = "#00000080"

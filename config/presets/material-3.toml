@@ -1,0 +1,115 @@
+[meta]
+name        = "Material 3"
+description = "Rounded, spacious, inspired by Material Design 3"
+
+[appearance.layout]
+preview-side    = "right"
+preview-ratio   = 40
+
+[window]
+width           = 500
+height          = 400
+anchor          = "center, center"
+margin          = [50, 0, 0, 0]
+background      = "$surface"
+border          = { radius = 28, width = 0, color = "$primary" }
+exclusive       = false
+ignore-exclusive = false
+keyboard        = "exclusive"
+
+[widget.input]
+font            = { family = "JetBrainsMono NerdFont", size = 18, weight = "normal" }
+text            = "$on-surface"
+placeholder     = { text = "Search apps and files...", color = "$outline" }
+background      = "#00000000"
+border          = { radius = 16, width = 0, color = "#00000000" }
+caret           = { width = 2.0, color = "$caret" }
+selection       = { color = "$selection", text = "$on-surface" }
+padding         = [16, 20, 16, 20]
+align           = "left"
+
+[widget.input.prompt]
+enable          = true
+text            = ""
+side            = "left"
+font            = { family = "JetBrainsMono NerdFont", size = 18, weight = "bold" }
+color           = "$primary"
+background      = "#00000000"
+border          = { radius = 0, width = 0, color = "#00000000" }
+padding         = [16, 0, 16, 20]
+
+[widget.results]
+margin          = [8, 0, 0, 0]
+padding         = [8, 12, 8, 12]
+gap             = 4
+background      = "#00000000"
+border          = { radius = 16, width = 0, color = "#00000000" }
+scroll          = "follow"
+reverse         = false
+
+[widget.results.scrollbar]
+enable          = true
+width           = 6
+padding         = 4
+radius          = 3
+thumb           = "$primary"
+track           = "$surface-container-high"
+
+[widget.results.item]
+font            = { family = "JetBrainsMono NerdFont", size = 16, weight = "normal" }
+text            = "$on-surface"
+background      = "#00000000"
+border          = { radius = 16, width = 0, color = "#FFFFFF1A" }
+padding         = [14, 16, 14, 16]
+align           = "left"
+icon            = { size = 24, gap = 14, show = true }
+
+[widget.results.item.comment]
+enable          = true
+font            = { size = 12, weight = "normal" }
+text            = "$outline"
+
+[widget.results.item.highlight]
+enable          = true
+font            = { weight = "bold" }
+text            = "$highlight"
+
+[widget.results.item.selected]
+text            = "$secondary"
+background      = "$primary-container"
+border          = { radius = 16, width = 0, color = "$primary" }
+comment         = "$on-primary-container"
+highlight       = "$highlight-active"
+
+[widget.preview]
+enable          = true
+composition     = ["preview_image", "icon:name", "comment"]
+image-size      = 64
+icon            = { size = 14, fallback = true, hide-on-fallback = true }
+padding         = [140, 16, 16]
+background      = "#00000000"
+gap             = { v = 8, h = 8 }
+
+[widget.preview.title]
+font            = { family = "JetBrainsMono NerdFont", size = 16, weight = "bold" }
+text            = "$on-surface"
+
+[widget.preview.description]
+font            = { size = 12, weight = "normal" }
+text            = "$outline"
+
+[widget.results.count]
+enable          = true
+format          = "{count} matches found"
+font            = { family = "JetBrainsMono NerdFont", size = 12, weight = "normal" }
+text            = "$outline"
+align           = "right"
+padding         = 4
+
+[widget.clock]
+enable          = true
+format          = "%H:%M"
+font            = { family = "JetBrainsMono NerdFont", size = 16, weight = "bold" }
+text            = "$outline"
+align           = "left"
+padding         = [10, 20, 10, 20]

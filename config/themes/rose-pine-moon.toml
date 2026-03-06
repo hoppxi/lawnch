@@ -1,0 +1,49 @@
+[meta]
+name                        = "Rose Pine Moon"
+author                      = "mvllow"
+variant                     = "dark"
+
+[colors]
+primary                     = "#9CCFD8"
+on-primary                  = "#232136"
+primary-container           = "#9CCFD8A6"
+on-primary-container        = "#3E8FB0"
+
+secondary                   = "#C4A7E7"
+on-secondary                = "#232136"
+secondary-container         = "#C4A7E733"
+on-secondary-container      = "#907AA9"
+
+tertiary                    = "#F6C177"
+on-tertiary                 = "#232136"
+tertiary-container          = "#F6C17733"
+on-tertiary-container       = "#EA9A97"
+
+surface                     = "#232136"
+surface-dim                 = "#1C1A29"
+surface-bright              = "#2A273F"
+surface-container           = "#393552"
+surface-container-low       = "#232136"
+surface-container-high      = "#2A273F"
+surface-container-highest   = "#44415A"
+on-surface                  = "#E0DEF4"
+on-surface-variant          = "#908CAA"
+
+outline                     = "#59546D"
+outline-variant             = "#393552"
+
+error                       = "#EB6F92"
+on-error                    = "#232136"
+error-container             = "#EB6F9233"
+on-error-container          = "#EBBCBA"
+
+inverse-surface             = "#FAF4ED"
+inverse-on-surface          = "#232136"
+inverse-primary             = "#56949F"
+
+caret                       = "#59546D"
+selection                   = "#44415A"
+highlight                   = "#F6C177"
+highlight-active            = "#EA9A97"
+match                       = "#9CCFD8"
+scrim                       = "#00000080"

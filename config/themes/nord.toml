@@ -1,0 +1,49 @@
+[meta]
+name                        = "Nord"
+author                      = "arcticicestudio"
+variant                     = "dark"
+
+[colors]
+primary                     = "#88C0D0"
+on-primary                  = "#2E3440"
+primary-container           = "#88C0D0A6"
+on-primary-container        = "#8FBCBB"
+
+secondary                   = "#81A1C1"
+on-secondary                = "#2E3440"
+secondary-container         = "#81A1C133"
+on-secondary-container      = "#5E81AC"
+
+tertiary                    = "#B48EAD"
+on-tertiary                 = "#2E3440"
+tertiary-container          = "#B48EAD33"
+on-tertiary-container       = "#B48EAD"
+
+surface                     = "#2E3440"
+surface-dim                 = "#252932"
+surface-bright              = "#3B4252"
+surface-container           = "#3B4252"
+surface-container-low       = "#2E3440"
+surface-container-high      = "#434C5E"
+surface-container-highest   = "#4C566A"
+on-surface                  = "#D8DEE9"
+on-surface-variant          = "#E5E9F0"
+
+outline                     = "#4C566A"
+outline-variant             = "#3B4252"
+
+error                       = "#BF616A"
+on-error                    = "#2E3440"
+error-container             = "#BF616A33"
+on-error-container          = "#BF616A"
+
+inverse-surface             = "#ECEFF4"
+inverse-on-surface          = "#2E3440"
+inverse-primary             = "#5E81AC"
+
+caret                       = "#88C0D0"
+selection                   = "#88C0D066"
+highlight                   = "#EBCB8B"
+highlight-active            = "#D08770"
+match                       = "#A3BE8C"
+scrim                       = "#00000080"

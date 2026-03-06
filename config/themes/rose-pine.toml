@@ -1,0 +1,49 @@
+[meta]
+name                        = "Rose Pine"
+author                      = "mvllow"
+variant                     = "dark"
+
+[colors]
+primary                     = "#9CCFD8"
+on-primary                  = "#191724"
+primary-container           = "#9CCFD8A6"
+on-primary-container        = "#31748F"
+
+secondary                   = "#C4A7E7"
+on-secondary                = "#191724"
+secondary-container         = "#C4A7E733"
+on-secondary-container      = "#907AA9"
+
+tertiary                    = "#F6C177"
+on-tertiary                 = "#191724"
+tertiary-container          = "#F6C17733"
+on-tertiary-container       = "#EA9A97"
+
+surface                     = "#191724"
+surface-dim                 = "#110F18"
+surface-bright              = "#26233A"
+surface-container           = "#1F1D2E"
+surface-container-low       = "#191724"
+surface-container-high      = "#26233A"
+surface-container-highest   = "#393552"
+on-surface                  = "#E0DEF4"
+on-surface-variant          = "#908CAA"
+
+outline                     = "#524F67"
+outline-variant             = "#26233A"
+
+error                       = "#EB6F92"
+on-error                    = "#191724"
+error-container             = "#EB6F9233"
+on-error-container          = "#EBBCBA"
+
+inverse-surface             = "#FAF4ED"
+inverse-on-surface          = "#191724"
+inverse-primary             = "#56949F"
+
+caret                       = "#524F67"
+selection                   = "#26233A"
+highlight                   = "#F6C177"
+highlight-active            = "#EA9A97"
+match                       = "#9CCFD8"
+scrim                       = "#00000080"

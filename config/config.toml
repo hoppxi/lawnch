@@ -1,0 +1,187 @@
+# Lawnch config
+#
+# colors: "#RRGGBB" or "#RRGGBBAA"
+# padding: single value, [v, h], [top, h, bottom], or [top, right, bottom, left]
+
+[general]
+icon-theme      = "Papirus-Dark"
+terminal        = "auto"
+terminal-flag   = "-e"
+editor          = "auto"
+locale          = ""
+
+[general.history]
+enable          = true
+max-size        = 100
+
+[appearance]
+# theme defines color set and preset uses those colors to create different styles
+theme           = "gruvbox"
+preset          = "compact"
+
+[appearance.layout]
+# currently removing widget from order does not stop it from rendering unless it is disabled
+order           = ["input", "results", "clock", "preview"]
+preview-side    = "right"
+preview-ratio   = 40
+
+[launch]
+# initial context to being with, the trigger is hidden
+initial         = ":apps"
+# this will limit lawnch to the given trigger
+scope           = ""
+command         = "{}"
+terminal-command = "{terminal} {terminal-flag} {}"
+# wrapper will be applied globally
+wrapper         = ""
+
+[keybindings]
+# inherit a builtin set of key binding config, vim or default
+inherit           = "vim"
+"Alt+k"           = "nav-up"
+"Alt+j"           = "nav-down"
+"Alt+h"           = "nav-left"
+"Alt+l"           = "nav-right"
+"Shift+BackSpace" = "delete-word"
+"Alt+Return"      = "execute"
+"Ctrl+Shift+c"    = "clear"
+
+# context(<trigger>) this will write the given trigger into inputs, so even if the
+# plugin with the given trigger is not found it will write it to input
+"Ctrl+P"          = "context(:p)"
+
+[window]
+width           = 500
+height          = 410
+anchor          = "top, center"
+margin          = [140, 0, 0, 0]
+background      = "#282828CC"
+border          = { radius = 8, width = 2, color = "#458588CC" }
+exclusive       = false
+ignore-exclusive = true
+keyboard        = "exclusive"
+
+[widget.input]
+font            = { family = "JetBrainsMono NerdFont", size = 15, weight = "normal" }
+text            = "#EBDBB2"
+placeholder     = { text = "Lawnch...", color = "#7C6F64" }
+background      = "#00000000"
+border          = { radius = 8, width = 1, color = "#00000000" }
+caret           = { width = 2, color = "#458588" }
+selection       = { color = "#3366CC80", text = "#FFFFFF" }
+padding         = [14, 14, 2, 0]
+align           = "left"
+visible         = true
+
+[widget.input.prompt]
+enable          = true
+text            = " >>"
+side            = "left"
+font            = { family = "JetBrainsMono NerdFont", size = 16, weight = "bold" }
+color           = "#458588"
+background      = "#00000000"
+border          = { color = "#00000000" }
+padding         = [12, 14, 0, 14]
+
+[widget.results]
+margin          = [5, 8, 0, 8]
+padding         = [10, 0, 0, 0]
+gap             = 2
+background      = "#00000000"
+border          = { radius = 12, width = 1, color = "#00000000" }
+
+# follow will not scroll results widget while fixed fix the selected in one place
+scroll          = "follow"
+reverse         = false
+limit           = 50
+
+# this will show helps when the given query results no output
+show-help       = true
+
+[widget.results.scrollbar]
+enable          = true
+width           = 2
+padding         = 2
+radius          = 2
+thumb           = "#458588CC"
+track           = "#00000000"
+
+[widget.results.item]
+font            = { family = "JetBrainsMono NerdFont", size = 14, weight = 300 }
+text            = "#458588"
+background      = "#00000000"
+border          = { radius = 8, width = 0, color = "#00000000" }
+padding         = 8
+align           = "left"
+icon            = { size = 22, gap = 8, show = true }
+
+[widget.results.item.comment]
+enable          = true
+font            = { size = 12, weight = 100 }
+text            = "#689D6A"
+
+[widget.results.item.highlight]
+enable          = true
+font            = { weight = 900 }
+text            = "#FFC800"
+
+[widget.results.item.selected]
+text            = "#73DEE2"
+background      = "#458588A6"
+border          = { radius = 3, width = 1, color = "#458588" }
+comment         = "#A5F5A7"
+highlight       = "#FFFF00"
+
+[widget.results.count]
+enable          = true
+format          = "{count} results"
+font            = { family = "JetBrainsMono NerdFont", size = 11, weight = 100 }
+text            = "#7C6F64"
+align           = "left"
+padding         = [2, 8, 2, 20]
+
+[widget.preview]
+enable          = true
+composition     = ["preview_image", "icon:name", "comment"]
+image-size      = 120
+icon            = { size = 16, fallback = true, hide-on-fallback = true }
+padding         = [120, 14, 8, 14]
+background      = "#00000000"
+gap             = { v = 6, h = 6 }
+
+[widget.preview.title]
+font            = { family = "JetBrainsMono NerdFont", size = 14, weight = "bold" }
+text            = "#EBDBB2"
+
+[widget.preview.description]
+font            = { size = 12, weight = 100 }
+text            = "#689D6A"
+
+[widget.clock]
+enable          = true
+format          = "%I:%M"
+font            = { family = "JetBrainsMono NerdFont", size = 11, weight = 200 }
+text            = "#7C6F64E6"
+align           = "left"
+padding         = [4, 10, 24, 24]
+
+# plugins are now self contained
+[plugin.powermenu]
+enable          = false
+order           = ["lockscreen", "shutdown", "reboot", "suspend", "hibernate"]
+lock-cmd        = "hyprlock"
+logout-cmd      = "hyprctl dispatch exit"
+suspend-cmd     = "systemctl suspend"
+reboot-cmd      = "systemctl reboot"
+shutdown-cmd    = "systemctl poweroff"
+
+[plugin.wallpapers]
+enable          = false
+dir             = "~/Pictures/Wallpapers"
+limit           = 10
+command         = 'awww --img "{}"'
+
+[plugin.files]
+enable          = false
+limit           = 50
+max-depth       = 4

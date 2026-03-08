@@ -3,7 +3,7 @@
 It is a lightweight and featureful alternative launcher for wayland. It is built with Blend2D, which is cpu-accelerated drawing library, letting the launcher to be small.
 
 > [!WARNING]
-> **This project is in early stage (v0.3.0-alpha).** Many features are untested, incomplete, or may crash. The configuration format, plugin API, technology stack, and overall architecture are all subject to drastic changes without notice between versions. Use at your own risk, until we reach stable version.
+> **This project is in early stage (v0.3.1-alpha).** Many features are untested, incomplete, or may crash. The configuration format, plugin API, technology stack, and overall architecture are all subject to drastic changes without notice between versions. Use at your own risk, until we reach stable version.
 
 ## Features
 

@@ -48,7 +48,7 @@ public:
   void write(std::string_view logger_name, LogLevel level,
              std::string_view message) {
     if (!m_verbose.load()) {
-      if (level == LogLevel::DEBUG) {
+      if (level == LogLevel::DEBUG || level == LogLevel::INFO) {
         return;
       }
     }

@@ -130,7 +130,7 @@ install(TARGETS lawnch
 )
 
 target_compile_definitions(lawnch PRIVATE
-  LAWNCH_VERSION="0.3.0-alpha"
+  LAWNCH_VERSION="0.3.1-alpha"
   LAWNCH_PLUGIN_API_VERSION_STR="${LawnchPluginApi_VERSION}"
 )
 

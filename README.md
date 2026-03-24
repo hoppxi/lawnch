@@ -3,13 +3,16 @@
 It is a lightweight and featureful alternative launcher for wayland. It is built with Blend2D, which is cpu-accelerated drawing library, letting the launcher to be small.
 
 > [!WARNING]
-> **This project is in early stage (v0.3.1-alpha).** Many features are untested, incomplete, or may crash. The configuration format, plugin API, technology stack, and overall architecture are all subject to drastic changes without notice between versions. Use at your own risk, until we reach stable version.
+> **This project is in early stage (v0.4.0).** Many features are untested, incomplete, or may crash. The configuration format, plugin API, technology stack, and overall architecture are all subject to drastic changes without notice between versions. Use at your own risk, until we reach stable version.
 
 ## Features
 
 - customizable with lots of components like preview included
 - support for submenu section like in apps for desktop action section and for file navigation
 - support for uwsm managed session
+- abbrivation and alias modifiers similar feature to, inspired by, fish shell
+- saving history based on usage
+- pinning system, allowing fast access
 - many plugins those can be switched even after launching the launcher with vim like key commands
 - builtin plugin manager with nixos supported well including home-manager
 - builtin theme and presets to play around without you having to do any config
@@ -22,8 +25,8 @@ It uses a filter command system kind of like vim. You can switch to specific plu
 | Command          | Action                                                |
 | ---------------- | ----------------------------------------------------- |
 | `:h` or `:help`  | Show all available plugins and their filter keywords. |
-| `:a` or `:apps`  | Search installed applications.                        |
-| `:b` or `:bins`  | Search executables in your `$PATH`.                   |
+| `:a` or `:app`   | Search installed applications.                        |
+| `:b` or `:bin`   | Search executables in your `$PATH`.                   |
 | `:<plugin_name>` | Switch to the the plugin (e.g. :e for emoji).         |
 
 > Note: Filters are defined by the plugins themselves and can be customized. plugins can allow to customize filter key.
@@ -46,7 +49,7 @@ inputs = {
 
 ```nix
 imports = [
-  inputs.lawnch.homeModules.default # or inputs.lawnch.nixosModules.default if using nixosConfigurations
+  inputs.lawnch.homeModules.lawnch # or inputs.lawnch.nixosModules.lawnch if using nixosConfigurations
 ];
 
 programs.lawnch = {
@@ -100,12 +103,12 @@ Configuration loaded from `~/.config/lawnch/config.toml`.
 [window]
 width           = 500
 height          = 410
-anchor          = "top, center"
-margin          = [140, 0, 0, 0]
+anchor          = [ "top", "center" ]
+margin          = [ 140, 0, 0, 0 ]
 
 [widget.input]
 font            = { family = "JetBrainsMono NerdFont", size = 15, weight = "normal" }
-text            = "#EBDBB2"
+color           = "#EBDBB2"
 
 [widget.input.prompt]
 enable          = true
@@ -120,10 +123,11 @@ you can find a complete config example at [config/config.toml](https://github.co
 
 ## Plugin
 
-Plugins are found at [https://github.com/hoppxi/lawnch-plugins](https://github.com/hoppxi/lawnch-plugins). Installing plugins is done using the buitin command `lawnch pm` like this:
+Plugins are found at [https://github.com/hoppxi/lawnch-plugins](https://github.com/hoppxi/lawnch-plugins). Installing plugins is done using the builtin command `lawnch pm`:
 
 ```bash
 lawnch pm install https://github.com/hoppxi/lawnch-plugins/{plugin-name}
+lawnch pm install /path/to/plugin
 
 lawnch pm enable {plugin-name} # this will not work if you are on nixos and using symlinked config. instead, enable it in your config
 

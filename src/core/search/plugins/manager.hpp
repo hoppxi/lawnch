@@ -2,6 +2,9 @@
 
 #include "../../config/config.hpp"
 #include "../interface.hpp"
+#include "host_api.hpp"
+#include "trigger_cache.hpp"
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
@@ -10,7 +13,6 @@
 namespace Lawnch::Core::Search::Plugins {
 
 class PluginAdapter;
-struct PluginApiContext;
 
 class Manager {
 public:
@@ -23,16 +25,30 @@ public:
   const std::vector<std::unique_ptr<SearchMode>> &get_plugins() const;
   SearchMode *find_plugin(const std::string &trigger);
 
+  using UpdateResultsCallback = std::function<void(const std::string& plugin_name, const std::string& new_query)>;
+  void set_update_results_callback(UpdateResultsCallback cb) { update_callback = std::move(cb); }
+  void fire_update_callback(const std::string& plugin_name, const std::string& new_query) const {
+    if (update_callback) update_callback(plugin_name, new_query);
+  }
+
   std::string get_plugin_data_dir(const std::string &plugin_name) const;
+
+  void ensure_plugin_for_trigger(const std::string &query);
+  const std::vector<SearchResult> &get_all_help() const;
+  const std::vector<std::string> &
+  get_triggers_for(const SearchMode *plugin) const;
+  SearchMode *find_plugin_for_query(const std::string &term,
+                                    std::string &out_query);
 
 private:
   void load_plugins();
   void ensure_plugins_loaded();
   void load_plugin(const std::string &name);
-  void find_plugin_dirs();
-  std::string find_plugin_data_dir(const std::string &plugin_name) const;
+  void generate_triggers_cache();
+  std::string build_config_signature() const;
 
   bool plugins_loaded = false;
+  UpdateResultsCallback update_callback;
   const Config::Config &m_config;
   std::vector<std::string> m_plugin_dirs;
   mutable std::map<std::string, std::string> m_plugin_data_dirs;
@@ -45,19 +61,8 @@ private:
   std::map<std::string, SearchResult> m_loaded_help;
   std::map<const SearchMode *, std::vector<std::string>> m_plugin_triggers;
 
-  std::map<std::string, std::string> m_lazy_triggers;
-  std::vector<SearchResult> m_cached_help;
-  void load_triggers_cache();
-  void save_triggers_cache();
-  void generate_triggers_cache();
-
-public:
-  void ensure_plugin_for_trigger(const std::string &query);
-  const std::vector<SearchResult> &get_all_help() const;
-  const std::vector<std::string> &
-  get_triggers_for(const SearchMode *plugin) const;
-  SearchMode *find_plugin_for_query(const std::string &term,
-                                    std::string &out_query);
+  TriggerCache m_trigger_cache;
+  mutable std::vector<SearchResult> m_cached_help;
 };
 
 } // namespace Lawnch::Core::Search::Plugins

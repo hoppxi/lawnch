@@ -26,8 +26,10 @@ void Manager::Impl::ApplyToml(const toml::table &root) {
   ApplyResultsCount(root);
   ApplyPreview(root);
   ApplyClock(root);
+  ApplyBreadcrumbs(root);
   ApplyProviders(root);
   ApplyPlugins(root);
+  ApplyModifiers(root);
 }
 
 void Manager::Impl::ApplyGeneral(const toml::table &root) {
@@ -35,8 +37,13 @@ void Manager::Impl::ApplyGeneral(const toml::table &root) {
   if (!t)
     return;
 
-  config.general_icon_theme =
-      getStr(*t, "icon-theme", config.general_icon_theme);
+  if (auto *icon = getTable(*t, "icon")) {
+    config.general_icon_theme =
+        getStr(*icon, "theme", config.general_icon_theme);
+    config.general_icon_dirs =
+        getStrArray(*icon, "dirs", config.general_icon_dirs);
+  }
+
   config.general_terminal = getStr(*t, "terminal", config.general_terminal);
   config.general_terminal_flag =
       getStr(*t, "terminal-flag", config.general_terminal_flag);
@@ -105,7 +112,19 @@ void Manager::Impl::ApplyWindow(const toml::table &root) {
 
   config.window_width = getInt(*t, "width", config.window_width);
   config.window_height = getInt(*t, "height", config.window_height);
-  config.window_anchor = getStr(*t, "anchor", config.window_anchor);
+
+  if (auto anchor_node = (*t)["anchor"]; anchor_node) {
+    if (auto arr = anchor_node.as_array()) {
+      std::vector<std::string> anchors;
+      for (auto &el : *arr) {
+        if (auto s = el.as_string())
+          anchors.push_back(s->get());
+      }
+      if (!anchors.empty())
+        config.window_anchor = anchors;
+    }
+  }
+
   config.window_margin = getPadding(*t, "margin", config.window_margin);
   config.window_background =
       getColor(*t, "background", tc, config.window_background);
@@ -125,6 +144,17 @@ void Manager::Impl::ApplyWindow(const toml::table &root) {
   config.window_ignore_exclusive =
       getBool(*t, "ignore-exclusive", config.window_ignore_exclusive);
   config.window_keyboard = getStr(*t, "keyboard", config.window_keyboard);
+
+  if (auto fnode = (*t)["font"]; fnode) {
+    if (auto ft = fnode.as_table()) {
+      config.window_font_family =
+          getStr(*ft, "family", config.window_font_family);
+      config.window_font_path = getStr(*ft, "path", config.window_font_path);
+      config.window_font_size = getInt(*ft, "size", config.window_font_size);
+      config.window_font_weight =
+          getStr(*ft, "weight", config.window_font_weight);
+    }
+  }
 }
 
 void Manager::Impl::ApplyInput(const toml::table &root) {
@@ -137,14 +167,22 @@ void Manager::Impl::ApplyInput(const toml::table &root) {
   if (auto fnode = (*t)["font"]; fnode) {
     if (auto ft = fnode.as_table()) {
       config.input_font_family =
-          getStr(*ft, "family", config.input_font_family);
+          getStr(*ft, "family", config.window_font_family);
+      std::string fallback_path =
+          ft->contains("family") ? "" : config.window_font_path;
+      config.input_font_path = getStr(*ft, "path", fallback_path);
       config.input_font_size = getInt(*ft, "size", config.input_font_size);
       config.input_font_weight =
-          getStr(*ft, "weight", config.input_font_weight);
+          getStr(*ft, "weight", config.window_font_weight);
     }
+  } else {
+    config.input_font_family = config.window_font_family;
+    config.input_font_path = config.window_font_path;
+    config.input_font_size = config.window_font_size;
+    config.input_font_weight = config.window_font_weight;
   }
 
-  config.input_text = getColor(*t, "text", tc, config.input_text);
+  config.input_color = getFontColor(*t, tc, config.input_color);
   config.input_background =
       getColor(*t, "background", tc, config.input_background);
 
@@ -153,7 +191,7 @@ void Manager::Impl::ApplyInput(const toml::table &root) {
       config.input_placeholder_text =
           getStr(*pt, "text", config.input_placeholder_text);
       config.input_placeholder_color =
-          getColor(*pt, "color", tc, config.input_placeholder_color);
+          getFontColor(*pt, tc, config.input_placeholder_color);
     }
   }
 
@@ -179,15 +217,17 @@ void Manager::Impl::ApplyInput(const toml::table &root) {
 
   if (auto snode = (*t)["selection"]; snode) {
     if (auto st = snode.as_table()) {
+      config.input_selection_background =
+          getColor(*st, "background", tc, config.input_selection_background);
       config.input_selection_color =
-          getColor(*st, "color", tc, config.input_selection_color);
-      config.input_selection_text =
-          getColor(*st, "text", tc, config.input_selection_text);
+          getFontColor(*st, tc, config.input_selection_color);
     }
   }
 
   config.input_padding = getPadding(*t, "padding", config.input_padding);
+  config.input_margin = getPadding(*t, "margin", config.input_margin);
   config.input_align = getStr(*t, "align", config.input_align);
+  config.input_visible = getBool(*t, "visible", config.input_visible);
 }
 
 void Manager::Impl::ApplyInputPrompt(const toml::table &root) {
@@ -205,16 +245,23 @@ void Manager::Impl::ApplyInputPrompt(const toml::table &root) {
   if (auto fnode = (*t)["font"]; fnode) {
     if (auto ft = fnode.as_table()) {
       config.input_prompt_font_family =
-          getStr(*ft, "family", config.input_prompt_font_family);
+          getStr(*ft, "family", config.window_font_family);
+      std::string fallback_path =
+          ft->contains("family") ? "" : config.window_font_path;
+      config.input_prompt_font_path = getStr(*ft, "path", fallback_path);
       config.input_prompt_font_size =
-          getInt(*ft, "size", config.input_prompt_font_size);
+          getInt(*ft, "size", config.window_font_size);
       config.input_prompt_font_weight =
-          getStr(*ft, "weight", config.input_prompt_font_weight);
+          getStr(*ft, "weight", config.window_font_weight);
     }
+  } else {
+    config.input_prompt_font_family = config.window_font_family;
+    config.input_prompt_font_path = config.window_font_path;
+    config.input_prompt_font_size = config.window_font_size;
+    config.input_prompt_font_weight = config.window_font_weight;
   }
 
-  config.input_prompt_color =
-      getColor(*t, "color", tc, config.input_prompt_color);
+  config.input_prompt_color = getFontColor(*t, tc, config.input_prompt_color);
   config.input_prompt_background =
       getColor(*t, "background", tc, config.input_prompt_background);
 
@@ -231,6 +278,8 @@ void Manager::Impl::ApplyInputPrompt(const toml::table &root) {
 
   config.input_prompt_padding =
       getPadding(*t, "padding", config.input_prompt_padding);
+  config.input_prompt_margin =
+      getPadding(*t, "margin", config.input_prompt_margin);
 }
 
 void Manager::Impl::ApplyResults(const toml::table &root) {
@@ -265,16 +314,30 @@ void Manager::Impl::ApplyResults(const toml::table &root) {
   if (auto *sb = getTable(root, "widget.results.scrollbar")) {
     config.results_scrollbar_enable =
         getBool(*sb, "enable", config.results_scrollbar_enable);
-    config.results_scrollbar_width =
-        getInt(*sb, "width", config.results_scrollbar_width);
-    config.results_scrollbar_padding =
-        getInt(*sb, "padding", config.results_scrollbar_padding);
-    config.results_scrollbar_radius =
-        getInt(*sb, "radius", config.results_scrollbar_radius);
-    config.results_scrollbar_thumb =
-        getColor(*sb, "thumb", tc, config.results_scrollbar_thumb);
-    config.results_scrollbar_track =
-        getColor(*sb, "track", tc, config.results_scrollbar_track);
+
+    if (auto thumb_node = (*sb)["thumb"]; thumb_node) {
+      if (auto thumb_tbl = thumb_node.as_table()) {
+        config.results_scrollbar_thumb_color = getColor(
+            *thumb_tbl, "color", tc, config.results_scrollbar_thumb_color);
+        config.results_scrollbar_thumb_radius =
+            getInt(*thumb_tbl, "radius", config.results_scrollbar_thumb_radius);
+      }
+    }
+
+    if (auto track_node = (*sb)["track"]; track_node) {
+      if (auto track_tbl = track_node.as_table()) {
+        config.results_scrollbar_track_width =
+            getInt(*track_tbl, "width", config.results_scrollbar_track_width);
+        config.results_scrollbar_track_color = getColor(
+            *track_tbl, "color", tc, config.results_scrollbar_track_color);
+        config.results_scrollbar_track_padding = getPadding(
+            *track_tbl, "padding", config.results_scrollbar_track_padding);
+        config.results_scrollbar_track_margin = getPadding(
+            *track_tbl, "margin", config.results_scrollbar_track_margin);
+        config.results_scrollbar_track_radius =
+            getInt(*track_tbl, "radius", config.results_scrollbar_track_radius);
+      }
+    }
   }
 }
 
@@ -282,33 +345,10 @@ void Manager::Impl::ApplyResultItem(const toml::table &root) {
   auto &tc = config.theme_colors;
 
   if (auto *t = getTable(root, "widget.results.item")) {
-    if (auto fnode = (*t)["font"]; fnode) {
-      if (auto ft = fnode.as_table()) {
-        config.result_item_font_family =
-            getStr(*ft, "family", config.result_item_font_family);
-        config.result_item_font_size =
-            getInt(*ft, "size", config.result_item_font_size);
-        config.result_item_font_weight =
-            getStr(*ft, "weight", config.result_item_font_weight);
-      }
-    }
-    config.result_item_text = getColor(*t, "text", tc, config.result_item_text);
-    config.result_item_background =
-        getColor(*t, "background", tc, config.result_item_background);
-
-    if (auto bnode = (*t)["border"]; bnode) {
-      if (auto bt = bnode.as_table()) {
-        config.result_item_border_radius =
-            getInt(*bt, "radius", config.result_item_border_radius);
-        config.result_item_border_width =
-            getInt(*bt, "width", config.result_item_border_width);
-        config.result_item_border_color =
-            getColor(*bt, "color", tc, config.result_item_border_color);
-      }
-    }
-    config.result_item_padding =
-        getPadding(*t, "padding", config.result_item_padding);
-    config.result_item_align = getStr(*t, "align", config.result_item_align);
+    config.result_item_comment_enable =
+        getBool(*t, "comment", config.result_item_comment_enable);
+    config.result_item_highlight_enable =
+        getBool(*t, "highlight", config.result_item_highlight_enable);
 
     if (auto inode = (*t)["icon"]; inode) {
       if (auto it = inode.as_table()) {
@@ -316,48 +356,236 @@ void Manager::Impl::ApplyResultItem(const toml::table &root) {
             getInt(*it, "size", config.result_item_icon_size);
         config.result_item_icon_gap =
             getInt(*it, "gap", config.result_item_icon_gap);
-        config.result_item_icon_show =
-            getBool(*it, "show", config.result_item_icon_show);
+        config.result_item_icon_enable =
+            getBool(*it, "enable", config.result_item_icon_enable);
       }
     }
   }
 
-  if (auto *t = getTable(root, "widget.results.item.comment")) {
-    config.result_item_comment_enable =
-        getBool(*t, "enable", config.result_item_comment_enable);
+  if (auto *t = getTable(root, "widget.results.item.default")) {
     if (auto fnode = (*t)["font"]; fnode) {
       if (auto ft = fnode.as_table()) {
-        config.result_item_comment_font_size =
-            getInt(*ft, "size", config.result_item_comment_font_size);
-        config.result_item_comment_font_weight =
-            getStr(*ft, "weight", config.result_item_comment_font_weight);
+        config.result_item_default_font_family =
+            getStr(*ft, "family", config.window_font_family);
+        std::string fallback_path =
+            ft->contains("family") ? "" : config.window_font_path;
+        config.result_item_default_font_path =
+            getStr(*ft, "path", fallback_path);
+        config.result_item_default_font_size =
+            getInt(*ft, "size", config.window_font_size);
+        config.result_item_default_font_weight =
+            getStr(*ft, "weight", config.window_font_weight);
+      }
+    } else {
+      config.result_item_default_font_family = config.window_font_family;
+      config.result_item_default_font_path = config.window_font_path;
+      config.result_item_default_font_size = config.window_font_size;
+      config.result_item_default_font_weight = config.window_font_weight;
+    }
+    config.result_item_default_color =
+        getFontColor(*t, tc, config.result_item_default_color);
+    config.result_item_default_background =
+        getColor(*t, "background", tc, config.result_item_default_background);
+
+    if (auto bnode = (*t)["border"]; bnode) {
+      if (auto bt = bnode.as_table()) {
+        config.result_item_default_border_radius =
+            getInt(*bt, "radius", config.result_item_default_border_radius);
+        config.result_item_default_border_width =
+            getInt(*bt, "width", config.result_item_default_border_width);
+        config.result_item_default_border_color =
+            getColor(*bt, "color", tc, config.result_item_default_border_color);
       }
     }
-    config.result_item_comment_color =
-        getColor(*t, "text", tc, config.result_item_comment_color);
-  }
+    config.result_item_default_padding =
+        getPadding(*t, "padding", config.result_item_default_padding);
+    config.result_item_default_margin =
+        getPadding(*t, "margin", config.result_item_default_margin);
+    config.result_item_default_align =
+        getStr(*t, "align", config.result_item_default_align);
 
-  if (auto *t = getTable(root, "widget.results.item.highlight")) {
-    config.result_item_highlight_enable =
-        getBool(*t, "enable", config.result_item_highlight_enable);
-    if (auto fnode = (*t)["font"]; fnode) {
-      if (auto ft = fnode.as_table())
-        config.result_item_highlight_font_weight =
-            getStr(*ft, "weight", config.result_item_highlight_font_weight);
+    if (auto cnode = (*t)["comment"]; cnode) {
+      if (auto ct = cnode.as_table()) {
+        if (auto cfnode = (*ct)["font"]; cfnode) {
+          if (auto cft = cfnode.as_table()) {
+            config.result_item_default_comment_font_family =
+                getStr(*cft, "family", config.window_font_family);
+            std::string fallback_path =
+                cft->contains("family") ? "" : config.window_font_path;
+            config.result_item_default_comment_font_path =
+                getStr(*cft, "path", fallback_path);
+            config.result_item_default_comment_font_size =
+                getInt(*cft, "size", config.window_font_size);
+            config.result_item_default_comment_font_weight =
+                getStr(*cft, "weight", config.window_font_weight);
+          }
+        } else {
+          config.result_item_default_comment_font_family =
+              config.window_font_family;
+          config.result_item_default_comment_font_path =
+              config.window_font_path;
+          config.result_item_default_comment_font_size =
+              config.window_font_size;
+          config.result_item_default_comment_font_weight =
+              config.window_font_weight;
+        }
+        config.result_item_default_comment_color =
+            getFontColor(*ct, tc, config.result_item_default_comment_color);
+      }
     }
-    config.result_item_highlight_color =
-        getColor(*t, "text", tc, config.result_item_highlight_color);
+
+    if (auto hnode = (*t)["highlight"]; hnode) {
+      if (auto ht = hnode.as_table()) {
+        if (auto hfnode = (*ht)["font"]; hfnode) {
+          if (auto hft = hfnode.as_table()) {
+            config.result_item_default_highlight_font_family =
+                getStr(*hft, "family", config.window_font_family);
+            std::string fallback_path =
+                hft->contains("family") ? "" : config.window_font_path;
+            config.result_item_default_highlight_font_path =
+                getStr(*hft, "path", fallback_path);
+            config.result_item_default_highlight_font_size =
+                getInt(*hft, "size", config.window_font_size);
+            config.result_item_default_highlight_font_weight =
+                getStr(*hft, "weight", config.window_font_weight);
+          }
+        } else {
+          config.result_item_default_highlight_font_family =
+              config.window_font_family;
+          config.result_item_default_highlight_font_path =
+              config.window_font_path;
+          config.result_item_default_highlight_font_size =
+              config.window_font_size;
+          config.result_item_default_highlight_font_weight =
+              config.window_font_weight;
+        }
+        config.result_item_default_highlight_color =
+            getFontColor(*ht, tc, config.result_item_default_highlight_color);
+      }
+    }
+
+    config.result_item_selected_font_family =
+        config.result_item_default_font_family;
+    config.result_item_selected_font_path =
+        config.result_item_default_font_path;
+    config.result_item_selected_font_size =
+        config.result_item_default_font_size;
+    config.result_item_selected_font_weight =
+        config.result_item_default_font_weight;
+    config.result_item_selected_align = config.result_item_default_align;
+    config.result_item_selected_color = config.result_item_default_color;
+    config.result_item_selected_background =
+        config.result_item_default_background;
+    config.result_item_selected_border_radius =
+        config.result_item_default_border_radius;
+    config.result_item_selected_border_width =
+        config.result_item_default_border_width;
+    config.result_item_selected_border_color =
+        config.result_item_default_border_color;
+    config.result_item_selected_padding = config.result_item_default_padding;
+    config.result_item_selected_margin = config.result_item_default_margin;
+    config.result_item_selected_comment_font_family =
+        config.result_item_default_comment_font_family;
+    config.result_item_selected_comment_font_path =
+        config.result_item_default_comment_font_path;
+    config.result_item_selected_comment_font_size =
+        config.result_item_default_comment_font_size;
+    config.result_item_selected_comment_font_weight =
+        config.result_item_default_comment_font_weight;
+    config.result_item_selected_comment_color =
+        config.result_item_default_comment_color;
+    config.result_item_selected_highlight_font_family =
+        config.result_item_default_highlight_font_family;
+    config.result_item_selected_highlight_font_path =
+        config.result_item_default_highlight_font_path;
+    config.result_item_selected_highlight_font_size =
+        config.result_item_default_highlight_font_size;
+    config.result_item_selected_highlight_font_weight =
+        config.result_item_default_highlight_font_weight;
+    config.result_item_selected_highlight_color =
+        config.result_item_default_highlight_color;
   }
 
   if (auto *t = getTable(root, "widget.results.item.selected")) {
-    config.result_item_selected_text =
-        getColor(*t, "text", tc, config.result_item_selected_text);
+    if (auto fnode = (*t)["font"]; fnode) {
+      if (auto ft = fnode.as_table()) {
+        config.result_item_selected_font_family =
+            getStr(*ft, "family", config.result_item_selected_font_family);
+        std::string fallback_path =
+            ft->contains("family") ? "" : config.result_item_selected_font_path;
+        config.result_item_selected_font_path =
+            getStr(*ft, "path", fallback_path);
+        config.result_item_selected_font_size =
+            getInt(*ft, "size", config.result_item_selected_font_size);
+        config.result_item_selected_font_weight =
+            getStr(*ft, "weight", config.result_item_selected_font_weight);
+      }
+    }
+
+    config.result_item_selected_color =
+        getFontColor(*t, tc, config.result_item_selected_color);
     config.result_item_selected_background =
         getColor(*t, "background", tc, config.result_item_selected_background);
-    config.result_item_selected_comment =
-        getColor(*t, "comment", tc, config.result_item_selected_comment);
-    config.result_item_selected_highlight =
-        getColor(*t, "highlight", tc, config.result_item_selected_highlight);
+
+    if (auto cnode = (*t)["comment"]; cnode) {
+      if (auto ct = cnode.as_table()) {
+        if (auto cfnode = (*ct)["font"]; cfnode) {
+          if (auto cft = cfnode.as_table()) {
+            config.result_item_selected_comment_font_family =
+                getStr(*cft, "family", config.window_font_family);
+            std::string fallback_path =
+                cft->contains("family") ? "" : config.window_font_path;
+            config.result_item_selected_comment_font_path =
+                getStr(*cft, "path", fallback_path);
+            config.result_item_selected_comment_font_size =
+                getInt(*cft, "size", config.window_font_size);
+            config.result_item_selected_comment_font_weight =
+                getStr(*cft, "weight", config.window_font_weight);
+          }
+        } else {
+          config.result_item_selected_comment_font_family =
+              config.window_font_family;
+          config.result_item_selected_comment_font_path =
+              config.window_font_path;
+          config.result_item_selected_comment_font_size =
+              config.window_font_size;
+          config.result_item_selected_comment_font_weight =
+              config.window_font_weight;
+        }
+        config.result_item_selected_comment_color =
+            getFontColor(*ct, tc, config.result_item_selected_comment_color);
+      }
+    }
+
+    if (auto hnode = (*t)["highlight"]; hnode) {
+      if (auto ht = hnode.as_table()) {
+        if (auto hfnode = (*ht)["font"]; hfnode) {
+          if (auto hft = hfnode.as_table()) {
+            config.result_item_selected_highlight_font_family =
+                getStr(*hft, "family", config.window_font_family);
+            std::string fallback_path =
+                hft->contains("family") ? "" : config.window_font_path;
+            config.result_item_selected_highlight_font_path =
+                getStr(*hft, "path", fallback_path);
+            config.result_item_selected_highlight_font_size =
+                getInt(*hft, "size", config.window_font_size);
+            config.result_item_selected_highlight_font_weight =
+                getStr(*hft, "weight", config.window_font_weight);
+          }
+        } else {
+          config.result_item_selected_highlight_font_family =
+              config.window_font_family;
+          config.result_item_selected_highlight_font_path =
+              config.window_font_path;
+          config.result_item_selected_highlight_font_size =
+              config.window_font_size;
+          config.result_item_selected_highlight_font_weight =
+              config.window_font_weight;
+        }
+        config.result_item_selected_highlight_color =
+            getFontColor(*ht, tc, config.result_item_selected_highlight_color);
+      }
+    }
 
     if (auto bnode = (*t)["border"]; bnode) {
       if (auto bt = bnode.as_table()) {
@@ -369,6 +597,13 @@ void Manager::Impl::ApplyResultItem(const toml::table &root) {
             *bt, "color", tc, config.result_item_selected_border_color);
       }
     }
+
+    config.result_item_selected_padding =
+        getPadding(*t, "padding", config.result_item_selected_padding);
+    config.result_item_selected_margin =
+        getPadding(*t, "margin", config.result_item_selected_margin);
+    config.result_item_selected_align =
+        getStr(*t, "align", config.result_item_selected_align);
   }
 }
 
@@ -387,19 +622,28 @@ void Manager::Impl::ApplyResultsCount(const toml::table &root) {
   if (auto fnode = (*t)["font"]; fnode) {
     if (auto ft = fnode.as_table()) {
       config.results_count_font_family =
-          getStr(*ft, "family", config.results_count_font_family);
+          getStr(*ft, "family", config.window_font_family);
+      std::string fallback_path =
+          ft->contains("family") ? "" : config.window_font_path;
+      config.results_count_font_path = getStr(*ft, "path", fallback_path);
       config.results_count_font_size =
-          getInt(*ft, "size", config.results_count_font_size);
+          getInt(*ft, "size", config.window_font_size);
       config.results_count_font_weight =
-          getStr(*ft, "weight", config.results_count_font_weight);
+          getStr(*ft, "weight", config.window_font_weight);
     }
+  } else {
+    config.results_count_font_family = config.window_font_family;
+    config.results_count_font_path = config.window_font_path;
+    config.results_count_font_size = config.window_font_size;
+    config.results_count_font_weight = config.window_font_weight;
   }
 
-  config.results_count_text =
-      getColor(*t, "text", tc, config.results_count_text);
+  config.results_count_color = getFontColor(*t, tc, config.results_count_color);
   config.results_count_align = getStr(*t, "align", config.results_count_align);
   config.results_count_padding =
       getPadding(*t, "padding", config.results_count_padding);
+  config.results_count_margin =
+      getPadding(*t, "margin", config.results_count_margin);
 }
 
 void Manager::Impl::ApplyPreview(const toml::table &root) {
@@ -414,17 +658,7 @@ void Manager::Impl::ApplyPreview(const toml::table &root) {
     config.preview_background =
         getColor(*t, "background", tc, config.preview_background);
     config.preview_padding = getPadding(*t, "padding", config.preview_padding);
-
-    if (auto inode = (*t)["icon"]; inode) {
-      if (auto it = inode.as_table()) {
-        config.preview_icon_size =
-            getInt(*it, "size", config.preview_icon_size);
-        config.preview_icon_fallback =
-            getBool(*it, "fallback", config.preview_icon_fallback);
-        config.preview_icon_hide_on_fallback = getBool(
-            *it, "hide-on-fallback", config.preview_icon_hide_on_fallback);
-      }
-    }
+    config.preview_margin = getPadding(*t, "margin", config.preview_margin);
 
     if (auto gnode = (*t)["gap"]; gnode) {
       if (auto gt = gnode.as_table()) {
@@ -438,32 +672,57 @@ void Manager::Impl::ApplyPreview(const toml::table &root) {
     }
   }
 
-  if (auto *t = getTable(root, "widget.preview.title")) {
-    if (auto fnode = (*t)["font"]; fnode) {
-      if (auto ft = fnode.as_table()) {
-        config.preview_title_font_family =
-            getStr(*ft, "family", config.preview_title_font_family);
-        config.preview_title_font_size =
-            getInt(*ft, "size", config.preview_title_font_size);
-        config.preview_title_font_weight =
-            getStr(*ft, "weight", config.preview_title_font_weight);
-      }
-    }
-    config.preview_title_color =
-        getColor(*t, "text", tc, config.preview_title_color);
+  if (auto *t = getTable(root, "widget.preview.icon")) {
+    config.preview_icon_size = getInt(*t, "size", config.preview_icon_size);
+    config.preview_icon_fallback =
+        getBool(*t, "fallback", config.preview_icon_fallback);
+    config.preview_icon_hide_on_fallback =
+        getBool(*t, "hide-on-fallback", config.preview_icon_hide_on_fallback);
   }
 
-  if (auto *t = getTable(root, "widget.preview.description")) {
+  if (auto *t = getTable(root, "widget.preview.name")) {
     if (auto fnode = (*t)["font"]; fnode) {
       if (auto ft = fnode.as_table()) {
-        config.preview_description_font_size =
-            getInt(*ft, "size", config.preview_description_font_size);
-        config.preview_description_font_weight =
-            getStr(*ft, "weight", config.preview_description_font_weight);
+        config.preview_name_font_family =
+            getStr(*ft, "family", config.window_font_family);
+        std::string fallback_path =
+            ft->contains("family") ? "" : config.window_font_path;
+        config.preview_name_font_path = getStr(*ft, "path", fallback_path);
+        config.preview_name_font_size =
+            getInt(*ft, "size", config.window_font_size);
+        config.preview_name_font_weight =
+            getStr(*ft, "weight", config.window_font_weight);
       }
+    } else {
+      config.preview_name_font_family = config.window_font_family;
+      config.preview_name_font_path = config.window_font_path;
+      config.preview_name_font_size = config.window_font_size;
+      config.preview_name_font_weight = config.window_font_weight;
     }
-    config.preview_description_color =
-        getColor(*t, "text", tc, config.preview_description_color);
+    config.preview_name_color = getFontColor(*t, tc, config.preview_name_color);
+  }
+
+  if (auto *t = getTable(root, "widget.preview.comment")) {
+    if (auto fnode = (*t)["font"]; fnode) {
+      if (auto ft = fnode.as_table()) {
+        config.preview_comment_font_family =
+            getStr(*ft, "family", config.window_font_family);
+        std::string fallback_path =
+            ft->contains("family") ? "" : config.window_font_path;
+        config.preview_comment_font_path = getStr(*ft, "path", fallback_path);
+        config.preview_comment_font_size =
+            getInt(*ft, "size", config.window_font_size);
+        config.preview_comment_font_weight =
+            getStr(*ft, "weight", config.window_font_weight);
+      }
+    } else {
+      config.preview_comment_font_family = config.window_font_family;
+      config.preview_comment_font_path = config.window_font_path;
+      config.preview_comment_font_size = config.window_font_size;
+      config.preview_comment_font_weight = config.window_font_weight;
+    }
+    config.preview_comment_color =
+        getFontColor(*t, tc, config.preview_comment_color);
   }
 }
 
@@ -480,16 +739,90 @@ void Manager::Impl::ApplyClock(const toml::table &root) {
   if (auto fnode = (*t)["font"]; fnode) {
     if (auto ft = fnode.as_table()) {
       config.clock_font_family =
-          getStr(*ft, "family", config.clock_font_family);
-      config.clock_font_size = getInt(*ft, "size", config.clock_font_size);
+          getStr(*ft, "family", config.window_font_family);
+      std::string fallback_path =
+          ft->contains("family") ? "" : config.window_font_path;
+      config.clock_font_path = getStr(*ft, "path", fallback_path);
+      config.clock_font_size = getInt(*ft, "size", config.window_font_size);
       config.clock_font_weight =
-          getStr(*ft, "weight", config.clock_font_weight);
+          getStr(*ft, "weight", config.window_font_weight);
     }
+  } else {
+    config.clock_font_family = config.window_font_family;
+    config.clock_font_path = config.window_font_path;
+    config.clock_font_size = config.window_font_size;
+    config.clock_font_weight = config.window_font_weight;
   }
 
-  config.clock_text = getColor(*t, "text", tc, config.clock_text);
+  config.clock_color = getFontColor(*t, tc, config.clock_color);
   config.clock_align = getStr(*t, "align", config.clock_align);
   config.clock_padding = getPadding(*t, "padding", config.clock_padding);
+  config.clock_margin = getPadding(*t, "margin", config.clock_margin);
+}
+
+void Manager::Impl::ApplyBreadcrumbs(const toml::table &root) {
+  auto *t = getTable(root, "widget.breadcrumbs");
+  if (!t)
+    return;
+
+  auto &tc = config.theme_colors;
+
+  config.breadcrumbs_enable = getBool(*t, "enable", config.breadcrumbs_enable);
+  config.breadcrumbs_separator =
+      getStr(*t, "separator", config.breadcrumbs_separator);
+
+  if (auto fnode = (*t)["font"]; fnode) {
+    if (auto ft = fnode.as_table()) {
+      config.breadcrumbs_font_family =
+          getStr(*ft, "family", config.window_font_family);
+      std::string fallback_path =
+          ft->contains("family") ? "" : config.window_font_path;
+      config.breadcrumbs_font_path = getStr(*ft, "path", fallback_path);
+      config.breadcrumbs_font_size =
+          getInt(*ft, "size", config.window_font_size);
+      config.breadcrumbs_font_weight =
+          getStr(*ft, "weight", config.window_font_weight);
+    }
+  } else {
+    config.breadcrumbs_font_family = config.window_font_family;
+    config.breadcrumbs_font_path = config.window_font_path;
+    config.breadcrumbs_font_size = config.window_font_size;
+    config.breadcrumbs_font_weight = config.window_font_weight;
+  }
+
+  config.breadcrumbs_color = getFontColor(*t, tc, config.breadcrumbs_color);
+  config.breadcrumbs_align = getStr(*t, "align", config.breadcrumbs_align);
+  config.breadcrumbs_padding =
+      getPadding(*t, "padding", config.breadcrumbs_padding);
+  config.breadcrumbs_margin =
+      getPadding(*t, "margin", config.breadcrumbs_margin);
+}
+
+void Manager::Impl::ApplyModifiers(const toml::table &root) {
+  if (auto arr = root["modifier"].as_array()) {
+    config.modifiers.clear();
+    for (auto &node : *arr) {
+      if (auto t = node.as_table()) {
+        Modifier m;
+        m.trigger = getStr(*t, "trigger", "");
+        m.expanded = getStr(*t, "expanded", "");
+        m.type = getStr(*t, "type", "abbr");
+        if (auto s = (*t)["scope"]) {
+          if (auto s_arr = s.as_array()) {
+            for (auto &el : *s_arr) {
+              if (auto str = el.as_string()) {
+                m.scope.push_back(str->get());
+              }
+            }
+          }
+        }
+        if (m.scope.empty()) {
+          m.scope.push_back("*");
+        }
+        config.modifiers.push_back(m);
+      }
+    }
+  }
 }
 
 void Manager::Impl::ApplyProviders(const toml::table &root) {

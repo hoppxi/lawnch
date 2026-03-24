@@ -3,6 +3,7 @@
 #include "config.hpp"
 #include "manager.hpp"
 
+#include "../../helpers/color.hpp"
 #include "../../helpers/config_parse.hpp"
 #include "../../helpers/fs.hpp"
 #include "../../helpers/logger.hpp"
@@ -27,24 +28,32 @@ using Lawnch::Config::Padding;
 inline std::string
 resolveVar(const std::string &val,
            const std::map<std::string, Color> &theme_colors) {
-  if (val.empty() || val[0] != '$')
+  if (val.empty())
     return val;
 
-  std::string var_name = val.substr(1);
-  auto it = theme_colors.find(var_name);
-  if (it != theme_colors.end()) {
-    auto toHex = [](double v) -> int {
-      return static_cast<int>(std::clamp(v, 0.0, 1.0) * 255.0 + 0.5);
-    };
-    char buf[10];
-    std::snprintf(buf, sizeof(buf), "#%02X%02X%02X%02X", toHex(it->second.r),
-                  toHex(it->second.g), toHex(it->second.b),
-                  toHex(it->second.a));
-    return std::string(buf);
+  if (Lawnch::Config::isColorFunction(val)) {
+    return Lawnch::Config::processColorFunction(val, theme_colors);
   }
 
-  Logger::log("Config", Logger::LogLevel::WARNING,
-              "Unknown theme variable: " + val);
+  if (val[0] == '$') {
+    std::string var_name = val.substr(1);
+    auto it = theme_colors.find(var_name);
+    if (it != theme_colors.end()) {
+      auto toHex = [](double v) -> int {
+        return static_cast<int>(std::clamp(v, 0.0, 1.0) * 255.0 + 0.5);
+      };
+      char buf[10];
+      std::snprintf(buf, sizeof(buf), "#%02X%02X%02X%02X", toHex(it->second.r),
+                    toHex(it->second.g), toHex(it->second.b),
+                    toHex(it->second.a));
+      return std::string(buf);
+    }
+
+    Logger::log("Config", Logger::LogLevel::WARNING,
+                "Unknown theme variable: " + val);
+    return val;
+  }
+
   return val;
 }
 
@@ -62,6 +71,17 @@ inline Color getColor(const toml::table &tbl, std::string_view key,
                       const std::map<std::string, Color> &theme_colors,
                       const Color &def) {
   if (auto node = tbl[key]; node)
+    return readColor(*node.node(), theme_colors);
+  return def;
+}
+
+// Font color with foreground alias: tries "color" first, then "foreground"
+inline Color getFontColor(const toml::table &tbl,
+                          const std::map<std::string, Color> &theme_colors,
+                          const Color &def) {
+  if (auto node = tbl["color"]; node)
+    return readColor(*node.node(), theme_colors);
+  if (auto node = tbl["foreground"]; node)
     return readColor(*node.node(), theme_colors);
   return def;
 }
@@ -145,6 +165,25 @@ inline std::filesystem::path findDataFile(const std::string &subdir,
 
   std::string filename = name + ".toml";
 
+  const char *env_dir = nullptr;
+  if (subdir == "themes") {
+    env_dir = std::getenv("LAWNCH_THEMES_DIR");
+  } else if (subdir == "presets") {
+    env_dir = std::getenv("LAWNCH_PRESETS_DIR");
+  }
+
+  if (env_dir) {
+    auto candidate = std::filesystem::path(env_dir) / filename;
+    if (std::filesystem::exists(candidate)) {
+      return candidate;
+    }
+    Logger::log(
+        "Config", Logger::LogLevel::WARNING,
+        std::string("File '") + filename + "' not found in " +
+            (subdir == "themes" ? "LAWNCH_THEMES_DIR" : "LAWNCH_PRESETS_DIR") +
+            " (" + env_dir + "). Falling back to default paths.");
+  }
+
   for (const auto &dir : Lawnch::Fs::get_data_dirs()) {
     auto candidate = std::filesystem::path(dir) / "lawnch" / subdir / filename;
     if (std::filesystem::exists(candidate))
@@ -182,8 +221,10 @@ struct Manager::Impl {
   void ApplyResultsCount(const toml::table &root);
   void ApplyPreview(const toml::table &root);
   void ApplyClock(const toml::table &root);
+  void ApplyBreadcrumbs(const toml::table &root);
   void ApplyProviders(const toml::table &root);
   void ApplyPlugins(const toml::table &root);
+  void ApplyModifiers(const toml::table &root);
 };
 
 } // namespace Lawnch::Core::Config

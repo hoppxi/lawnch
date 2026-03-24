@@ -10,9 +10,17 @@ namespace Lawnch::Core::Config {
 using Lawnch::Config::Color;
 using Lawnch::Config::Padding;
 
+struct Modifier {
+  std::string trigger;
+  std::string expanded;
+  std::string type;
+  std::vector<std::string> scope;
+};
+
 struct Config {
   // general
   std::string general_icon_theme;
+  std::vector<std::string> general_icon_dirs;
   std::string general_terminal;
   std::string general_terminal_flag;
   std::string general_editor;
@@ -37,7 +45,7 @@ struct Config {
   // window
   int window_width;
   int window_height;
-  std::string window_anchor;
+  std::vector<std::string> window_anchor;
   Padding window_margin;
   Padding window_padding;
   int window_border_radius;
@@ -47,20 +55,25 @@ struct Config {
   bool window_exclusive;
   bool window_ignore_exclusive;
   std::string window_keyboard;
+  std::string window_font_family;
+  std::string window_font_path;
+  int window_font_size;
+  std::string window_font_weight;
 
   // input
   bool input_visible;
   std::string input_font_family;
+  std::string input_font_path;
   int input_font_size;
   std::string input_font_weight;
-  Color input_text;
+  Color input_color;
   Color input_placeholder_color;
   std::string input_placeholder_text;
   Color input_background;
   Color input_caret_color;
   double input_caret_width;
+  Color input_selection_background;
   Color input_selection_color;
-  Color input_selection_text;
   Padding input_padding;
   Padding input_margin;
   int input_border_radius;
@@ -73,6 +86,7 @@ struct Config {
   std::string input_prompt_text;
   std::string input_prompt_side;
   std::string input_prompt_font_family;
+  std::string input_prompt_font_path;
   int input_prompt_font_size;
   std::string input_prompt_font_weight;
   Color input_prompt_color;
@@ -92,45 +106,72 @@ struct Config {
   int results_border_width;
   int results_border_radius;
   bool results_scrollbar_enable;
-  int results_scrollbar_width;
-  int results_scrollbar_padding;
-  int results_scrollbar_radius;
-  Color results_scrollbar_thumb;
-  Color results_scrollbar_track;
+  Color results_scrollbar_thumb_color;
+  int results_scrollbar_thumb_radius;
+  int results_scrollbar_track_width;
+  Color results_scrollbar_track_color;
+  Padding results_scrollbar_track_padding;
+  Padding results_scrollbar_track_margin;
+  int results_scrollbar_track_radius;
   std::string results_scroll;
   bool results_reverse;
   int results_limit;
   bool results_show_help;
 
   // result item
-  std::string result_item_font_family;
-  int result_item_font_size;
-  std::string result_item_font_weight;
-  std::string result_item_align;
-  bool result_item_comment_enable;
-  int result_item_comment_font_size;
-  std::string result_item_comment_font_weight;
-  Color result_item_comment_color;
-  Color result_item_selected_comment;
-  bool result_item_icon_show;
+  bool result_item_icon_enable;
   int result_item_icon_size;
   int result_item_icon_gap;
-  Padding result_item_padding;
-  Padding result_item_margin;
-  int result_item_border_radius;
-  int result_item_border_width;
-  Color result_item_border_color;
-  Color result_item_background;
-  Color result_item_text;
+  bool result_item_comment_enable;
+  bool result_item_highlight_enable;
+
+  // result item default
+  std::string result_item_default_font_family;
+  std::string result_item_default_font_path;
+  int result_item_default_font_size;
+  std::string result_item_default_font_weight;
+  std::string result_item_default_align;
+  Color result_item_default_color;
+  Color result_item_default_background;
+  int result_item_default_border_radius;
+  int result_item_default_border_width;
+  Color result_item_default_border_color;
+  Padding result_item_default_padding;
+  Padding result_item_default_margin;
+  std::string result_item_default_comment_font_family;
+  std::string result_item_default_comment_font_path;
+  int result_item_default_comment_font_size;
+  std::string result_item_default_comment_font_weight;
+  Color result_item_default_comment_color;
+  std::string result_item_default_highlight_font_family;
+  std::string result_item_default_highlight_font_path;
+  int result_item_default_highlight_font_size;
+  std::string result_item_default_highlight_font_weight;
+  Color result_item_default_highlight_color;
+
+  // result item selected
+  std::string result_item_selected_font_family;
+  std::string result_item_selected_font_path;
+  int result_item_selected_font_size;
+  std::string result_item_selected_font_weight;
+  std::string result_item_selected_align;
+  Color result_item_selected_color;
+  Color result_item_selected_background;
   int result_item_selected_border_radius;
   int result_item_selected_border_width;
   Color result_item_selected_border_color;
-  Color result_item_selected_background;
-  Color result_item_selected_text;
-  bool result_item_highlight_enable;
-  Color result_item_highlight_color;
-  std::string result_item_highlight_font_weight;
-  Color result_item_selected_highlight;
+  Padding result_item_selected_padding;
+  Padding result_item_selected_margin;
+  std::string result_item_selected_comment_font_family;
+  std::string result_item_selected_comment_font_path;
+  int result_item_selected_comment_font_size;
+  std::string result_item_selected_comment_font_weight;
+  Color result_item_selected_comment_color;
+  std::string result_item_selected_highlight_font_family;
+  std::string result_item_selected_highlight_font_path;
+  int result_item_selected_highlight_font_size;
+  std::string result_item_selected_highlight_font_weight;
+  Color result_item_selected_highlight_color;
 
   // preview
   bool preview_enable;
@@ -144,21 +185,25 @@ struct Config {
   int preview_gap_v;
   int preview_gap_h;
   std::vector<std::string> preview_composition;
-  std::string preview_title_font_family;
-  int preview_title_font_size;
-  std::string preview_title_font_weight;
-  Color preview_title_color;
-  int preview_description_font_size;
-  std::string preview_description_font_weight;
-  Color preview_description_color;
+  std::string preview_name_font_family;
+  std::string preview_name_font_path;
+  int preview_name_font_size;
+  std::string preview_name_font_weight;
+  Color preview_name_color;
+  std::string preview_comment_font_family;
+  std::string preview_comment_font_path;
+  int preview_comment_font_size;
+  std::string preview_comment_font_weight;
+  Color preview_comment_color;
 
   // results count
   bool results_count_enable;
   std::string results_count_format;
   std::string results_count_font_family;
+  std::string results_count_font_path;
   int results_count_font_size;
   std::string results_count_font_weight;
-  Color results_count_text;
+  Color results_count_color;
   std::string results_count_align;
   Padding results_count_padding;
   Padding results_count_margin;
@@ -167,12 +212,25 @@ struct Config {
   bool clock_enable;
   std::string clock_format;
   std::string clock_font_family;
+  std::string clock_font_path;
   int clock_font_size;
   std::string clock_font_weight;
-  Color clock_text;
+  Color clock_color;
   Padding clock_padding;
   Padding clock_margin;
   std::string clock_align;
+
+  // breadcrumbs
+  bool breadcrumbs_enable;
+  std::string breadcrumbs_separator;
+  std::string breadcrumbs_font_family;
+  std::string breadcrumbs_font_path;
+  int breadcrumbs_font_size;
+  std::string breadcrumbs_font_weight;
+  Color breadcrumbs_color;
+  std::string breadcrumbs_align;
+  Padding breadcrumbs_padding;
+  Padding breadcrumbs_margin;
 
   // providers
   // apps provider
@@ -196,6 +254,9 @@ struct Config {
 
   // theme
   std::map<std::string, Color> theme_colors;
+
+  // modifiers (abbr/alias)
+  std::vector<Modifier> modifiers;
 };
 
 } // namespace Lawnch::Core::Config

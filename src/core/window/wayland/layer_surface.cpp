@@ -41,12 +41,19 @@ void LayerSurface::apply_config(const Config::Config &cfg) {
 
   uint32_t anchor_opts = 0;
   int m_top = 0, m_right = 0, m_bottom = 0, m_left = 0;
-  std::string anchor = cfg.window_anchor;
 
-  bool has_top = Lawnch::Str::contains_ic(anchor, "top");
-  bool has_bottom = Lawnch::Str::contains_ic(anchor, "bottom");
-  bool has_left = Lawnch::Str::contains_ic(anchor, "left");
-  bool has_right = Lawnch::Str::contains_ic(anchor, "right");
+  bool has_top = false, has_bottom = false, has_left = false, has_right = false;
+
+  for (const auto &a : cfg.window_anchor) {
+    if (Lawnch::Str::iequals(a, "top"))
+      has_top = true;
+    else if (Lawnch::Str::iequals(a, "bottom"))
+      has_bottom = true;
+    else if (Lawnch::Str::iequals(a, "left"))
+      has_left = true;
+    else if (Lawnch::Str::iequals(a, "right"))
+      has_right = true;
+  }
 
   if (has_top) {
     anchor_opts |= ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP;
@@ -86,8 +93,7 @@ void LayerSurface::apply_config(const Config::Config &cfg) {
       ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_EXCLUSIVE;
   if (Lawnch::Str::iequals(cfg.window_keyboard, "none")) {
     kb_interactivity = ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE;
-  } else if (Lawnch::Str::iequals(cfg.window_keyboard,
-                                  "on_demand")) {
+  } else if (Lawnch::Str::iequals(cfg.window_keyboard, "on_demand")) {
     kb_interactivity = ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_ON_DEMAND;
   }
   zwlr_layer_surface_v1_set_keyboard_interactivity(layer_surface,

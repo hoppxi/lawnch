@@ -17,6 +17,8 @@ struct SearchResult {
   bool track_history = true;
   bool use_custom_sort = false;
   bool has_submenu = false;
+  bool is_exec_replace = false;
+  bool is_pinned = false;
 };
 
 using ResultsCallback = std::function<void(const std::vector<SearchResult> &)>;

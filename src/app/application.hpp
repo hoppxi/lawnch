@@ -86,12 +86,16 @@ private:
   void render_frame_impl();
 
   std::mutex render_mutex;
+  std::mutex update_mutex;
+  bool pending_plugin_update = false;
+  std::string pending_plugin_query;
 
   // Sub-menu navigation stack (infinite depth)
   struct NavStackEntry {
     std::vector<Core::Search::SearchResult> results;
     std::string search_text;
     std::string submenu_command;
+    std::string display_name;
     int selected_index;
     int scroll_offset;
   };

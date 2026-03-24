@@ -5,11 +5,11 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1772783844,
-        "narHash": "sha256-LcsZpvesWDayEMOf9tF6gTL528rYNvDo3WXeVq4r4do=",
+        "lastModified": 1774031384,
+        "narHash": "sha256-+EAdYqMnCxa0ionRuP+ThtmYbHZBf24NsW/Fx6BHFnY=",
         "owner": "hoppxi",
         "repo": "lawnch-plugins",
-        "rev": "2f7e4de98fa74658af55cd1ba20e9f9ed641c071",
+        "rev": "5968f28f7047d8b4b1022785b4cb06320cd5d7ab",
         "type": "github"
       },
       "original": {

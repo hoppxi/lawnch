@@ -34,8 +34,12 @@ void Manager::init() {
     theme_loader.set_custom_theme(config.general_icon_theme);
   }
 
+  if (!config.general_icon_dirs.empty()) {
+    theme_loader.set_extra_dirs(config.general_icon_dirs);
+  }
+
   if (theme_loader.init()) {
-    Lawnch::Logger::log("IconManager", Lawnch::Logger::LogLevel::INFO,
+    Lawnch::Logger::log("IconManager", Lawnch::Logger::LogLevel::DEBUG,
                         "Initialized Icon Manager with theme: " +
                             (config.general_icon_theme.empty()
                                  ? "System"
@@ -62,7 +66,28 @@ bool Manager::load_icon_image(const std::string &path,
     BLImage img;
     BLResult err = img.read_from_file(path.c_str());
     if (err == BL_SUCCESS) {
-      icon_cache[cache_key] = img;
+      int w = (int)size;
+      int h = (int)size;
+
+      if (img.width() != w || img.height() != h) {
+        BLImage scaled(w, h, BL_FORMAT_PRGB32);
+        BLContext scaledCtx(scaled);
+        scaledCtx.set_comp_op(BL_COMP_OP_SRC_COPY);
+
+        double scaleX = (double)w / img.width();
+        double scaleY = (double)h / img.height();
+        double scale = std::min(scaleX, scaleY);
+        double sw = img.width() * scale;
+        double sh = img.height() * scale;
+        double tx = (w - sw) * 0.5;
+        double ty = (h - sh) * 0.5;
+
+        scaledCtx.blit_image(BLRect(tx, ty, sw, sh), img);
+        scaledCtx.end();
+        icon_cache[cache_key] = scaled;
+      } else {
+        icon_cache[cache_key] = img;
+      }
       return true;
     }
     Lawnch::Logger::log("IconManager", Lawnch::Logger::LogLevel::ERROR,

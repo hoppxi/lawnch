@@ -1,8 +1,10 @@
 #include "application.hpp"
+#include "../core/search/pin_manager.hpp"
 #include "../helpers/fs.hpp"
 #include "../helpers/locale.hpp"
 #include "../helpers/logger.hpp"
 #include "../helpers/process.hpp"
+#include <algorithm>
 #include <chrono>
 #include <filesystem>
 #include <iostream>
@@ -93,6 +95,23 @@ Application::Application(std::unique_ptr<IPC::Server> server,
   plugin_manager =
       std::make_unique<Core::Search::Plugins::Manager>(config_manager.Get());
 
+  plugin_manager->set_update_results_callback(
+      [this](const std::string &plugin_name, const std::string &new_query) {
+        {
+          std::lock_guard<std::mutex> lock(this->update_mutex);
+          this->pending_plugin_update = true;
+          this->pending_plugin_query = new_query;
+        }
+        uint64_t u = 1;
+        Logger::log("App", Logger::LogLevel::DEBUG,
+                    "Received update_results_callback from plugin: " +
+                        plugin_name);
+        if (write(this->wakeup_fd, &u, sizeof(u)) == -1) {
+          Logger::log("App", Logger::LogLevel::ERROR,
+                      "Failed to write to wakeup_fd for plugin update");
+        }
+      });
+
   Locale::set_override(config_manager.Get().general_locale);
   history.set_max_size(config_manager.Get().general_history_max_size);
 
@@ -120,6 +139,20 @@ Application::Application(std::unique_ptr<IPC::Server> server,
   kb_cb.on_submenu_back = [this]() { this->on_submenu_back(); };
   kb_cb.on_context_switch = [this](const std::string &trigger) {
     this->on_context_switch(trigger);
+  };
+  kb_cb.on_pin = [this](int idx) {
+    if (idx >= 0 && idx < (int)this->current_results.size()) {
+      const auto &r = this->current_results[idx];
+      Core::Search::PinManager::Instance().pin(r.command, r.name, r.type, r.icon);
+      this->on_keyboard_update();
+    }
+  };
+  kb_cb.on_unpin = [this](int idx) {
+    if (idx >= 0 && idx < (int)this->current_results.size()) {
+      Core::Search::PinManager::Instance().unpin(
+          this->current_results[idx].command);
+      this->on_keyboard_update();
+    }
   };
 
   keyboard = std::make_unique<Core::Window::Input::Keyboard>(history, kb_cb);
@@ -192,6 +225,27 @@ void Application::run() {
     if (fds[3].revents & POLLIN) {
       uint64_t u;
       if (read(wakeup_fd, &u, sizeof(u)) > 0) {
+        bool do_update = false;
+        std::string update_q;
+        {
+          std::lock_guard<std::mutex> lock(update_mutex);
+          if (pending_plugin_update) {
+            do_update = true;
+            update_q = pending_plugin_query;
+            pending_plugin_update = false;
+          }
+        }
+
+        if (do_update) {
+          Logger::log("App", Logger::LogLevel::DEBUG,
+                      "Executing queued plugin update in main loop");
+          if (!update_q.empty() && update_q != keyboard->get_text()) {
+            keyboard->set_text(update_q);
+          } else {
+            on_keyboard_update();
+          }
+        }
+
         Logger::log("App", Logger::LogLevel::DEBUG,
                     "Wakeup received, rendering frame.");
         render_frame();
@@ -265,6 +319,17 @@ void Application::render_frame_impl() {
   state.selected_index = keyboard->get_selected_index();
   state.scroll_offset = scroll_offset;
 
+  if (!nav_stack.empty()) {
+    std::stack<NavStackEntry> temp = nav_stack;
+    std::vector<std::string> trail;
+    while (!temp.empty()) {
+      trail.push_back(temp.top().display_name);
+      temp.pop();
+    }
+    std::reverse(trail.begin(), trail.end());
+    state.breadcrumb_trail = std::move(trail);
+  }
+
   renderer.render(buffer.get_context(), buffer.get_width(), buffer.get_height(),
                   config_manager.Get(), state);
 
@@ -276,9 +341,50 @@ void Application::render_frame_impl() {
 void Application::on_keyboard_update() {
   std::string text = keyboard->get_text();
 
+  std::string eval_text = text;
+  std::string current_scope = keyboard->get_context_scope();
+  if (current_scope == "*" && !eval_text.empty() && eval_text[0] == ':') {
+    size_t first_space = eval_text.find(' ');
+    if (first_space != std::string::npos) {
+      current_scope = eval_text.substr(0, first_space);
+    } else {
+      current_scope = eval_text;
+    }
+  }
+
+  const auto &config_ref = config_manager.Get();
+  for (const auto &m : config_ref.modifiers) {
+    if (m.type == "alias") {
+      bool scope_match = false;
+      for (const auto &s : m.scope) {
+        if (s == "*" || s == current_scope) {
+          scope_match = true;
+          break;
+        }
+      }
+      if (scope_match) {
+        size_t pos = 0;
+        while ((pos = eval_text.find(m.trigger, pos)) != std::string::npos) {
+          bool word_start = (pos == 0) || (eval_text[pos - 1] == ' ');
+          bool word_end = (pos + m.trigger.size() == eval_text.size()) ||
+                          (eval_text[pos + m.trigger.size()] == ' ');
+          if (word_start && word_end) {
+            Logger::log("Modifier", Logger::LogLevel::DEBUG,
+                        "Expanding alias '" + m.trigger + "' to '" +
+                            m.expanded + "' (scope: " + current_scope + ")");
+            eval_text.replace(pos, m.trigger.size(), m.expanded);
+            pos += m.expanded.size();
+          } else {
+            pos += m.trigger.size();
+          }
+        }
+      }
+    }
+  }
+
   if (!nav_stack.empty()) {
-    current_results =
-        search_engine->query_submenu(nav_stack.top().submenu_command, text);
+    current_results = search_engine->query_submenu(
+        nav_stack.top().submenu_command, eval_text);
     if (current_results.empty()) {
       current_results.push_back({"No sub-menu items", "No results found",
                                  "dialog-information", "", "info", "", 0, false,
@@ -288,11 +394,11 @@ void Application::on_keyboard_update() {
     return;
   }
 
-  current_results = search_engine->query(text);
+  current_results = search_engine->query(eval_text);
   if (current_results.empty()) {
     const auto &cfg = config_manager.Get();
-    if (cfg.results_show_help && !starts_with_help_trigger(text)) {
-      std::string help_query = text.empty() ? ":h" : ":h " + text;
+    if (cfg.results_show_help && !starts_with_help_trigger(eval_text)) {
+      std::string help_query = eval_text.empty() ? ":h" : ":h " + eval_text;
       current_results = search_engine->query(help_query);
     }
   }
@@ -329,8 +435,10 @@ void Application::on_keyboard_execute(std::string cmd) {
   if (!cmd.empty()) {
     int idx = keyboard->get_selected_index();
     bool should_record = true;
+    bool do_exec_replace = false;
     if (idx >= 0 && idx < (int)current_results.size()) {
       should_record = current_results[idx].track_history;
+      do_exec_replace = current_results[idx].is_exec_replace;
     }
 
     if (should_record) {
@@ -341,7 +449,12 @@ void Application::on_keyboard_execute(std::string cmd) {
     if (!cfg.launch_wrapper.empty()) {
       final_cmd = cfg.launch_wrapper + " " + cmd;
     }
-    Proc::exec_detached(final_cmd);
+
+    if (do_exec_replace) {
+      Proc::exec_replace(final_cmd);
+    } else {
+      Proc::exec_detached(final_cmd);
+    }
     stop();
   }
 }
@@ -361,7 +474,21 @@ void Application::on_submenu_enter(const std::string &result_command) {
   entry.selected_index = keyboard->get_selected_index();
   entry.scroll_offset = scroll_offset;
   entry.submenu_command = result_command;
+
+  int sel = keyboard->get_selected_index();
+  if (sel >= 0 && sel < static_cast<int>(current_results.size())) {
+    entry.display_name = current_results[sel].name;
+  } else {
+    entry.display_name = result_command;
+  }
+
   nav_stack.push(std::move(entry));
+
+  std::string new_scope = extract_primary_trigger(result_command);
+  if (new_scope.empty() && !nav_stack.top().display_name.empty()) {
+    new_scope = extract_primary_trigger(nav_stack.top().display_name);
+  }
+  keyboard->set_context_scope(new_scope.empty() ? "*" : new_scope);
 
   auto sub_results = search_engine->query_submenu(result_command, "");
   if (sub_results.empty()) {
@@ -384,6 +511,17 @@ void Application::on_submenu_back() {
   NavStackEntry entry = std::move(nav_stack.top());
   nav_stack.pop();
 
+  if (nav_stack.empty()) {
+    keyboard->set_context_scope("*");
+  } else {
+    std::string new_scope =
+        extract_primary_trigger(nav_stack.top().submenu_command);
+    if (new_scope.empty() && !nav_stack.top().display_name.empty()) {
+      new_scope = extract_primary_trigger(nav_stack.top().display_name);
+    }
+    keyboard->set_context_scope(new_scope.empty() ? "*" : new_scope);
+  }
+
   current_results = std::move(entry.results);
   scroll_offset = entry.scroll_offset;
 
@@ -393,11 +531,13 @@ void Application::on_submenu_back() {
 }
 
 void Application::on_context_switch(const std::string &trigger) {
-  Logger::log("App", Logger::LogLevel::INFO, "Context switch to: " + trigger);
+  Logger::log("App", Logger::LogLevel::DEBUG, "Context switch to: " + trigger);
 
   while (!nav_stack.empty()) {
     nav_stack.pop();
   }
+
+  keyboard->set_context_scope("*");
 
   keyboard->set_text(trigger + " ");
 }

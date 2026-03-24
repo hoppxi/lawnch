@@ -279,12 +279,14 @@ private:
         item.width = item.height = 0;
         return;
       }
-      BLFont font = is_name ? Gfx::get_font(cfg.preview_title_font_family,
-                                            cfg.preview_title_font_size,
-                                            cfg.preview_title_font_weight)
-                            : Gfx::get_font(cfg.preview_title_font_family,
-                                            cfg.preview_description_font_size,
-                                            cfg.preview_description_font_weight);
+      BLFont font = is_name ? Gfx::get_font(cfg.preview_name_font_family,
+                                            cfg.preview_name_font_size,
+                                            cfg.preview_name_font_weight,
+                                            cfg.preview_name_font_path)
+                            : Gfx::get_font(cfg.preview_comment_font_family,
+                                            cfg.preview_comment_font_size,
+                                            cfg.preview_comment_font_weight,
+                                            cfg.preview_comment_font_path);
       BLFontMetrics fm = font.metrics();
       item.height = fm.ascent + fm.descent;
     }
@@ -322,13 +324,14 @@ private:
         ctx.blit_image(BLPoint(draw_x, draw_y), preview_image);
       }
     } else if (item.type == "name") {
-      draw_text(ctx, selected.name, x, y, w_avail, cfg.preview_title_font_family,
-                cfg.preview_title_font_size, cfg.preview_title_font_weight,
-                cfg.preview_title_color);
+      draw_text(ctx, selected.name, x, y, w_avail, cfg.preview_name_font_family,
+                cfg.preview_name_font_size, cfg.preview_name_font_weight,
+                cfg.preview_name_font_path, cfg.preview_name_color);
     } else if (item.type == "comment") {
       draw_text(ctx, selected.comment, x, y, w_avail,
-                cfg.preview_title_font_family, cfg.preview_description_font_size,
-                cfg.preview_description_font_weight, cfg.preview_description_color);
+                cfg.preview_comment_font_family, cfg.preview_comment_font_size,
+                cfg.preview_comment_font_weight, cfg.preview_comment_font_path,
+                cfg.preview_comment_color);
     }
   }
 
@@ -340,8 +343,9 @@ private:
 
   void draw_text(BLContext &ctx, const std::string &text_content, double x,
                  double y, double w_avail, const std::string &family, int size,
-                 const std::string &weight, const Config::Color &color) {
-    BLFont font = Gfx::get_font(family, size, weight);
+                 const std::string &weight, const std::string &path,
+                 const Config::Color &color) {
+    BLFont font = Gfx::get_font(family, size, weight, path);
     BLFontMetrics fm = font.metrics();
     std::string text = Gfx::truncate_text(text_content, font, w_avail);
 

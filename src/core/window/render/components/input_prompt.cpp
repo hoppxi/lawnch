@@ -10,7 +10,8 @@ double InputPrompt::calculate_width(const Config::Config &cfg) {
 
   BLFont font = Lawnch::Gfx::get_font(cfg.input_prompt_font_family,
                                       cfg.input_prompt_font_size,
-                                      cfg.input_prompt_font_weight);
+                                      cfg.input_prompt_font_weight,
+                                      cfg.input_prompt_font_path);
 
   BLGlyphBuffer gb;
   gb.set_utf8_text(cfg.input_prompt_text.c_str());
@@ -47,7 +48,8 @@ ComponentResult InputPrompt::draw(ComponentContext &context) {
 
   BLFont font = Lawnch::Gfx::get_font(cfg.input_prompt_font_family,
                                       cfg.input_prompt_font_size,
-                                      cfg.input_prompt_font_weight);
+                                      cfg.input_prompt_font_weight,
+                                      cfg.input_prompt_font_path);
 
   BLFontMetrics fm = font.metrics();
 

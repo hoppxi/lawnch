@@ -25,7 +25,7 @@ ComponentResult Clock::draw(ComponentContext &context) {
   std::string time_text(time_buffer);
 
   BLFont font = Lawnch::Gfx::get_font(
-      cfg.clock_font_family, cfg.clock_font_size, cfg.clock_font_weight);
+      cfg.clock_font_family, cfg.clock_font_size, cfg.clock_font_weight, cfg.clock_font_path);
   BLFontMetrics fm = font.metrics();
 
   double clock_h =
@@ -51,7 +51,7 @@ ComponentResult Clock::draw(ComponentContext &context) {
              tm.advance.x;
   }
 
-  ctx.set_fill_style(Lawnch::Gfx::toBLColor(cfg.clock_text));
+  ctx.set_fill_style(Lawnch::Gfx::toBLColor(cfg.clock_color));
   ctx.fill_utf8_text(BLPoint(text_x, text_y), font, time_text.c_str());
 
   return {context.available_w, clock_h};

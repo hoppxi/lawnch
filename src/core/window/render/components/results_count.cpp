@@ -16,7 +16,8 @@ ComponentResult ResultsCount::draw(ComponentContext &context) {
 
   BLFont count_font = Lawnch::Gfx::get_font(cfg.results_count_font_family,
                                             cfg.results_count_font_size,
-                                            cfg.results_count_font_weight);
+                                            cfg.results_count_font_weight,
+                                            cfg.results_count_font_path);
   BLFontMetrics fm = count_font.metrics();
   double count_h = fm.ascent + fm.descent + cfg.results_count_padding.top +
                    cfg.results_count_padding.bottom;
@@ -45,7 +46,7 @@ ComponentResult ResultsCount::draw(ComponentContext &context) {
              tm.advance.x;
   }
 
-  ctx.set_fill_style(Lawnch::Gfx::toBLColor(cfg.results_count_text));
+  ctx.set_fill_style(Lawnch::Gfx::toBLColor(cfg.results_count_color));
   ctx.fill_utf8_text(BLPoint(text_x, text_y), count_font, count_text.c_str());
 
   return {context.available_w, count_h};

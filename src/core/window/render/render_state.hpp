@@ -14,6 +14,8 @@ struct RenderState {
   std::vector<Search::SearchResult> results;
   int selected_index;
   int scroll_offset;
+
+  std::vector<std::string> breadcrumb_trail;
 };
 
 } // namespace Lawnch::Core::Window::Render

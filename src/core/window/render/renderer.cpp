@@ -3,6 +3,7 @@
 #include "../../../helpers/string.hpp"
 #include "../../icons/manager.hpp"
 #include "components/background.hpp"
+#include "components/breadcrumbs.hpp"
 #include "components/clock.hpp"
 #include "components/input_box.hpp"
 #include "components/input_prompt.hpp"
@@ -27,6 +28,7 @@ void Renderer::init_components() {
   components["results"] = std::make_unique<Components::ResultsContainer>();
   components["preview"] = std::make_unique<Components::Preview>();
   components["clock"] = std::make_unique<Components::Clock>();
+  components["breadcrumbs"] = std::make_unique<Components::Breadcrumbs>();
 }
 
 double estimate_component_height(const std::string &name,
@@ -68,6 +70,16 @@ double estimate_component_height(const std::string &name,
            cfg.clock_padding.bottom + cfg.clock_margin.top +
            cfg.clock_margin.bottom;
   }
+  if (name == "breadcrumbs" && cfg.breadcrumbs_enable &&
+      !state.breadcrumb_trail.empty()) {
+    BLFont font = Lawnch::Gfx::get_font(
+        cfg.breadcrumbs_font_family, cfg.breadcrumbs_font_size,
+        cfg.breadcrumbs_font_weight, cfg.breadcrumbs_font_path);
+    BLFontMetrics fm = font.metrics();
+    return fm.ascent + fm.descent + cfg.breadcrumbs_padding.top +
+           cfg.breadcrumbs_padding.bottom + cfg.breadcrumbs_margin.top +
+           cfg.breadcrumbs_margin.bottom;
+  }
   if (name == "preview" && cfg.preview_enable && !state.results.empty()) {
     return Components::Preview::get_height(cfg, state) +
            cfg.preview_margin.top + cfg.preview_margin.bottom;
@@ -107,8 +119,8 @@ void Renderer::render(BLContext &ctx, int width, int height,
   }
 
   bool use_side_preview =
-      cfg.preview_enable && (cfg.layout_preview_side == "left" ||
-                             cfg.layout_preview_side == "right");
+      cfg.preview_enable &&
+      (cfg.layout_preview_side == "left" || cfg.layout_preview_side == "right");
 
   if (use_side_preview && cfg.layout_preview_side == "left") {
     render_with_side_preview(ctx, width, height, cfg, state, true);
@@ -189,6 +201,11 @@ void Renderer::render_vertical(BLContext &ctx, int width, int height,
       margin_bottom = cfg.preview_margin.bottom;
       margin_left = cfg.preview_margin.left;
       margin_right = cfg.preview_margin.right;
+    } else if (comp_name == "breadcrumbs") {
+      margin_top = cfg.breadcrumbs_margin.top;
+      margin_bottom = cfg.breadcrumbs_margin.bottom;
+      margin_left = cfg.breadcrumbs_margin.left;
+      margin_right = cfg.breadcrumbs_margin.right;
     }
 
     current_y += margin_top;
@@ -463,17 +480,18 @@ int Renderer::get_visible_count(int height, const Config::Config &cfg) {
 }
 
 void Renderer::update_metrics(const Config::Config &cfg) {
-  BLFont font = Lawnch::Gfx::get_font(cfg.result_item_font_family,
-                                      cfg.result_item_font_size,
-                                      cfg.result_item_font_weight);
+  BLFont font = Lawnch::Gfx::get_font(cfg.result_item_default_font_family,
+                                      cfg.result_item_default_font_size,
+                                      cfg.result_item_default_font_weight);
   BLFontMetrics metrics = font.metrics();
   double name_h = metrics.ascent + metrics.descent;
 
   double comment_h = 0;
   if (cfg.result_item_comment_enable) {
-    BLFont cfont = Lawnch::Gfx::get_font(cfg.result_item_font_family,
-                                         cfg.result_item_comment_font_size,
-                                         cfg.result_item_comment_font_weight);
+    BLFont cfont =
+        Lawnch::Gfx::get_font(cfg.result_item_default_font_family,
+                              cfg.result_item_default_comment_font_size,
+                              cfg.result_item_default_comment_font_weight);
     BLFontMetrics cmetrics = cfont.metrics();
     comment_h = cmetrics.ascent + cmetrics.descent;
   }
@@ -484,9 +502,9 @@ void Renderer::update_metrics(const Config::Config &cfg) {
     item_inner_h += text_gap + comment_h;
   }
 
-  cached_metrics.item_height =
-      (cfg.result_item_padding.top + cfg.result_item_padding.bottom) +
-      item_inner_h + cfg.results_gap;
+  cached_metrics.item_height = (cfg.result_item_default_padding.top +
+                                cfg.result_item_default_padding.bottom) +
+                               item_inner_h + cfg.results_gap;
   cached_metrics.valid = true;
 }
 

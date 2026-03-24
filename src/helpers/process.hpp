@@ -11,5 +11,6 @@ std::string get_default_editor();
 std::string exec(const char *cmd);
 
 void exec_detached(const std::string &cmd);
+void exec_replace(const std::string &cmd);
 
 } // namespace Lawnch::Proc

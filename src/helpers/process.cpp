@@ -92,4 +92,8 @@ void exec_detached(const std::string &cmd) {
   }
 }
 
+void exec_replace(const std::string &cmd) {
+  execl("/bin/sh", "sh", "-c", cmd.c_str(), nullptr);
+}
+
 } // namespace Lawnch::Proc

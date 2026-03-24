@@ -24,5 +24,7 @@ Padding parsePaddingFromArray(const std::vector<int64_t> &values);
 bool parseBool(const std::string &s);
 Color parseColor(const std::string &s);
 Color parseHexColor(const std::string &hex);
+Color parseRgbaColor(const std::string &s);
+Color parseRgbColor(const std::string &s);
 
 } // namespace Lawnch::Config

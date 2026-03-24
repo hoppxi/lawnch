@@ -31,7 +31,7 @@ void init_paths() {
       cached_paths.emplace_back(dir);
   }
 
-  Logger::log("Bins", Logger::LogLevel::INFO,
+  Logger::log("Bins", Logger::LogLevel::DEBUG,
               "Indexed " + std::to_string(cached_paths.size()) +
                   " PATH directories");
 }
@@ -66,12 +66,17 @@ std::vector<SearchResult> BinMode::query(const std::string &term) {
 
       std::string cmd = entry.path().string();
 
-      if (terminal_exec) {
+      if (exec_mode == "terminal" || terminal_exec) {
         cmd = terminal_cmd + " " + terminal_flag + " " + cmd;
       }
+      // "spawn" is the default behavior, just run the command
+      // "exec" replaces the current process, handled at launch time
+
+      bool is_exec_replace = (exec_mode == "exec");
 
       results.push_back({name, entry.path().string(), "utilities-terminal", cmd,
-                         "bin", "", 0, track_history, false, false});
+                         ":bin", "", 0, track_history, false, false,
+                         is_exec_replace});
     }
   }
 

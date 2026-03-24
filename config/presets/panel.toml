@@ -5,22 +5,23 @@ description = "Tall, narrow panel snapping to the right edge of the screen"
 [window]
 width           = 380
 height          = 900
-anchor          = "right, center"
+anchor          = ["right", "center"]
 margin          = [20, 20, 20, 0]
 background      = "$surface"
 border          = { radius = 16, width = 1, color = "$surface-container-highest" }
 exclusive       = true
 ignore-exclusive = false
 keyboard        = "exclusive"
+font            = { family = "sans-serif" }
 
 [widget.input]
-font            = { family = "sans-serif", size = 15, weight = "normal" }
-text            = "$on-surface"
+font            = { size = 15, weight = "normal" }
+color           = "$on-surface"
 placeholder     = { text = "Filter...", color = "$outline" }
 background      = "$surface-container-low"
 border          = { radius = 8, width = 1, color = "$surface-container-highest" }
-caret           = { width = 2.0, color = "$caret" }
-selection       = { color = "$selection", text = "$on-surface" }
+caret           = { width = 2.0, color = "$primary" }
+selection       = { background = "$primary-container", color = "$on-surface" }
 padding         = [12, 12, 12, 12]
 align           = "left"
 
@@ -31,43 +32,46 @@ enable          = false
 margin          = [10, 0, 0, 0]
 padding         = [10, 10, 10, 10]
 gap             = 6
-border          = { radius = 0, width = 0 }
+border          = { radius = 0, width = 0, color = "#00000000" }
 scroll          = "follow"
 reverse         = false
 
 [widget.results.scrollbar]
 enable          = true
+
+[widget.results.scrollbar.track]
 width           = 3
-padding         = 2
+color           = "#00000000"
+padding         = [0]
+margin          = [0]
 radius          = 2
-thumb           = "$secondary"
-track           = "#00000000"
+
+[widget.results.scrollbar.thumb]
+color           = "$secondary"
+radius          = 2
 
 [widget.results.item]
-font            = { family = "sans-serif", size = 14, weight = "normal" }
-text            = "$on-surface-variant"
+icon            = { size = 20, gap = 10, enable = true }
+comment         = true
+highlight       = true
+
+[widget.results.item.default]
+align           = "left"
+font            = { size = 14, weight = "normal" }
+color           = "$on-surface-variant"
 background      = "#00000000"
 border          = { radius = 6, width = 1, color = "transparent" }
 padding         = [8, 10, 8, 10]
-align           = "left"
-icon            = { size = 20, gap = 10, show = true }
-
-[widget.results.item.comment]
-enable          = true
-font            = { size = 11, weight = "normal" }
-text            = "$outline"
-
-[widget.results.item.highlight]
-enable          = true
-font            = { weight = "bold" }
-text            = "$tertiary"
+margin          = [0]
+comment         = { font = { size = 11, weight = "normal" }, color = "$outline" }
+highlight       = { font = { size = 14, weight = "bold" }, color = "$tertiary" }
 
 [widget.results.item.selected]
-text            = "$on-surface"
+color           = "$on-surface"
 background      = "$surface-container-high"
 border          = { radius = 6, width = 1, color = "$outline-variant" }
-comment         = "$secondary"
-highlight       = "$match"
+comment         = { font = { size = 11, weight = "normal" }, color = "$secondary" }
+highlight       = { font = { size = 14, weight = "bold" }, color = "$primary" }
 
 [widget.preview]
 enable          = true
@@ -75,8 +79,8 @@ enable          = true
 [widget.results.count]
 enable          = true
 format          = "{count} items found"
-font            = { family = "sans-serif", size = 11, weight = "normal" }
-text            = "$outline"
+font            = { size = 11, weight = "normal" }
+color           = "$outline"
 align           = "center"
 padding         = [10, 0, 10, 0]
 

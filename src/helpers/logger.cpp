@@ -48,7 +48,7 @@ public:
   void write(std::string_view logger_name, LogLevel level,
              std::string_view message) {
     if (!m_verbose.load()) {
-      if (level == LogLevel::DEBUG || level == LogLevel::INFO) {
+      if (level == LogLevel::DEBUG) {
         return;
       }
     }
@@ -68,7 +68,9 @@ public:
     std::string color_msg = "";
     std::string final_msg = std::string(message);
 
-    if (m_print_logs) {
+    bool is_stdout = m_print_logs || !m_file.is_open();
+
+    if (is_stdout) {
       reset = "\033[0m";
       color_date = "\033[90m"; // Bright Gray
       color_name = "\033[35m"; // Purple
@@ -104,7 +106,7 @@ public:
           std::regex_replace(final_msg, num_re, color_num + "$1" + color_msg);
     }
 
-    if (m_print_logs) {
+    if (is_stdout) {
       out << color_date << "[" << std::put_time(&tm_now, "%Y-%m-%d %H:%M:%S")
           << "] " << reset;
       out << color_level << "[" << std::right << std::setw(WIDTH_LEVEL)

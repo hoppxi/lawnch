@@ -2,6 +2,7 @@
 #include "../../../helpers/fs.hpp"
 #include "../../../helpers/logger.hpp"
 #include "../../../helpers/process.hpp"
+#include "../../../helpers/search.hpp"
 #include "../../../helpers/string.hpp"
 #include "../../config/manager.hpp"
 #include "modes.hpp"
@@ -31,7 +32,7 @@ static std::once_flag g_index_once;
 static std::shared_mutex g_index_mutex;
 
 static void build_index() {
-  Logger::log("Apps", Logger::LogLevel::INFO, "Building application index...");
+  Logger::log("Apps", Logger::LogLevel::DEBUG, "Building application index...");
 
   auto data_dirs = ::Lawnch::Fs::get_data_dirs();
 
@@ -84,7 +85,7 @@ static void build_index() {
   std::unique_lock lock(g_index_mutex);
   g_index = std::move(local_index);
 
-  Logger::log("Apps", Logger::LogLevel::INFO,
+  Logger::log("Apps", Logger::LogLevel::DEBUG,
               "Application index built: " + std::to_string(g_index.size()) +
                   " entries");
 }
@@ -124,8 +125,16 @@ std::vector<SearchResult> AppMode::query(const std::string &term) {
   results.reserve(64);
 
   for (const auto &app : g_index) {
-    int score =
-        empty ? 1 : ::Lawnch::Str::match_score(term_lower, app.name_lower);
+    int score = empty ? 1
+                      : ::Lawnch::Helpers::Search::calculate_advanced_score(
+                            term_lower, app.name_lower);
+    if (!empty) {
+      int score_exec = ::Lawnch::Helpers::Search::calculate_advanced_score(
+          term_lower, ::Lawnch::Str::to_lower_copy(app.exec));
+      int score_comment = ::Lawnch::Helpers::Search::calculate_advanced_score(
+          term_lower, ::Lawnch::Str::to_lower_copy(app.comment));
+      score = std::max({score, score_exec / 5, score_comment / 10});
+    }
     if (score <= 0)
       continue;
 
@@ -135,6 +144,7 @@ std::vector<SearchResult> AppMode::query(const std::string &term) {
       cmd = ::Lawnch::Str::replace_all(cmd, "{terminal}", terminal_cmd);
       cmd = ::Lawnch::Str::replace_all(cmd, "{terminal_exec_flag}",
                                        terminal_flag);
+      cmd = ::Lawnch::Str::replace_all(cmd, "{terminal-flag}", terminal_flag);
       cmd = ::Lawnch::Str::replace_all(cmd, "{}", app.exec);
     } else {
       cmd = ::Lawnch::Str::replace_all(app_cmd_template, "{}", app.exec);
@@ -144,18 +154,15 @@ std::vector<SearchResult> AppMode::query(const std::string &term) {
       cmd = uwsm_prefix + " " + cmd;
     }
 
-    results.push_back({app.name, app.comment, app.icon, cmd, "app", "", score,
+    results.push_back({app.name, app.comment, app.icon, cmd, ":app", "", score,
                        track_history, false, !app.desktop_actions.empty()});
   }
 
-  std::partial_sort(
-      results.begin(), results.begin() + std::min<size_t>(50, results.size()),
-      results.end(), [](const SearchResult &a, const SearchResult &b) {
-        return (a.score != b.score) ? a.score > b.score : a.name < b.name;
-      });
-
-  if (results.size() > 50)
-    results.resize(50);
+  std::stable_sort(results.begin(), results.end(),
+                   [](const SearchResult &a, const SearchResult &b) {
+                     return (a.score != b.score) ? a.score > b.score
+                                                 : a.name < b.name;
+                   });
 
   Logger::log("Apps", Logger::LogLevel::DEBUG,
               "Query '" + term + "' returned " +
@@ -191,6 +198,8 @@ AppMode::query_submenu(const std::string &result_command,
           ::Lawnch::Str::replace_all(app_full_cmd, "{terminal}", terminal_cmd);
       app_full_cmd = ::Lawnch::Str::replace_all(
           app_full_cmd, "{terminal_exec_flag}", terminal_flag);
+      app_full_cmd = ::Lawnch::Str::replace_all(app_full_cmd, "{terminal-flag}",
+                                                terminal_flag);
       app_full_cmd = ::Lawnch::Str::replace_all(app_full_cmd, "{}", app.exec);
     } else {
       app_full_cmd =
@@ -206,8 +215,11 @@ AppMode::query_submenu(const std::string &result_command,
     std::vector<SearchResult> results;
     for (const auto &action : app.desktop_actions) {
       std::string action_name_lower = ::Lawnch::Str::to_lower_copy(action.name);
-      if (!term_lower.empty() &&
-          action_name_lower.find(term_lower) == std::string::npos)
+      int score = term_lower.empty()
+                      ? 1
+                      : ::Lawnch::Helpers::Search::calculate_advanced_score(
+                            term_lower, action_name_lower);
+      if (score <= 0)
         continue;
 
       std::string cmd;
@@ -220,6 +232,7 @@ AppMode::query_submenu(const std::string &result_command,
         cmd = ::Lawnch::Str::replace_all(cmd, "{terminal}", terminal_cmd);
         cmd = ::Lawnch::Str::replace_all(cmd, "{terminal_exec_flag}",
                                          terminal_flag);
+        cmd = ::Lawnch::Str::replace_all(cmd, "{terminal-flag}", terminal_flag);
         cmd = ::Lawnch::Str::replace_all(cmd, "{}", action_exec);
       } else {
         cmd = ::Lawnch::Str::replace_all(app_cmd_template, "{}", action_exec);
@@ -227,8 +240,15 @@ AppMode::query_submenu(const std::string &result_command,
 
       std::string icon = action.icon.empty() ? app.icon : action.icon;
       results.push_back({action.name, app.name + " → " + action.name, icon, cmd,
-                         "app", "", 0, true, false, false});
+                         ":app", "", score, true, false, false});
     }
+
+    std::partial_sort(
+        results.begin(), results.begin() + std::min<size_t>(50, results.size()),
+        results.end(), [](const SearchResult &a, const SearchResult &b) {
+          return (a.score != b.score) ? a.score > b.score : a.name < b.name;
+        });
+
     return results;
   }
 

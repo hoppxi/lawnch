@@ -5,22 +5,23 @@ description = "Minimal, tight spacing, small icons"
 [window]
 width           = 280
 height          = 315
-anchor          = "top, center"
+anchor          = ["top", "center"]
 margin          = [50, 0, 0, 0]
 background      = "$surface"
 border          = { radius = 4, width = 1, color = "$primary" }
 exclusive       = false
 ignore-exclusive = false
 keyboard        = "exclusive"
+font            = { family = "monospace" }
 
 [widget.input]
-font            = { family = "monospace", size = 14, weight = "normal" }
-text            = "$on-surface"
+font            = { size = 14, weight = "normal" }
+color           = "$on-surface"
 placeholder     = { text = ">>", color = "$outline" }
 background      = "$surface-dim"
 border          = { radius = 2, width = 1, color = "$surface-bright" }
-caret           = { width = 2.0, color = "$caret" }
-selection       = { color = "$selection", text = "$on-surface" }
+caret           = { width = 2.0, color = "$primary" }
+selection       = { background = "$primary-container", color = "$on-surface" }
 padding         = [6, 8, 6, 8]
 align           = "left"
 
@@ -31,43 +32,46 @@ enable          = false
 margin          = [4, 0, 0, 0]
 padding         = [4, 4, 4, 4]
 gap             = 1
-border          = { radius = 2, width = 0 }
+border          = { radius = 2, width = 0, color = "#00000000" }
 scroll          = "follow"
 reverse         = false
 
 [widget.results.scrollbar]
 enable          = true
+
+[widget.results.scrollbar.track]
 width           = 2
-padding         = 2
+color           = "$surface-dim"
+padding         = [0]
+margin          = [0]
 radius          = 2
-thumb           = "$primary"
-track           = "$surface-dim"
+
+[widget.results.scrollbar.thumb]
+color           = "$primary"
+radius          = 2
 
 [widget.results.item]
-font            = { family = "monospace", size = 14, weight = "normal" }
-text            = "$on-surface-variant"
+icon            = { size = 16, gap = 6, enable = true }
+comment         = true
+highlight       = true
+
+[widget.results.item.default]
+align           = "left"
+font            = { size = 14, weight = "normal" }
+color           = "$on-surface-variant"
 background      = "#00000000"
 border          = { radius = 2, width = 0, color = "#FFFFFF0D" }
 padding         = [4, 6, 4, 6]
-align           = "left"
-icon            = { size = 16, gap = 6, show = true }
-
-[widget.results.item.comment]
-enable          = true
-font            = { size = 10, weight = "normal" }
-text            = "$secondary"
-
-[widget.results.item.highlight]
-enable          = true
-font            = { weight = "bold" }
-text            = "$highlight"
+margin          = [0]
+comment         = { font = { size = 10, weight = "normal" }, color = "$secondary" }
+highlight       = { font = { size = 14, weight = "bold" }, color = "$primary" }
 
 [widget.results.item.selected]
-text            = "$on-surface"
+color           = "$on-surface"
 background      = "$primary-container"
 border          = { radius = 2, width = 1, color = "$primary" }
-comment         = "$on-secondary-container"
-highlight       = "$match"
+comment         = { font = { size = 10, weight = "normal" }, color = "$on-secondary-container" }
+highlight       = { font = { size = 14, weight = "bold" }, color = "$primary" }
 
 [widget.preview]
 enable          = false
@@ -75,8 +79,8 @@ enable          = false
 [widget.results.count]
 enable          = true
 format          = "[{count}]"
-font            = { family = "monospace", size = 10, weight = "normal" }
-text            = "$outline"
+font            = { size = 10, weight = "normal" }
+color           = "$outline"
 align           = "left"
 padding         = [2, 4, 2, 4]
 

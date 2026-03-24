@@ -5,22 +5,23 @@ description = "Blocky, unrounded, monospace fonts and thick borders"
 [window]
 width           = 800
 height          = 400
-anchor          = "center"
+anchor          = ["center"]
 margin          = [0, 0, 0, 0]
 background      = "$surface"
 border          = { radius = 0, width = 4, color = "$primary" }
 exclusive       = false
 ignore-exclusive = true
 keyboard        = "exclusive"
+font            = { family = "monospace" }
 
 [widget.input]
-font            = { family = "monospace", size = 18, weight = "bold" }
-text            = "$on-surface"
+font            = { size = 18, weight = "bold" }
+color           = "$on-surface"
 placeholder     = { text = "C:\\>", color = "$outline" }
 background      = "$surface"
 border          = { radius = 0, width = 0, color = "#00000000" }
 caret           = { width = 10.0, color = "$primary" }
-selection       = { color = "$selection", text = "$on-surface" }
+selection       = { background = "$primary-container", color = "$on-surface" }
 padding         = [15, 20, 15, 20]
 align           = "left"
 
@@ -37,37 +38,40 @@ reverse         = false
 
 [widget.results.scrollbar]
 enable          = true
+
+[widget.results.scrollbar.track]
 width           = 12
-padding         = 0
+color           = "$surface-container-low"
+padding         = [0]
+margin          = [0]
 radius          = 0
-thumb           = "$primary"
-track           = "$surface-container-low"
+
+[widget.results.scrollbar.thumb]
+color           = "$primary"
+radius          = 0
 
 [widget.results.item]
-font            = { family = "monospace", size = 16, weight = "normal" }
-text            = "$on-surface-variant"
+icon            = { size = 0, gap = 0, enable = false }
+comment         = true
+highlight       = true
+
+[widget.results.item.default]
+align           = "left"
+font            = { size = 16, weight = "normal" }
+color           = "$on-surface-variant"
 background      = "$surface"
 border          = { radius = 0, width = 0, color = "#00000000" }
 padding         = [4, 10, 4, 10]
-align           = "left"
-icon            = { size = 0, gap = 0, show = false }
-
-[widget.results.item.comment]
-enable          = true
-font            = { size = 12, weight = "normal" }
-text            = "$secondary"
-
-[widget.results.item.highlight]
-enable          = true
-font            = { weight = "bold" }
-text            = "$tertiary"
+margin          = [0]
+comment         = { font = { size = 12, weight = "normal" }, color = "$secondary" }
+highlight       = { font = { size = 16, weight = "bold" }, color = "$tertiary" }
 
 [widget.results.item.selected]
-text            = "$surface"
+color           = "$surface"
 background      = "$primary"
 border          = { radius = 0, width = 0, color = "$primary" }
-comment         = "$surface-dim"
-highlight       = "$inverse-surface"
+comment         = { font = { size = 12, weight = "normal" }, color = "$surface-dim" }
+highlight       = { font = { size = 16, weight = "bold" }, color = "$inverse-surface" }
 
 [widget.preview]
 enable          = false
@@ -75,8 +79,8 @@ enable          = false
 [widget.results.count]
 enable          = true
 format          = "TOTAL:{count}"
-font            = { family = "monospace", size = 14, weight = "bold" }
-text            = "$primary"
+font            = { size = 14, weight = "bold" }
+color           = "$primary"
 align           = "right"
 padding         = [10, 20, 10, 20]
 

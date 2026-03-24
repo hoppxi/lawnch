@@ -9,22 +9,23 @@ preview-ratio   = 40
 [window]
 width           = 500
 height          = 400
-anchor          = "center, center"
+anchor          = ["center"]
 margin          = [50, 0, 0, 0]
 background      = "$surface"
 border          = { radius = 28, width = 0, color = "$primary" }
 exclusive       = false
 ignore-exclusive = false
 keyboard        = "exclusive"
+font            = { family = "sans-serif" }
 
 [widget.input]
-font            = { family = "JetBrainsMono NerdFont", size = 18, weight = "normal" }
-text            = "$on-surface"
+font            = { size = 18, weight = "normal" }
+color           = "$on-surface"
 placeholder     = { text = "Search apps and files...", color = "$outline" }
 background      = "#00000000"
 border          = { radius = 16, width = 0, color = "#00000000" }
-caret           = { width = 2.0, color = "$caret" }
-selection       = { color = "$selection", text = "$on-surface" }
+caret           = { width = 2.0, color = "$primary" }
+selection       = { background = "$primary-container", color = "$on-surface" }
 padding         = [16, 20, 16, 20]
 align           = "left"
 
@@ -32,7 +33,7 @@ align           = "left"
 enable          = true
 text            = ""
 side            = "left"
-font            = { family = "JetBrainsMono NerdFont", size = 18, weight = "bold" }
+font            = { size = 18, weight = "bold" }
 color           = "$primary"
 background      = "#00000000"
 border          = { radius = 0, width = 0, color = "#00000000" }
@@ -49,67 +50,71 @@ reverse         = false
 
 [widget.results.scrollbar]
 enable          = true
+
+[widget.results.scrollbar.track]
 width           = 6
-padding         = 4
+color           = "$surface-container-high"
+padding         = [0]
+margin          = [0]
 radius          = 3
-thumb           = "$primary"
-track           = "$surface-container-high"
+
+[widget.results.scrollbar.thumb]
+color           = "$primary"
+radius          = 3
 
 [widget.results.item]
-font            = { family = "JetBrainsMono NerdFont", size = 16, weight = "normal" }
-text            = "$on-surface"
+icon            = { size = 24, gap = 14, enable = true }
+comment         = true
+highlight       = true
+
+[widget.results.item.default]
+align           = "left"
+font            = { size = 16, weight = "normal" }
+color           = "$on-surface"
 background      = "#00000000"
 border          = { radius = 16, width = 0, color = "#FFFFFF1A" }
 padding         = [14, 16, 14, 16]
-align           = "left"
-icon            = { size = 24, gap = 14, show = true }
-
-[widget.results.item.comment]
-enable          = true
-font            = { size = 12, weight = "normal" }
-text            = "$outline"
-
-[widget.results.item.highlight]
-enable          = true
-font            = { weight = "bold" }
-text            = "$highlight"
+margin          = [0]
+comment         = { font = { size = 12, weight = "normal" }, color = "$outline" }
+highlight       = { font = { size = 16, weight = "bold" }, color = "$primary" }
 
 [widget.results.item.selected]
-text            = "$secondary"
+color           = "$secondary"
 background      = "$primary-container"
 border          = { radius = 16, width = 0, color = "$primary" }
-comment         = "$on-primary-container"
-highlight       = "$highlight-active"
+comment         = { font = { size = 12, weight = "normal" }, color = "$on-primary-container" }
+highlight       = { font = { size = 16, weight = "bold" }, color = "$primary" }
 
 [widget.preview]
 enable          = true
 composition     = ["preview_image", "icon:name", "comment"]
 image-size      = 64
 icon            = { size = 14, fallback = true, hide-on-fallback = true }
-padding         = [140, 16, 16]
+padding         = [140, 16, 16, 16]
+margin          = [0]
 background      = "#00000000"
 gap             = { v = 8, h = 8 }
 
-[widget.preview.title]
-font            = { family = "JetBrainsMono NerdFont", size = 16, weight = "bold" }
-text            = "$on-surface"
+[widget.preview.name]
+font            = { size = 16, weight = "bold" }
+color           = "$on-surface"
 
-[widget.preview.description]
+[widget.preview.comment]
 font            = { size = 12, weight = "normal" }
-text            = "$outline"
+color           = "$outline"
 
 [widget.results.count]
 enable          = true
 format          = "{count} matches found"
-font            = { family = "JetBrainsMono NerdFont", size = 12, weight = "normal" }
-text            = "$outline"
+font            = { size = 12, weight = "normal" }
+color           = "$outline"
 align           = "right"
-padding         = 4
+padding         = [4]
 
 [widget.clock]
 enable          = true
 format          = "%H:%M"
-font            = { family = "JetBrainsMono NerdFont", size = 16, weight = "bold" }
-text            = "$outline"
+font            = { size = 16, weight = "bold" }
+color           = "$outline"
 align           = "left"
 padding         = [10, 20, 10, 20]

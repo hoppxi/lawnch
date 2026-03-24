@@ -5,22 +5,23 @@ description = "MacOS like"
 [window]
 width           = 700
 height          = 480
-anchor          = "center"
+anchor          = ["center"]
 margin          = [0, 0, 0, 0]
 background      = "$surface"
 border          = { radius = 12, width = 1, color = "$outline-variant" }
 exclusive       = false
 ignore-exclusive = false
 keyboard        = "exclusive"
+font            = { family = "sans-serif" }
 
 [widget.input]
-font            = { family = "sans-serif", size = 24, weight = "bold" }
-text            = "$on-surface"
+font            = { size = 24, weight = "bold" }
+color           = "$on-surface"
 placeholder     = { text = "Search...", color = "$outline" }
 background      = "$surface"
 border          = { radius = 0, width = 0, color = "#00000000" }
-caret           = { width = 3.0, color = "$caret" }
-selection       = { color = "$selection", text = "$on-surface" }
+caret           = { width = 3.0, color = "$primary" }
+selection       = { background = "$primary-container", color = "$on-surface" }
 padding         = [20, 20, 16, 20]
 align           = "left"
 
@@ -31,43 +32,46 @@ enable          = false
 margin          = [0, 0, 0, 0]
 padding         = [8, 12, 12, 12]
 gap             = 4
-border          = { radius = 0, width = 0 }
+border          = { radius = 0, width = 0, color = "#00000000" }
 scroll          = "follow"
 reverse         = false
 
 [widget.results.scrollbar]
 enable          = true
+
+[widget.results.scrollbar.track]
 width           = 4
-padding         = 4
+color           = "#00000000"
+padding         = [0]
+margin          = [0]
 radius          = 4
-thumb           = "$outline"
-track           = "#00000000"
+
+[widget.results.scrollbar.thumb]
+color           = "$outline"
+radius          = 4
 
 [widget.results.item]
-font            = { family = "sans-serif", size = 16, weight = "normal" }
-text            = "$on-surface-variant"
+icon            = { size = 24, gap = 12, enable = true }
+comment         = true
+highlight       = true
+
+[widget.results.item.default]
+align           = "left"
+font            = { size = 16, weight = "normal" }
+color           = "$on-surface-variant"
 background      = "#00000000"
 border          = { radius = 8, width = 0, color = "#00000000" }
 padding         = [12, 16, 12, 16]
-align           = "left"
-icon            = { size = 24, gap = 12, show = true }
-
-[widget.results.item.comment]
-enable          = true
-font            = { size = 12, weight = "normal" }
-text            = "$outline"
-
-[widget.results.item.highlight]
-enable          = true
-font            = { weight = "bold" }
-text            = "$primary"
+margin          = [0]
+comment         = { font = { size = 12, weight = "normal" }, color = "$outline" }
+highlight       = { font = { size = 16, weight = "bold" }, color = "$primary" }
 
 [widget.results.item.selected]
-text            = "$on-surface"
+color           = "$on-surface"
 background      = "$surface-container-high"
 border          = { radius = 8, width = 0, color = "$primary" }
-comment         = "$on-surface-variant"
-highlight       = "$match"
+comment         = { font = { size = 12, weight = "normal" }, color = "$on-surface-variant" }
+highlight       = { font = { size = 16, weight = "bold" }, color = "$primary" }
 
 [widget.preview]
 enable          = false
@@ -75,8 +79,8 @@ enable          = false
 [widget.results.count]
 enable          = true
 format          = "{count} Results"
-font            = { family = "sans-serif", size = 12, weight = "normal" }
-text            = "$outline-variant"
+font            = { size = 12, weight = "normal" }
+color           = "$outline-variant"
 align           = "right"
 padding         = [4, 16, 4, 16]
 

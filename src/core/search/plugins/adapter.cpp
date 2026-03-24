@@ -84,21 +84,17 @@ std::vector<SearchResult> Adapter::query(const std::string &term) {
     LawnchResult *res = vtable->query(term.c_str(), &count);
     results.reserve(count);
     for (int i = 0; i < count; ++i) {
-      SearchResult sr{res[i].name ? res[i].name : "",
-                      res[i].comment ? res[i].comment : "",
-                      res[i].icon ? res[i].icon : "",
-                      res[i].command ? res[i].command : "",
-                      res[i].type ? res[i].type : "",
-                      res[i].preview_image_path ? res[i].preview_image_path
-                                                : "",
-                      0,
-                      allow_history(),
-                      is_custom_sorted(),
-#if LAWNCH_PLUGIN_API_VERSION >= 1
-                      res[i].has_submenu != 0
-#else
-                      false
-#endif
+      SearchResult sr{
+          res[i].name ? res[i].name : "",
+          res[i].comment ? res[i].comment : "",
+          res[i].icon ? res[i].icon : "",
+          res[i].command ? res[i].command : "",
+          res[i].type ? res[i].type : "",
+          res[i].preview_image_path ? res[i].preview_image_path : "",
+          0,
+          allow_history(),
+          is_custom_sorted(),
+          res[i].has_submenu != 0,
       };
       results.push_back(sr);
     }
@@ -113,34 +109,30 @@ std::vector<SearchResult>
 Adapter::query_submenu(const std::string &result_command,
                        const std::string &term) {
   std::vector<SearchResult> results;
-#if LAWNCH_PLUGIN_API_VERSION >= 1
   if (vtable && vtable->query_submenu) {
     int count = 0;
     LawnchResult *res =
         vtable->query_submenu(result_command.c_str(), term.c_str(), &count);
     results.reserve(count);
     for (int i = 0; i < count; ++i) {
-      SearchResult sr{res[i].name ? res[i].name : "",
-                      res[i].comment ? res[i].comment : "",
-                      res[i].icon ? res[i].icon : "",
-                      res[i].command ? res[i].command : "",
-                      res[i].type ? res[i].type : "",
-                      res[i].preview_image_path ? res[i].preview_image_path
-                                                : "",
-                      0,
-                      allow_history(),
-                      is_custom_sorted(),
-                      res[i].has_submenu != 0};
+      SearchResult sr{
+          res[i].name ? res[i].name : "",
+          res[i].comment ? res[i].comment : "",
+          res[i].icon ? res[i].icon : "",
+          res[i].command ? res[i].command : "",
+          res[i].type ? res[i].type : "",
+          res[i].preview_image_path ? res[i].preview_image_path : "",
+          0,
+          allow_history(),
+          is_custom_sorted(),
+          res[i].has_submenu != 0,
+      };
       results.push_back(sr);
     }
     if (vtable->free_results) {
       vtable->free_results(res, count);
     }
   }
-#else
-  (void)result_command;
-  (void)term;
-#endif
   return results;
 }
 

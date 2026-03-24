@@ -39,7 +39,10 @@ enum class Action {
   DELETE_WORD_FWD,
   SUBMENU_ENTER,
   SUBMENU_BACK,
-  CONTEXT_SWITCH
+  CONTEXT_SWITCH,
+  ABBR_EXPAND,
+  PIN,
+  UNPIN
 };
 
 enum class Preset { DEFAULT, VIM };

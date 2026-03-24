@@ -21,7 +21,8 @@ private:
 
   static void switch_theme(const std::string &name);
   static void switch_preset(const std::string &name);
-  static void current();
+  static void current(bool is_theme, bool is_preset);
+  static void validate(const std::string &path, bool is_theme);
 };
 
 } // namespace Lawnch::CLI

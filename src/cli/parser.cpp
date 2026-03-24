@@ -8,6 +8,10 @@
 #define LAWNCH_VERSION "unknown"
 #endif
 
+#ifndef LAWNCH_PLUGIN_API_VERSION
+#define LAWNCH_PLUGIN_API_VERSION "unknown"
+#endif
+
 #ifndef LAWNCH_PLUGIN_API_VERSION_STR
 #define LAWNCH_PLUGIN_API_VERSION_STR "unknown"
 #endif
@@ -40,6 +44,8 @@ Options Parser::parse(int argc, char **argv) {
         std::cerr << "Error: --merge-config requires a path argument"
                   << std::endl;
       }
+    } else if (args[i] == "--validate-config") {
+      options.validate_config = true;
     } else if (args[i] == "--verbose") {
       options.verbose = true;
     } else if (args[i] == "--print-logs" || args[i] == "-l") {
@@ -63,11 +69,18 @@ void Parser::print_help() {
       << "  -m, --merge-config <path> Load an additional config file to "
          "override "
          "defaults\n"
+      << "      --validate-config     Validate the current/specified config "
+         "file\n"
       << "      --kill                Kill the running instance of Lawnch\n"
       << "      --verbose             Enable verbose logging (debug + info)\n"
       << "  -l, --print-logs          Log to stdout instead of file\n"
       << "  -h, --help                Show this help message\n"
-      << "  -v, --version             Show version information\n";
+      << "  -v, --version             Show version information\n\n"
+      << "Environment Variables:\n"
+      << "  LAWNCH_THEMES_DIR         Override directory to load themes from\n"
+      << "  LAWNCH_PRESETS_DIR        Override directory to load presets from\n"
+      << "  LAWNCH_PLUGINS_DIR        Override directory to load plugins "
+         "from\n";
 }
 
 void Parser::print_version() {

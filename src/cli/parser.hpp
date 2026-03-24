@@ -13,6 +13,7 @@ struct Options {
   bool print_logs = false;
   std::optional<std::string> config_path;
   std::optional<std::string> merge_config_path;
+  bool validate_config = false;
 };
 
 class Parser {

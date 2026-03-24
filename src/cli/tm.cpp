@@ -6,22 +6,23 @@
 #include <sstream>
 
 #include <toml++/toml.hpp>
+#include "../core/config/validator.hpp"
 
 namespace Lawnch::CLI {
 
 void ThemeManager::print_help() {
-  std::cout << "Usage: lawnch tm <command> [arguments]\n\n"
+  std::cout << "Usage: lawnch tm <command> [arguments] [options]\n\n"
             << "Commands:\n"
             << "  current                  Show active theme and preset\n"
-            << "  theme list               List installed themes\n"
-            << "  theme install <path>     Install a theme file\n"
-            << "  theme uninstall <name>   Uninstall a theme\n"
-            << "  theme switch <name>      Switch active theme\n"
-            << "  preset list              List installed presets\n"
-            << "  preset install <path>    Install a preset file\n"
-            << "  preset uninstall <name>  Uninstall a preset\n"
-            << "  preset switch <name>     Switch active preset\n"
-            << "  help                     Show this help\n";
+            << "  list                     List installed themes/presets\n"
+            << "  install <path>           Install a theme or preset file\n"
+            << "  uninstall <name>         Uninstall a theme or preset\n"
+            << "  switch <name>            Switch active theme or preset\n"
+            << "  validate <path>          Validate a theme or preset file\n"
+            << "  help                     Show this help\n\n"
+            << "Options:\n"
+            << "  --theme                  Apply the command to themes\n"
+            << "  --preset                 Apply the command to presets\n";
 }
 
 int ThemeManager::handle_command(const std::vector<std::string> &args) {
@@ -31,78 +32,72 @@ int ThemeManager::handle_command(const std::vector<std::string> &args) {
   }
 
   std::string command = args[0];
+  
+  bool is_theme = false;
+  bool is_preset = false;
+  std::vector<std::string> positional_args;
+
+  for (size_t i = 1; i < args.size(); ++i) {
+    if (args[i] == "--theme") {
+      is_theme = true;
+    } else if (args[i] == "--preset") {
+      is_preset = true;
+    } else {
+      positional_args.push_back(args[i]);
+    }
+  }
 
   try {
     if (command == "current") {
-      current();
-    } else if (command == "theme") {
-      if (args.size() < 2) {
-        print_help();
-        return 1;
-      }
-      std::string sub = args[1];
-      if (sub == "list") {
+      current(is_theme, is_preset);
+    } else if (command == "list") {
+      if (!is_theme && !is_preset) {
         list_themes();
-      } else if (sub == "install") {
-        if (args.size() < 3)
-          throw std::runtime_error("Usage: theme install <path>");
-        install_theme(args[2]);
-      } else if (sub == "uninstall") {
-        if (args.size() < 3)
-          throw std::runtime_error("Usage: theme uninstall <name>");
-        uninstall_theme(args[2]);
-      } else if (sub == "switch") {
-        if (args.size() < 3)
-          throw std::runtime_error("Usage: theme switch <name>");
-        switch_theme(args[2]);
-      } else {
-        std::cerr << "Unknown theme command: " << sub << std::endl;
-        return 1;
-      }
-    } else if (command == "preset") {
-      if (args.size() < 2) {
-        print_help();
-        return 1;
-      }
-      std::string sub = args[1];
-      if (sub == "list") {
         list_presets();
-      } else if (sub == "install") {
-        if (args.size() < 3)
-          throw std::runtime_error("Usage: preset install <path>");
-        install_preset(args[2]);
-      } else if (sub == "uninstall") {
-        if (args.size() < 3)
-          throw std::runtime_error("Usage: preset uninstall <name>");
-        uninstall_preset(args[2]);
-      } else if (sub == "switch") {
-        if (args.size() < 3)
-          throw std::runtime_error("Usage: preset switch <name>");
-        switch_preset(args[2]);
       } else {
-        std::cerr << "Unknown preset command: " << sub << std::endl;
-        return 1;
+        if (is_theme) list_themes();
+        if (is_preset) list_presets();
       }
+    } else if (command == "install") {
+      if (positional_args.empty()) {
+        throw std::runtime_error("Usage: install <path> [--theme|--preset]");
+      }
+      if (!is_theme && !is_preset) {
+        throw std::runtime_error("Must specify --theme or --preset");
+      }
+      if (is_theme) install_theme(positional_args[0]);
+      if (is_preset) install_preset(positional_args[0]);
+    } else if (command == "uninstall") {
+      if (positional_args.empty()) {
+        throw std::runtime_error("Usage: uninstall <name> [--theme|--preset]");
+      }
+      if (!is_theme && !is_preset) {
+        throw std::runtime_error("Must specify --theme or --preset");
+      }
+      if (is_theme) uninstall_theme(positional_args[0]);
+      if (is_preset) uninstall_preset(positional_args[0]);
+    } else if (command == "switch") {
+      if (positional_args.empty()) {
+        throw std::runtime_error("Usage: switch <name> [--theme|--preset]");
+      }
+      if (!is_theme && !is_preset) {
+        throw std::runtime_error("Must specify --theme or --preset");
+      }
+      if (is_theme) switch_theme(positional_args[0]);
+      if (is_preset) switch_preset(positional_args[0]);
+    } else if (command == "validate") {
+      if (positional_args.empty()) {
+        throw std::runtime_error("Usage: validate <path> [--theme|--preset]");
+      }
+      if (!is_theme && !is_preset) {
+        throw std::runtime_error("Must specify --theme or --preset");
+      }
+      if (is_theme) validate(positional_args[0], true);
+      if (is_preset) validate(positional_args[0], false);
     } else {
-      if (command == "list") {
-        list_themes();
-      } else if (command == "install") {
-        if (args.size() < 2)
-          throw std::runtime_error("Usage: install <path>");
-        install_theme(args[1]);
-      } else if (command == "uninstall") {
-        if (args.size() < 2)
-          throw std::runtime_error("Usage: uninstall <name>");
-        uninstall_theme(args[1]);
-      } else if (command == "switch") {
-        if (args.size() < 2)
-          throw std::runtime_error("Usage: switch <name>");
-        switch_theme(args[1]);
-      } else {
-        std::cerr << "Unknown command: " << command << std::endl;
-        print_help();
-        return 1;
-      }
+      std::cerr << "Unknown command: " << command << std::endl;
+      print_help();
+      return 1;
     }
   } catch (const std::exception &e) {
     std::cerr << "Error: " << e.what() << std::endl;
@@ -315,7 +310,7 @@ void ThemeManager::switch_preset(const std::string &name) {
   std::cout << "Switched preset to: " << name << "\n";
 }
 
-void ThemeManager::current() {
+void ThemeManager::current(bool is_theme, bool is_preset) {
   std::filesystem::path config_path =
       Lawnch::Fs::get_config_home() / "lawnch" / "config.toml";
   if (!std::filesystem::exists(config_path)) {
@@ -339,8 +334,54 @@ void ThemeManager::current() {
     return;
   }
 
-  std::cout << "Theme:  " << theme << "\n"
-            << "Preset: " << preset << "\n";
+  if (!is_theme && !is_preset) {
+    std::cout << "Theme:  " << theme << "\n"
+              << "Preset: " << preset << "\n";
+  } else {
+    if (is_theme) std::cout << theme << "\n";
+    if (is_preset) std::cout << preset << "\n";
+  }
+}
+
+void ThemeManager::validate(const std::string &path_str, bool is_theme) {
+  std::filesystem::path src(path_str);
+  if (!std::filesystem::exists(src))
+    throw std::runtime_error("File not found: " + path_str);
+
+  if (src.extension() != ".toml")
+    throw std::runtime_error("File must be .toml");
+
+  try {
+    auto tbl = toml::parse_file(src.string());
+    
+    Lawnch::Core::Config::Validator::ValidationResult val_res;
+    if (is_theme) {
+      val_res = Lawnch::Core::Config::Validator::validateTheme(tbl);
+      std::cout << "[Theme Validation: " << path_str << "]\n";
+    } else {
+      val_res = Lawnch::Core::Config::Validator::validateConfig(tbl, true);
+      std::cout << "[Preset Validation: " << path_str << "]\n";
+    }
+
+    if (val_res.success && val_res.warnings.empty()) {
+      std::cout << "  \033[32m\u2705 " << (is_theme ? "Theme" : "Preset") << " is valid!\033[0m\n";
+    } else {
+      if (!val_res.errors.empty()) {
+        std::cerr << "  \033[31m\u274C Found " << val_res.errors.size() << " error(s):\033[0m\n";
+        for (const auto &err : val_res.errors) {
+          std::cerr << "    - " << err << "\n";
+        }
+      }
+      if (!val_res.warnings.empty()) {
+        std::cerr << "  \033[33m\u26A0\uFE0F Found " << val_res.warnings.size() << " warning(s):\033[0m\n";
+        for (const auto &warn : val_res.warnings) {
+          std::cerr << "    - " << warn << "\n";
+        }
+      }
+    }
+  } catch (const toml::parse_error &e) {
+    throw std::runtime_error("Invalid TOML: " + std::string(e.what()));
+  }
 }
 
 } // namespace Lawnch::CLI

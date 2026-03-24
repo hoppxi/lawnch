@@ -12,7 +12,8 @@ ComponentResult InputBox::draw(ComponentContext &context) {
   int width = context.window_width;
 
   BLFont font = Lawnch::Gfx::get_font(
-      cfg.input_font_family, cfg.input_font_size, cfg.input_font_weight);
+      cfg.input_font_family, cfg.input_font_size, cfg.input_font_weight,
+      cfg.input_font_path);
 
   BLFontMetrics metrics = font.metrics();
   double font_h = metrics.ascent + metrics.descent;
@@ -53,12 +54,35 @@ ComponentResult InputBox::draw(ComponentContext &context) {
 
   double text_avail_w =
       input_box_w - (cfg.input_padding.left + cfg.input_padding.right);
+
+  // Calculate caret position relative to the start of the text
+  double caret_x_offset = 0;
+  if (!is_empty && state.caret_position > 0) {
+    BLGlyphBuffer gb_caret;
+    size_t safe_pos =
+        std::min((size_t)state.caret_position, state.search_text.length());
+    gb_caret.set_utf8_text(state.search_text.c_str(), safe_pos);
+    font.shape(gb_caret);
+
+    BLTextMetrics cm;
+    font.get_text_metrics(gb_caret, cm);
+    caret_x_offset = cm.advance.x;
+  }
+
   double x_offset = 0;
 
   if (cfg.input_align == "center") {
     x_offset = (text_avail_w - text_width) / 2.0;
   } else if (cfg.input_align == "right") {
     x_offset = text_avail_w - text_width;
+  }
+
+  if (text_width > text_avail_w || caret_x_offset > text_avail_w) {
+    if (cfg.input_align != "right") {
+      if (caret_x_offset > text_avail_w) {
+        x_offset = text_avail_w - caret_x_offset - cfg.input_caret_width - 2.0; // small buffer
+      }
+    }
   }
 
   double draw_x = input_box_x + cfg.input_padding.left + x_offset;
@@ -68,16 +92,16 @@ ComponentResult InputBox::draw(ComponentContext &context) {
   ctx.clip_to_rect(BLRect(input_box_x, input_box_y, input_box_w, input_box_h));
 
   if (state.input_selected && !is_empty) {
-    auto sel_col = cfg.input_selection_color;
+    auto sel_col = cfg.input_selection_background;
     ctx.set_fill_style(Lawnch::Gfx::toBLColor(sel_col));
     ctx.fill_rect(BLRect(draw_x, input_box_y + cfg.input_padding.top,
                          text_width, font_h));
 
-    auto txt_col = cfg.input_selection_text;
+    auto txt_col = cfg.input_selection_color;
     ctx.set_fill_style(Lawnch::Gfx::toBLColor(txt_col));
   } else {
     Lawnch::Config::Color c =
-        is_empty ? cfg.input_placeholder_color : cfg.input_text;
+        is_empty ? cfg.input_placeholder_color : cfg.input_color;
     ctx.set_fill_style(Lawnch::Gfx::toBLColor(c));
   }
 
@@ -86,19 +110,7 @@ ComponentResult InputBox::draw(ComponentContext &context) {
   }
 
   if (!state.input_selected) {
-    double caret_x_offset = 0;
-
-    if (!is_empty && state.caret_position > 0) {
-      BLGlyphBuffer gb_caret;
-      size_t safe_pos =
-          std::min((size_t)state.caret_position, state.search_text.length());
-      gb_caret.set_utf8_text(state.search_text.c_str(), safe_pos);
-      font.shape(gb_caret);
-
-      BLTextMetrics cm;
-      font.get_text_metrics(gb_caret, cm);
-      caret_x_offset = cm.advance.x;
-    } else if (is_empty) {
+    if (is_empty) {
       if (cfg.input_align == "center") {
         draw_x = input_box_x + cfg.input_padding.left + (text_avail_w / 2.0);
       } else if (cfg.input_align == "right") {

@@ -1,4 +1,5 @@
 #include "gfx.hpp"
+#include "logger.hpp"
 #include "string.hpp"
 #include <algorithm>
 #include <cmath>
@@ -28,11 +29,14 @@ BLRoundRect rounded_rect(double x, double y, double width, double height,
 }
 
 BLFont get_font(const std::string &family, double size,
-                const std::string &weight) {
+                const std::string &weight,
+                const std::string &font_path_override) {
   static std::map<std::string, BLFont> font_cache;
   static std::mutex cache_mutex;
 
-  std::string cache_key = family + "_" + std::to_string(size) + "_" + weight;
+  std::string cache_key =
+      (!font_path_override.empty() ? font_path_override : family) + "_" +
+      std::to_string(size) + "_" + weight;
 
   {
     std::lock_guard<std::mutex> lock(cache_mutex);
@@ -44,78 +48,99 @@ BLFont get_font(const std::string &family, double size,
 
   static std::map<std::string, BLFontFace> face_cache;
   std::string font_path;
+  bool path_load_failed = false;
 
-  static FcConfig *config = nullptr;
-  static std::once_flag config_flag;
-  std::call_once(config_flag, []() { config = FcInitLoadConfigAndFonts(); });
-
-  if (config) {
-    FcPattern *pat = FcNameParse((const FcChar8 *)family.c_str());
-
-    int fc_weight = FC_WEIGHT_REGULAR;
-
-    try {
-      int numeric_weight = std::stoi(weight);
-      if (numeric_weight <= 100)
-        fc_weight = FC_WEIGHT_THIN;
-      else if (numeric_weight <= 200)
-        fc_weight = FC_WEIGHT_EXTRALIGHT;
-      else if (numeric_weight <= 300)
-        fc_weight = FC_WEIGHT_LIGHT;
-      else if (numeric_weight <= 400)
-        fc_weight = FC_WEIGHT_REGULAR;
-      else if (numeric_weight <= 500)
-        fc_weight = FC_WEIGHT_MEDIUM;
-      else if (numeric_weight <= 600)
-        fc_weight = FC_WEIGHT_DEMIBOLD;
-      else if (numeric_weight <= 700)
-        fc_weight = FC_WEIGHT_BOLD;
-      else if (numeric_weight <= 800)
-        fc_weight = FC_WEIGHT_EXTRABOLD;
-      else
-        fc_weight = FC_WEIGHT_BLACK;
-    } catch (...) {
-      if (Str::iequals(weight, "thin"))
-        fc_weight = FC_WEIGHT_THIN;
-      else if (Str::iequals(weight, "extralight"))
-        fc_weight = FC_WEIGHT_EXTRALIGHT;
-      else if (Str::iequals(weight, "light"))
-        fc_weight = FC_WEIGHT_LIGHT;
-      else if (Str::iequals(weight, "book"))
-        fc_weight = FC_WEIGHT_BOOK;
-      else if (Str::iequals(weight, "regular") ||
-               Str::iequals(weight, "normal"))
-        fc_weight = FC_WEIGHT_REGULAR;
-      else if (Str::iequals(weight, "medium"))
-        fc_weight = FC_WEIGHT_MEDIUM;
-      else if (Str::iequals(weight, "semibold") ||
-               Str::iequals(weight, "demibold"))
-        fc_weight = FC_WEIGHT_DEMIBOLD;
-      else if (Str::iequals(weight, "bold"))
-        fc_weight = FC_WEIGHT_BOLD;
-      else if (Str::iequals(weight, "extrabold"))
-        fc_weight = FC_WEIGHT_EXTRABOLD;
-      else if (Str::iequals(weight, "black"))
-        fc_weight = FC_WEIGHT_BLACK;
+  if (!font_path_override.empty()) {
+    font_path = font_path_override;
+    std::lock_guard<std::mutex> lock(cache_mutex);
+    if (face_cache.find(font_path) == face_cache.end()) {
+      BLFontFace test_face;
+      BLResult err = test_face.create_from_file(font_path.c_str());
+      if (err == BL_SUCCESS) {
+        face_cache[font_path] = test_face;
+      } else {
+        Logger::log("Gfx", Logger::LogLevel::ERROR,
+                    "Failed to load font from path: " + font_path +
+                        ". Falling back to font family: " + family);
+        font_path.clear();
+        path_load_failed = true;
+      }
     }
+  }
 
-    FcPatternAddInteger(pat, FC_WEIGHT, fc_weight);
-    FcPatternAddDouble(pat, FC_SIZE, size);
+  if (font_path.empty()) {
+    static FcConfig *config = nullptr;
+    static std::once_flag config_flag;
+    std::call_once(config_flag, []() { config = FcInitLoadConfigAndFonts(); });
 
-    FcConfigSubstitute(config, pat, FcMatchPattern);
-    FcDefaultSubstitute(pat);
+    if (config) {
+      FcPattern *pat = FcNameParse((const FcChar8 *)family.c_str());
 
-    FcResult result;
-    FcPattern *font_pat = FcFontMatch(config, pat, &result);
-    if (font_pat) {
-      FcChar8 *file = NULL;
-      if (FcPatternGetString(font_pat, FC_FILE, 0, &file) == FcResultMatch) {
-        font_path = (const char *)file;
+      int fc_weight = FC_WEIGHT_REGULAR;
+
+      try {
+        int numeric_weight = std::stoi(weight);
+        if (numeric_weight <= 100)
+          fc_weight = FC_WEIGHT_THIN;
+        else if (numeric_weight <= 200)
+          fc_weight = FC_WEIGHT_EXTRALIGHT;
+        else if (numeric_weight <= 300)
+          fc_weight = FC_WEIGHT_LIGHT;
+        else if (numeric_weight <= 400)
+          fc_weight = FC_WEIGHT_REGULAR;
+        else if (numeric_weight <= 500)
+          fc_weight = FC_WEIGHT_MEDIUM;
+        else if (numeric_weight <= 600)
+          fc_weight = FC_WEIGHT_DEMIBOLD;
+        else if (numeric_weight <= 700)
+          fc_weight = FC_WEIGHT_BOLD;
+        else if (numeric_weight <= 800)
+          fc_weight = FC_WEIGHT_EXTRABOLD;
+        else
+          fc_weight = FC_WEIGHT_BLACK;
+      } catch (...) {
+        if (Str::iequals(weight, "thin"))
+          fc_weight = FC_WEIGHT_THIN;
+        else if (Str::iequals(weight, "extralight"))
+          fc_weight = FC_WEIGHT_EXTRALIGHT;
+        else if (Str::iequals(weight, "light"))
+          fc_weight = FC_WEIGHT_LIGHT;
+        else if (Str::iequals(weight, "book"))
+          fc_weight = FC_WEIGHT_BOOK;
+        else if (Str::iequals(weight, "regular") ||
+                 Str::iequals(weight, "normal"))
+          fc_weight = FC_WEIGHT_REGULAR;
+        else if (Str::iequals(weight, "medium"))
+          fc_weight = FC_WEIGHT_MEDIUM;
+        else if (Str::iequals(weight, "semibold") ||
+                 Str::iequals(weight, "demibold"))
+          fc_weight = FC_WEIGHT_DEMIBOLD;
+        else if (Str::iequals(weight, "bold"))
+          fc_weight = FC_WEIGHT_BOLD;
+        else if (Str::iequals(weight, "extrabold"))
+          fc_weight = FC_WEIGHT_EXTRABOLD;
+        else if (Str::iequals(weight, "black"))
+          fc_weight = FC_WEIGHT_BLACK;
       }
 
-      FcPatternDestroy(font_pat);
+      FcPatternAddInteger(pat, FC_WEIGHT, fc_weight);
+      FcPatternAddDouble(pat, FC_SIZE, size);
+
+      FcConfigSubstitute(config, pat, FcMatchPattern);
+      FcDefaultSubstitute(pat);
+
+      FcResult result;
+      FcPattern *font_pat = FcFontMatch(config, pat, &result);
+      if (font_pat) {
+        FcChar8 *file = NULL;
+        if (FcPatternGetString(font_pat, FC_FILE, 0, &file) == FcResultMatch) {
+          font_path = (const char *)file;
+        }
+
+        FcPatternDestroy(font_pat);
+      }
+      FcPatternDestroy(pat);
     }
-    FcPatternDestroy(pat);
   }
 
   BLFontFace face;

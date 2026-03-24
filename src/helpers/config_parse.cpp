@@ -2,6 +2,7 @@
 #include "logger.hpp"
 #include "string.hpp"
 #include <algorithm>
+#include <cstdio>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -96,31 +97,37 @@ bool parseBool(const std::string &s) {
   return (v == "true" || v == "1" || v == "yes" || v == "on");
 }
 
-Color parseColor(const std::string &s) {
+Color parseRgbaColor(const std::string &s) {
   Color c = {0, 0, 0, 1};
-  std::string clean = Str::trim(s);
+  std::string clean = Lawnch::Str::trim(s);
 
-  // try hex first
-  if (!clean.empty() && clean[0] == '#') {
-    return parseHexColor(clean);
-  }
-
-  // legacy rgba() format
   if (clean.rfind("rgba(", 0) == 0 && clean.back() == ')') {
     double r = 0, g = 0, b = 0, a = 1.0;
-    if (std::sscanf(clean.c_str(), "rgba(%lf, %lf, %lf, %lf)", &r, &g, &b,
+    if (std::sscanf(clean.c_str(), "rgba(%lf,%lf,%lf,%lf)", &r, &g, &b, &a) ==
+            4 ||
+        std::sscanf(clean.c_str(), "rgba(%lf, %lf, %lf, %lf)", &r, &g, &b,
                     &a) == 4) {
       c.r = std::clamp(r / 255.0, 0.0, 1.0);
       c.g = std::clamp(g / 255.0, 0.0, 1.0);
       c.b = std::clamp(b / 255.0, 0.0, 1.0);
       c.a = std::clamp(a, 0.0, 1.0);
-    } else {
-      Logger::log("Config", Logger::LogLevel::WARNING,
-                  "Malformed color format: " + s + ". Expected rgba(r,g,b,a).");
     }
-  } else {
-    Logger::log("Config", Logger::LogLevel::WARNING,
-                "Unsupported color format: " + s);
+  }
+  return c;
+}
+
+Color parseRgbColor(const std::string &s) {
+  Color c = {0, 0, 0, 1};
+  std::string clean = Lawnch::Str::trim(s);
+
+  if (clean.rfind("rgb(", 0) == 0 && clean.back() == ')') {
+    double r = 0, g = 0, b = 0;
+    if (std::sscanf(clean.c_str(), "rgb(%lf,%lf,%lf)", &r, &g, &b) == 3 ||
+        std::sscanf(clean.c_str(), "rgb(%lf, %lf, %lf)", &r, &g, &b) == 3) {
+      c.r = std::clamp(r / 255.0, 0.0, 1.0);
+      c.g = std::clamp(g / 255.0, 0.0, 1.0);
+      c.b = std::clamp(b / 255.0, 0.0, 1.0);
+    }
   }
   return c;
 }
@@ -156,6 +163,27 @@ Color parseHexColor(const std::string &hex) {
   c.b = std::clamp(static_cast<double>(b) / 255.0, 0.0, 1.0);
   c.a = std::clamp(static_cast<double>(a) / 255.0, 0.0, 1.0);
 
+  return c;
+}
+
+Color parseColor(const std::string &s) {
+  Color c = {0, 0, 0, 1};
+  std::string clean = Str::trim(s);
+
+  if (!clean.empty() && clean[0] == '#') {
+    return parseHexColor(clean);
+  }
+
+  if (clean.rfind("rgba(", 0) == 0) {
+    return parseRgbaColor(clean);
+  }
+
+  if (clean.rfind("rgb(", 0) == 0) {
+    return parseRgbColor(clean);
+  }
+
+  Logger::log("Config", Logger::LogLevel::WARNING,
+              "Unsupported color format: " + s);
   return c;
 }
 

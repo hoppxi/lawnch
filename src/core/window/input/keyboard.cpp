@@ -2,6 +2,7 @@
 #include "../../../helpers/process.hpp"
 #include "../../config/manager.hpp"
 #include "keybinding_manager.hpp"
+#include "../../../helpers/logger.hpp"
 #include <iostream>
 
 namespace Lawnch::Core::Window::Input {
@@ -59,6 +60,7 @@ void Keyboard::clear() {
   input_selected = false;
   selected_index = 0;
   result_count = 0;
+  context_scope = "*";
   current_commands.clear();
   current_has_submenu.clear();
 }
@@ -168,6 +170,18 @@ void Keyboard::handle_key(uint32_t keycode, xkb_keysym_t sym,
   case Action::EXECUTE:
     if (selected_index >= 0 && selected_index < result_count) {
       callbacks.on_execute(get_result_command(selected_index));
+    }
+    break;
+
+  case Action::PIN:
+    if (callbacks.on_pin && selected_index >= 0 && selected_index < result_count) {
+      callbacks.on_pin(selected_index);
+    }
+    break;
+
+  case Action::UNPIN:
+    if (callbacks.on_unpin && selected_index >= 0 && selected_index < result_count) {
+      callbacks.on_unpin(selected_index);
     }
     break;
 
@@ -373,6 +387,65 @@ void Keyboard::handle_key(uint32_t keycode, xkb_keysym_t sym,
     if (!target.empty() && callbacks.on_context_switch) {
       callbacks.on_context_switch(target);
     }
+    break;
+  }
+
+  case Action::ABBR_EXPAND: {
+    if (!search_text.empty() && caret_position > 0) {
+      int word_start = caret_position - 1;
+      while (word_start >= 0 && search_text[word_start] != ' ') {
+        word_start--;
+      }
+      word_start++;
+      std::string trigger_word =
+          search_text.substr(word_start, caret_position - word_start);
+
+      std::string current_scope = context_scope;
+      if (current_scope == "*" && search_text[0] == ':') {
+        size_t first_space = search_text.find(' ');
+        if (first_space != std::string::npos) {
+          current_scope = search_text.substr(0, first_space);
+        } else {
+          current_scope = search_text;
+        }
+      }
+
+      auto &config = Config::Manager::Instance().Get();
+      for (const auto &m : config.modifiers) {
+        if (m.type == "abbr" && m.trigger == trigger_word) {
+          bool scope_match = false;
+          for (const auto &s : m.scope) {
+            if (s == "*" || s == current_scope) {
+              scope_match = true;
+              break;
+            }
+          }
+          if (scope_match) {
+            Logger::log("Modifier", Logger::LogLevel::DEBUG, "Expanding abbr '" + m.trigger + "' to '" + m.expanded + "' (scope: " + current_scope + ")");
+            search_text.replace(word_start, caret_position - word_start,
+                                m.expanded);
+            caret_position = word_start + m.expanded.size();
+            break;
+          }
+        }
+      }
+    }
+
+    char buf[128];
+    if (xkb_state &&
+        xkb_state_key_get_utf8(xkb_state, keycode, buf, sizeof(buf)) > 0) {
+      if ((unsigned char)buf[0] >= 32) {
+        if (input_selected) {
+          search_text.clear();
+          caret_position = 0;
+          input_selected = false;
+        }
+        std::string input_str(buf);
+        search_text.insert(caret_position, input_str);
+        caret_position += input_str.size();
+      }
+    }
+    callbacks.on_update();
     break;
   }
 

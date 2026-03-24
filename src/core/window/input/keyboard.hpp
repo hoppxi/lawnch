@@ -16,6 +16,8 @@ struct KeyboardCallbacks {
   std::function<void(const std::string &result_command)> on_submenu_enter;
   std::function<void()> on_submenu_back;
   std::function<void(const std::string &trigger)> on_context_switch;
+  std::function<void(int index)> on_pin;
+  std::function<void(int index)> on_unpin;
 };
 
 class Keyboard {
@@ -39,6 +41,9 @@ public:
   void set_reverse_navigation(bool reverse) { reverse_navigation = reverse; }
   bool is_input_selected() const { return input_selected; }
 
+  void set_context_scope(const std::string &scope) { context_scope = scope; }
+  const std::string &get_context_scope() const { return context_scope; }
+
   void clear();
 
 private:
@@ -46,6 +51,7 @@ private:
   KeyboardCallbacks callbacks;
 
   std::string search_text;
+  std::string context_scope = "*";
   int caret_position = 0;
   int selected_index = 0;
   bool input_selected = false;

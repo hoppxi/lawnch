@@ -115,6 +115,12 @@ std::string KeybindingManager::action_to_string(Action action) const {
     return "submenu_back";
   case Action::CONTEXT_SWITCH:
     return "context_switch";
+  case Action::ABBR_EXPAND:
+    return "abbr_expand";
+  case Action::PIN:
+    return "pin";
+  case Action::UNPIN:
+    return "unpin";
   default:
     return "none";
   }
@@ -174,6 +180,12 @@ Action KeybindingManager::string_to_action(const std::string &str) const {
     return Action::SUBMENU_BACK;
   if (str == "context_switch" || str == "context-switch")
     return Action::CONTEXT_SWITCH;
+  if (str == "abbr_expand" || str == "abbr-expand")
+    return Action::ABBR_EXPAND;
+  if (str == "pin")
+    return Action::PIN;
+  if (str == "unpin")
+    return Action::UNPIN;
   return Action::NONE;
 }
 
@@ -194,6 +206,8 @@ void KeybindingManager::load_defaults() {
 
   bindings[{XKB_KEY_Return, MOD_NONE}] = Action::EXECUTE;
   bindings[{XKB_KEY_KP_Enter, MOD_NONE}] = Action::EXECUTE;
+
+  bindings[{XKB_KEY_space, MOD_NONE}] = Action::ABBR_EXPAND;
 
   bindings[{XKB_KEY_Escape, MOD_NONE}] = Action::EXIT;
 
@@ -218,6 +232,11 @@ void KeybindingManager::load_defaults() {
 
   bindings[{XKB_KEY_Tab, MOD_NONE}] = Action::SUBMENU_ENTER;
   bindings[{XKB_KEY_ISO_Left_Tab, MOD_SHIFT}] = Action::SUBMENU_BACK;
+
+  bindings[{XKB_KEY_p, MOD_CTRL}] = Action::PIN;
+  bindings[{XKB_KEY_P, MOD_CTRL}] = Action::PIN;
+  bindings[{XKB_KEY_u, MOD_CTRL}] = Action::UNPIN;
+  bindings[{XKB_KEY_U, MOD_CTRL}] = Action::UNPIN;
 }
 
 void KeybindingManager::load_vim() {
@@ -239,6 +258,10 @@ void KeybindingManager::load_vim() {
   // submenu navigation
   bindings[{XKB_KEY_l, MOD_ALT}] = Action::SUBMENU_ENTER;
   bindings[{XKB_KEY_h, MOD_ALT}] = Action::SUBMENU_BACK;
+
+  // pinning
+  bindings[{XKB_KEY_p, MOD_ALT}] = Action::PIN;
+  bindings[{XKB_KEY_u, MOD_ALT}] = Action::UNPIN;
 }
 
 void KeybindingManager::load_config() {

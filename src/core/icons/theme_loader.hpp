@@ -20,6 +20,7 @@ public:
 
   std::string lookup_icon(const std::string &icon_name);
   void set_custom_theme(const std::string &name);
+  void set_extra_dirs(const std::vector<std::string> &dirs);
   bool init();
 
 private:
@@ -28,6 +29,7 @@ private:
   bool initialized = false;
   std::string custom_theme_name;
   std::vector<std::string> base_search_paths;
+  std::vector<std::string> extra_icon_dirs;
   std::list<IconTheme> active_theme_stack;
 
   void load_theme_recursive(const std::string &theme_name,

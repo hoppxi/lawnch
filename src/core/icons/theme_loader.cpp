@@ -64,6 +64,10 @@ void ThemeLoader::set_custom_theme(const std::string &name) {
   initialized = false;
 }
 
+void ThemeLoader::set_extra_dirs(const std::vector<std::string> &dirs) {
+  extra_icon_dirs = dirs;
+}
+
 bool ThemeLoader::init() {
   active_theme_stack.clear();
   base_search_paths = ::Lawnch::Fs::get_icon_dirs();
@@ -78,7 +82,7 @@ bool ThemeLoader::init() {
     current_theme = "hicolor";
   }
 
-  ::Lawnch::Logger::log("ThemeLoader", ::Lawnch::Logger::LogLevel::INFO,
+  ::Lawnch::Logger::log("ThemeLoader", ::Lawnch::Logger::LogLevel::DEBUG,
                         "Loading Theme: " + current_theme);
 
   std::vector<std::string> visited;
@@ -211,28 +215,60 @@ std::string ThemeLoader::find_icon_path(const std::string &name) {
       candidates.push_back(dir / (name + ".png"));
 
       for (const auto &p : candidates) {
-        if (fs::exists(p))
+        if (fs::exists(p)) {
+          ::Lawnch::Logger::log("ThemeLoader",
+                                ::Lawnch::Logger::LogLevel::DEBUG,
+                                "Icon found: " + name + " -> " + p.string());
           return p.string();
+        }
       }
     }
 
     fs::path root_svg = fs::path(theme.full_path) / (name + ".svg");
-    if (fs::exists(root_svg))
+    if (fs::exists(root_svg)) {
+      ::Lawnch::Logger::log("ThemeLoader", ::Lawnch::Logger::LogLevel::DEBUG,
+                            "Icon found: " + name + " -> " + root_svg.string());
       return root_svg.string();
+    }
 
     fs::path root_png = fs::path(theme.full_path) / (name + ".png");
-    if (fs::exists(root_png))
+    if (fs::exists(root_png)) {
+      ::Lawnch::Logger::log("ThemeLoader", ::Lawnch::Logger::LogLevel::DEBUG,
+                            "Icon found: " + name + " -> " + root_png.string());
       return root_png.string();
+    }
   }
 
-  // Fallback /usr/share/pixmaps
-  fs::path pixmap = fs::path("/usr/share/pixmaps") / (name + ".svg");
-  if (fs::exists(pixmap))
-    return pixmap.string();
-  pixmap = fs::path("/usr/share/pixmaps") / (name + ".png");
-  if (fs::exists(pixmap))
-    return pixmap.string();
+  for (const auto &dir : extra_icon_dirs) {
+    fs::path expanded = ::Lawnch::Fs::expand_tilde(dir);
+    if (!fs::exists(expanded) || !fs::is_directory(expanded))
+      continue;
 
+    try {
+      for (auto it = fs::recursive_directory_iterator(
+               expanded, fs::directory_options::skip_permission_denied);
+           it != fs::recursive_directory_iterator(); ++it) {
+        if (!it->is_regular_file())
+          continue;
+
+        const auto &entry_path = it->path();
+        std::string stem = entry_path.stem().string();
+        std::string ext = entry_path.extension().string();
+
+        if (stem == name && (ext == ".svg" || ext == ".png")) {
+          ::Lawnch::Logger::log("ThemeLoader",
+                                ::Lawnch::Logger::LogLevel::DEBUG,
+                                "Icon found (fallback dir): " + name + " -> " +
+                                    entry_path.string());
+          return entry_path.string();
+        }
+      }
+    } catch (const fs::filesystem_error &) {
+    }
+  }
+
+  ::Lawnch::Logger::log("ThemeLoader", ::Lawnch::Logger::LogLevel::DEBUG,
+                        "Icon not found: " + name);
   return "";
 }
 

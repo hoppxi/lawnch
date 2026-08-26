@@ -28,9 +28,8 @@ max-size        = 100
 
 [appearance.layout]
 order           = ["input", "breadcrumbs", "results_count", "results", "clock", "preview"]
-preview-side    = "right"
-preview-ratio   = 40
-
+direction       = "v" # possible value: v, vertical, h, horizontal. default: vertical
+preview-side    = "right" # right or left
 [launch]
 initial         = ":app"
 scope           = ""
@@ -103,6 +102,8 @@ padding         = [12, 14, 0, 14]
 margin          = [0]
 
 [widget.results]
+direction       = "v"
+column          = 2 # default: 4. only works for horizontal or h direction
 margin          = [5, 8, 0, 8]
 padding         = [10, 0, 0, 0]
 gap             = 2
@@ -131,6 +132,7 @@ radius = 5
 icon            = { size = 22, gap = 8, enable = true }
 comment         = true
 highlight       = true
+direction       = "v"
 
 [widget.results.item.default]
 align           = "left"
@@ -163,8 +165,8 @@ margin          = [0]
 
 [widget.preview]
 enable          = true
-composition     = ["preview_image", "icon:name", "comment"]
-image-size      = 120
+direction       = "v"
+preview-image-size      = 120
 padding         = [120, 14, 8, 14]
 margin          = [0]
 background      = "#00000000"
@@ -173,7 +175,6 @@ gap             = { v = 6, h = 6 }
 [widget.preview.icon]
 size = 16
 fallback = true
-hide-on-fallback = true
 
 [widget.preview.name]
 color           = "#EBDBB2"

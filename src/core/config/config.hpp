@@ -39,6 +39,7 @@ struct Config {
   std::string appearance_theme;
   std::string appearance_preset;
   std::vector<std::string> layout_order;
+  std::string layout_direction;
   std::string layout_preview_side;
   int layout_preview_ratio;
 
@@ -98,6 +99,8 @@ struct Config {
   Padding input_prompt_margin;
 
   // results
+  std::string results_direction;
+  int results_column;
   Padding results_margin;
   Padding results_padding;
   int results_gap;
@@ -119,6 +122,7 @@ struct Config {
   bool results_show_help;
 
   // result item
+  std::string result_item_direction;
   bool result_item_icon_enable;
   int result_item_icon_size;
   int result_item_icon_gap;
@@ -175,16 +179,15 @@ struct Config {
 
   // preview
   bool preview_enable;
+  std::string preview_direction;
   int preview_icon_size;
   int preview_image_size;
-  bool preview_icon_hide_on_fallback;
   bool preview_icon_fallback;
   Padding preview_padding;
   Padding preview_margin;
   Color preview_background;
   int preview_gap_v;
   int preview_gap_h;
-  std::vector<std::string> preview_composition;
   std::string preview_name_font_family;
   std::string preview_name_font_path;
   int preview_name_font_size;

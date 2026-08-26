@@ -138,6 +138,7 @@ static const std::set<std::string> VALID_CONFIG_KEYS = {
     "appearance.theme",
     "appearance.preset",
     "appearance.layout.order",
+    "appearance.layout.direction",
     "appearance.layout.preview-side",
     "appearance.layout.preview-ratio",
 
@@ -219,6 +220,8 @@ static const std::set<std::string> VALID_CONFIG_KEYS = {
     "widget.input.prompt.padding",
     "widget.input.prompt.margin",
 
+    "widget.results.direction",
+    "widget.results.column",
     "widget.results.margin",
     "widget.results.padding",
     "widget.results.gap",
@@ -249,6 +252,7 @@ static const std::set<std::string> VALID_CONFIG_KEYS = {
     "widget.results.item.icon.gap",
     "widget.results.item.comment",
     "widget.results.item.highlight",
+    "widget.results.item.direction",
 
     "widget.results.item.default.font",
     "widget.results.item.default.font.family",
@@ -329,8 +333,8 @@ static const std::set<std::string> VALID_CONFIG_KEYS = {
     "widget.results.count.margin",
 
     "widget.preview.enable",
-    "widget.preview.composition",
-    "widget.preview.image-size",
+    "widget.preview.direction",
+    "widget.preview.preview-image-size",
     "widget.preview.icon",
     "widget.preview.padding",
     "widget.preview.margin",
@@ -341,7 +345,6 @@ static const std::set<std::string> VALID_CONFIG_KEYS = {
 
     "widget.preview.icon.size",
     "widget.preview.icon.fallback",
-    "widget.preview.icon.hide-on-fallback",
 
     "widget.preview.name.font",
     "widget.preview.name.font.family",
@@ -547,7 +550,6 @@ static void validateNode(const toml::node &node,
       current_path.ends_with("history") ||
       current_path.ends_with("terminal-exec") ||
       current_path.ends_with("fallback") ||
-      current_path.ends_with("hide-on-fallback") ||
       current_path.ends_with("comment") ||
       current_path.ends_with("highlight")) {
     if (node.is_boolean() == false) {
@@ -559,9 +561,10 @@ static void validateNode(const toml::node &node,
   if (current_path.ends_with(".size") || current_path.ends_with(".width") ||
       current_path.ends_with(".height") || current_path.ends_with(".radius") ||
       current_path.ends_with(".limit") || current_path.ends_with(".gap") ||
-      current_path.ends_with("image-size") ||
+      current_path.ends_with("preview-image-size") ||
       current_path.ends_with("max-size") ||
-      current_path.ends_with("preview-ratio") || current_path.ends_with(".v") ||
+      current_path.ends_with("preview-ratio") ||
+      current_path.ends_with(".column") || current_path.ends_with(".v") ||
       current_path.ends_with(".h")) {
     if (current_path.ends_with(".gap") && node.is_table()) {
       return;
@@ -577,7 +580,7 @@ static void validateNode(const toml::node &node,
 
       if (current_path.ends_with(".size") ||
           current_path.ends_with(".radius") ||
-          current_path.ends_with("image-size")) {
+          current_path.ends_with("preview-image-size")) {
         if (val < 0) {
           res.errors.push_back("Property '" + current_path +
                                "' must be non-negative");
@@ -697,6 +700,7 @@ static void validateNode(const toml::node &node,
       current_path.ends_with("uwsm-prefix") ||
       current_path.ends_with(".inherit") ||
       current_path.ends_with("preview-side") ||
+      current_path.ends_with(".direction") ||
       current_path.ends_with(".side") || current_path.ends_with("icon-theme") ||
       current_path.ends_with(".path")) {
     if (!node.is_string()) {
@@ -706,7 +710,6 @@ static void validateNode(const toml::node &node,
   }
 
   if (current_path.ends_with(".order") ||
-      current_path.ends_with(".composition") ||
       current_path.ends_with(".dirs")) {
     if (!node.is_array()) {
       res.errors.push_back("Property '" + current_path + "' must be an array");

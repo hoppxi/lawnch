@@ -26,6 +26,7 @@ void Manager::Impl::SetDefaults() {
   config.appearance_theme = "";
   config.appearance_preset = "";
   config.layout_order = {"input", "results"};
+  config.layout_direction = "v";
   config.layout_preview_side = "bottom";
   config.layout_preview_ratio = 30;
 
@@ -85,6 +86,8 @@ void Manager::Impl::SetDefaults() {
   config.input_prompt_margin = Padding(0);
 
   // results
+  config.results_direction = "v";
+  config.results_column = 4;
   config.results_margin = Padding(0);
   config.results_padding = Padding(0);
   config.results_gap = 0;
@@ -106,6 +109,7 @@ void Manager::Impl::SetDefaults() {
   config.results_show_help = false;
 
   // result item structure
+  config.result_item_direction = "v";
   config.result_item_icon_enable = false;
   config.result_item_icon_size = 24;
   config.result_item_icon_gap = 12;
@@ -164,16 +168,15 @@ void Manager::Impl::SetDefaults() {
 
   // preview
   config.preview_enable = false;
+  config.preview_direction = "v";
   config.preview_icon_size = 16;
   config.preview_image_size = 64;
-  config.preview_icon_hide_on_fallback = false;
   config.preview_icon_fallback = false;
   config.preview_padding = Padding(0);
   config.preview_margin = Padding(0);
   config.preview_background = {0, 0, 0, 0};
   config.preview_gap_v = 5;
   config.preview_gap_h = 5;
-  config.preview_composition = {"icon", "name"};
   config.preview_name_font_family = "sans-serif";
   config.preview_name_font_path = "";
   config.preview_name_font_size = 14;

@@ -33,6 +33,8 @@ private:
   void update_metrics(const Config::Config &cfg);
   void render_vertical(BLContext &ctx, int width, int height,
                        const Config::Config &cfg, const RenderState &state);
+  void render_horizontal(BLContext &ctx, int width, int height,
+                         const Config::Config &cfg, const RenderState &state);
   void render_with_side_preview(BLContext &ctx, int width, int height,
                                 const Config::Config &cfg,
                                 const RenderState &state, bool preview_on_left);

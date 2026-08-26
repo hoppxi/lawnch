@@ -5,9 +5,7 @@
 #include "../render_state.hpp"
 #include <algorithm>
 #include <deque>
-#include <functional>
 #include <iostream>
-#include <sstream>
 #include <unordered_map>
 
 namespace Lawnch::Core::Window::Render::Components {
@@ -41,325 +39,274 @@ void cache_preview(const std::string &path, BLImage img) {
   preview_lru[path] = std::move(img);
 }
 
-class PreviewLayout {
-public:
-  struct LayoutItem {
-    std::string type;
-    bool visible = true;
-    bool is_fallback_icon = false;
-    double width = 0;
-    double height = 0;
-    std::vector<LayoutItem> children;
-    bool is_group = false;
-  };
+bool is_horizontal(const std::string &dir) {
+  return dir == "h" || dir == "horizontal";
+}
 
-  PreviewLayout(const Config::Config &cfg, const Search::SearchResult &selected,
-                double available_w)
-      : cfg(cfg), selected(selected), available_w(available_w) {
-    parse_layout_string();
-    resolve_item_properties();
-    calculate_layout_dimensions();
-  }
-
-  double get_total_height() const {
-    double height = cfg.preview_padding.top + cfg.preview_padding.bottom;
-    bool first = true;
-    for (const auto &item : layout) {
-      if (!item.visible)
-        continue;
-      if (!first)
-        height += cfg.preview_gap_v;
-      height += item.height;
-      first = false;
-    }
-    return height;
-  }
-
-  void draw(BLContext &ctx, double x, double y) {
-    double preview_h = get_total_height();
-    double preview_w = available_w;
-
-    if (cfg.preview_background.a > 0) {
-      ctx.set_fill_style(Lawnch::Gfx::toBLColor(cfg.preview_background));
-      ctx.fill_rect(x, y, preview_w, preview_h);
-    }
-
-    double content_x = x + cfg.preview_padding.left;
-    double content_y = y + cfg.preview_padding.top;
-    double content_max_w =
-        preview_w - cfg.preview_padding.left - cfg.preview_padding.right;
-
-    double current_y = content_y;
-    bool first = true;
-
-    for (const auto &item : layout) {
-      if (!item.visible)
-        continue;
-      if (!first)
-        current_y += cfg.preview_gap_v;
-
-      if (item.is_group) {
-        draw_group(ctx, item, content_x, current_y, content_max_w);
-      } else {
-        draw_item(ctx, item, content_x, current_y, content_max_w);
-      }
-
-      current_y += item.height;
-      first = false;
-    }
-  }
-
-private:
-  const Config::Config &cfg;
-  const Search::SearchResult &selected;
-  double available_w;
-  std::vector<LayoutItem> layout;
+struct PreviewAssets {
   BLImage preview_image;
-
-  void parse_layout_string() {
-    for (const auto &raw_item : cfg.preview_composition) {
-      if (raw_item.rfind("(", 0) == 0) {
-        LayoutItem group;
-        group.is_group = true;
-        group.type = "group";
-        std::string content = raw_item.substr(1, raw_item.size() - 2);
-        std::stringstream ss(content);
-        std::string sub_item;
-        while (std::getline(ss, sub_item, ':')) {
-          if (!sub_item.empty()) {
-            group.children.push_back({sub_item});
-          }
-        }
-        layout.push_back(group);
-      } else {
-        layout.push_back({raw_item});
-      }
-    }
-  }
-
-  void resolve_item_properties() {
-    bool has_preview_image = false;
-    bool image_failed = false;
-
-    std::function<void(LayoutItem &)> check_image = [&](LayoutItem &item) {
-      if (item.is_group) {
-        for (auto &child : item.children)
-          check_image(child);
-      } else if (item.type == "preview_image") {
-        has_preview_image = true;
-        if (!selected.preview_image_path.empty()) {
-          std::filesystem::path image_path =
-              ImageCache::ImageCache::Instance().get_image(
-                  selected.preview_image_path, cfg.preview_image_size,
-                  cfg.preview_image_size);
-
-          if (!image_path.empty()) {
-            if (BLImage *cached = get_cached_preview(image_path.string())) {
-              preview_image = *cached;
-            } else {
-              if (preview_image.read_from_file(image_path.string().c_str()) ==
-                  BL_SUCCESS) {
-                cache_preview(image_path.string(), preview_image);
-              } else {
-                image_failed = true;
-              }
-            }
-          } else {
-            image_failed = true;
-          }
-        } else {
-          image_failed = true;
-        }
-
-        if (image_failed) {
-          if (cfg.preview_icon_fallback) {
-            item.is_fallback_icon = true;
-          } else {
-            item.visible = false;
-          }
-        }
-      }
-    };
-
-    for (auto &item : layout)
-      check_image(item);
-
-    if (has_preview_image && image_failed && cfg.preview_icon_fallback &&
-        cfg.preview_icon_hide_on_fallback) {
-      std::function<void(LayoutItem &)> hide_icons = [&](LayoutItem &item) {
-        if (item.is_group) {
-          for (auto &child : item.children)
-            hide_icons(child);
-        } else if (item.type == "icon") {
-          item.visible = false;
-        }
-      };
-      for (auto &item : layout)
-        hide_icons(item);
-    }
-  }
-
-  void calculate_layout_dimensions() {
-    std::function<void(LayoutItem &)> calc_dims = [&](LayoutItem &item) {
-      if (!item.visible) {
-        item.width = 0;
-        item.height = 0;
-        return;
-      }
-
-      if (item.is_group) {
-        double max_h = 0;
-        std::vector<LayoutItem *> text_children;
-        double fixed_width = 0;
-        int visible_children = 0;
-
-        for (auto &child : item.children) {
-          calculate_atomic_item_dims(child);
-          if (child.visible) {
-            visible_children++;
-            max_h = std::max(max_h, child.height);
-            if (child.type == "name" || child.type == "comment") {
-              text_children.push_back(&child);
-            } else {
-              fixed_width += child.width;
-            }
-          }
-        }
-
-        if (visible_children > 0) {
-          double spacing_width =
-              (visible_children - 1) * cfg.preview_gap_h;
-          double content_max_w = available_w - cfg.preview_padding.left -
-                                 cfg.preview_padding.right;
-          double remaining_width = content_max_w - fixed_width - spacing_width;
-
-          if (!text_children.empty()) {
-            double width_per_text =
-                (remaining_width > 0) ? (remaining_width / text_children.size())
-                                      : 0;
-            for (auto *child_ptr : text_children) {
-              child_ptr->width = width_per_text;
-            }
-          }
-        }
-
-        double total_w = 0;
-        bool first_child = true;
-        for (const auto &child : item.children) {
-          if (child.visible) {
-            if (!first_child) {
-              total_w += cfg.preview_gap_h;
-            }
-            total_w += child.width;
-            first_child = false;
-          }
-        }
-
-        item.width = total_w;
-        item.height = max_h;
-
-      } else {
-        calculate_atomic_item_dims(item);
-      }
-    };
-
-    for (auto &item : layout)
-      calc_dims(item);
-  }
-
-  void calculate_atomic_item_dims(LayoutItem &item) {
-    if (item.type == "icon") {
-      item.width = item.height = cfg.preview_icon_size;
-    } else if (item.type == "preview_image") {
-      item.width = item.height = cfg.preview_image_size;
-    } else if (item.type == "name" || item.type == "comment") {
-      bool is_name = item.type == "name";
-      if (!is_name && selected.comment.empty()) {
-        item.visible = false;
-        item.width = item.height = 0;
-        return;
-      }
-      BLFont font = is_name ? Gfx::get_font(cfg.preview_name_font_family,
-                                            cfg.preview_name_font_size,
-                                            cfg.preview_name_font_weight,
-                                            cfg.preview_name_font_path)
-                            : Gfx::get_font(cfg.preview_comment_font_family,
-                                            cfg.preview_comment_font_size,
-                                            cfg.preview_comment_font_weight,
-                                            cfg.preview_comment_font_path);
-      BLFontMetrics fm = font.metrics();
-      item.height = fm.ascent + fm.descent;
-    }
-  }
-
-  void draw_group(BLContext &ctx, const LayoutItem &group, double x, double y,
-                  double w_avail) {
-    double group_start_x = x + (w_avail - group.width) / 2.0;
-    double current_x = group_start_x;
-    bool first_child = true;
-    for (const auto &child : group.children) {
-      if (!child.visible)
-        continue;
-      if (!first_child)
-        current_x += cfg.preview_gap_h;
-
-      double child_y = y + (group.height - child.height) / 2.0;
-      draw_item(ctx, child, current_x, child_y, child.width);
-
-      current_x += child.width;
-      first_child = false;
-    }
-  }
-
-  void draw_item(BLContext &ctx, const LayoutItem &item, double x, double y,
-                 double w_avail) {
-    if (item.type == "icon") {
-      draw_icon(ctx, selected.icon, x, y, item.width, item.height, w_avail);
-    } else if (item.type == "preview_image") {
-      if (item.is_fallback_icon) {
-        draw_icon(ctx, selected.icon, x, y, item.width, item.height, w_avail);
-      } else if (!preview_image.is_empty()) {
-        double draw_x = x + (w_avail - preview_image.width()) / 2.0;
-        double draw_y = y + (item.height - preview_image.height()) / 2.0;
-        ctx.blit_image(BLPoint(draw_x, draw_y), preview_image);
-      }
-    } else if (item.type == "name") {
-      draw_text(ctx, selected.name, x, y, w_avail, cfg.preview_name_font_family,
-                cfg.preview_name_font_size, cfg.preview_name_font_weight,
-                cfg.preview_name_font_path, cfg.preview_name_color);
-    } else if (item.type == "comment") {
-      draw_text(ctx, selected.comment, x, y, w_avail,
-                cfg.preview_comment_font_family, cfg.preview_comment_font_size,
-                cfg.preview_comment_font_weight, cfg.preview_comment_font_path,
-                cfg.preview_comment_color);
-    }
-  }
-
-  void draw_icon(BLContext &ctx, const std::string &icon_name, double x,
-                 double y, double w, double h, double w_avail) {
-    double draw_x = x + (w_avail - w) / 2.0;
-    Icons::Manager::Instance().render_icon(ctx, icon_name, draw_x, y, w);
-  }
-
-  void draw_text(BLContext &ctx, const std::string &text_content, double x,
-                 double y, double w_avail, const std::string &family, int size,
-                 const std::string &weight, const std::string &path,
-                 const Config::Color &color) {
-    BLFont font = Gfx::get_font(family, size, weight, path);
-    BLFontMetrics fm = font.metrics();
-    std::string text = Gfx::truncate_text(text_content, font, w_avail);
-
-    BLTextMetrics tm;
-    BLGlyphBuffer gb;
-    gb.set_utf8_text(text.c_str());
-    font.shape(gb);
-    font.get_text_metrics(gb, tm);
-
-    double text_x = x + (w_avail - tm.advance.x) / 2.0;
-    ctx.set_fill_style(Gfx::toBLColor(color));
-    ctx.fill_utf8_text(BLPoint(text_x, y + fm.ascent), font, text.c_str());
-  }
+  bool has_preview_image = false;
+  bool use_fallback_icon = false;
+  bool has_icon = false;
+  std::string icon_name;
 };
+
+PreviewAssets resolve_assets(const Config::Config &cfg,
+                             const Search::SearchResult &selected) {
+  PreviewAssets assets;
+  assets.icon_name = selected.icon;
+  assets.has_icon = !selected.icon.empty();
+
+  if (!selected.preview_image_path.empty()) {
+    std::filesystem::path image_path =
+        ImageCache::ImageCache::Instance().get_image(
+            selected.preview_image_path, cfg.preview_image_size,
+            cfg.preview_image_size);
+
+    if (!image_path.empty()) {
+      if (BLImage *cached = get_cached_preview(image_path.string())) {
+        assets.preview_image = *cached;
+        assets.has_preview_image = true;
+      } else {
+        if (assets.preview_image.read_from_file(image_path.string().c_str()) ==
+            BL_SUCCESS) {
+          cache_preview(image_path.string(), assets.preview_image);
+          assets.has_preview_image = true;
+        }
+      }
+    }
+  }
+
+  // If no preview image and fallback is enabled, use icon as preview image
+  if (!assets.has_preview_image && cfg.preview_icon_fallback) {
+    assets.use_fallback_icon = true;
+  }
+
+  return assets;
+}
+
+void draw_icon(BLContext &ctx, const std::string &icon_name, double x, double y,
+               double size) {
+  Icons::Manager::Instance().render_icon(ctx, icon_name, x, y, size);
+}
+
+void draw_text(BLContext &ctx, const std::string &text_content, double x,
+               double y, double w_avail, const std::string &family, int size,
+               const std::string &weight, const std::string &path,
+               const Config::Color &color, const std::string &align = "center") {
+  BLFont font = Gfx::get_font(family, size, weight, path);
+  BLFontMetrics fm = font.metrics();
+  std::string text = Gfx::truncate_text(text_content, font, w_avail);
+
+  BLTextMetrics tm;
+  BLGlyphBuffer gb;
+  gb.set_utf8_text(text.c_str());
+  font.shape(gb);
+  font.get_text_metrics(gb, tm);
+
+  double text_x;
+  if (align == "center") {
+    text_x = x + (w_avail - tm.advance.x) / 2.0;
+  } else if (align == "right") {
+    text_x = x + w_avail - tm.advance.x;
+  } else {
+    text_x = x;
+  }
+  ctx.set_fill_style(Gfx::toBLColor(color));
+  ctx.fill_utf8_text(BLPoint(text_x, y + fm.ascent), font, text.c_str());
+}
+
+double get_text_height(const std::string &family, int size,
+                       const std::string &weight, const std::string &path) {
+  BLFont font = Gfx::get_font(family, size, weight, path);
+  BLFontMetrics fm = font.metrics();
+  return fm.ascent + fm.descent;
+}
+
+// vertical layout: preview_image on left, name+comment stacked on right
+// if icon is present from the provider, icon goes left of name
+double calc_vertical_height(const Config::Config &cfg,
+                            const PreviewAssets &assets,
+                            const Search::SearchResult &selected) {
+  double image_h = 0;
+  if (assets.has_preview_image || assets.use_fallback_icon) {
+    image_h = cfg.preview_image_size;
+  }
+
+  double name_h = get_text_height(cfg.preview_name_font_family,
+                                  cfg.preview_name_font_size,
+                                  cfg.preview_name_font_weight,
+                                  cfg.preview_name_font_path);
+  double text_h = name_h;
+  if (!selected.comment.empty()) {
+    double comment_h = get_text_height(cfg.preview_comment_font_family,
+                                       cfg.preview_comment_font_size,
+                                       cfg.preview_comment_font_weight,
+                                       cfg.preview_comment_font_path);
+    text_h += cfg.preview_gap_v + comment_h;
+  }
+
+  double content_h = std::max(image_h, text_h);
+  return cfg.preview_padding.top + content_h + cfg.preview_padding.bottom;
+}
+
+// horizontal layout: preview_image on top, name below, comment below that
+double calc_horizontal_height(const Config::Config &cfg,
+                              const PreviewAssets &assets,
+                              const Search::SearchResult &selected) {
+  double total_h = 0;
+
+  if (assets.has_preview_image || assets.use_fallback_icon) {
+    total_h += cfg.preview_image_size;
+  }
+
+  double name_h = get_text_height(cfg.preview_name_font_family,
+                                  cfg.preview_name_font_size,
+                                  cfg.preview_name_font_weight,
+                                  cfg.preview_name_font_path);
+  if (total_h > 0) total_h += cfg.preview_gap_v;
+  total_h += name_h;
+
+  if (!selected.comment.empty()) {
+    double comment_h = get_text_height(cfg.preview_comment_font_family,
+                                       cfg.preview_comment_font_size,
+                                       cfg.preview_comment_font_weight,
+                                       cfg.preview_comment_font_path);
+    total_h += cfg.preview_gap_v + comment_h;
+  }
+
+  return cfg.preview_padding.top + total_h + cfg.preview_padding.bottom;
+}
+
+void draw_vertical_layout(BLContext &ctx, const Config::Config &cfg,
+                           const PreviewAssets &assets,
+                           const Search::SearchResult &selected,
+                           double x, double y, double available_w) {
+  double content_x = x + cfg.preview_padding.left;
+  double content_y = y + cfg.preview_padding.top;
+  double content_w =
+      available_w - cfg.preview_padding.left - cfg.preview_padding.right;
+
+  double image_size = 0;
+  double text_start_x = content_x;
+
+  if (assets.has_preview_image || assets.use_fallback_icon) {
+    image_size = cfg.preview_image_size;
+
+    if (assets.has_preview_image && !assets.preview_image.is_empty()) {
+      double img_x = content_x + (image_size - assets.preview_image.width()) / 2.0;
+      double img_y = content_y + (image_size - assets.preview_image.height()) / 2.0;
+      ctx.blit_image(BLPoint(img_x, img_y), assets.preview_image);
+    } else if (assets.use_fallback_icon && assets.has_icon) {
+      draw_icon(ctx, assets.icon_name, content_x, content_y, image_size);
+    }
+
+    text_start_x = content_x + image_size + cfg.preview_gap_h;
+  }
+
+  double text_w = content_w - (text_start_x - content_x);
+
+  double name_h = get_text_height(cfg.preview_name_font_family,
+                                  cfg.preview_name_font_size,
+                                  cfg.preview_name_font_weight,
+                                  cfg.preview_name_font_path);
+
+  double name_x = text_start_x;
+  double name_w = text_w;
+
+  if (assets.has_icon && assets.has_preview_image && !assets.use_fallback_icon) {
+    double icon_y = content_y + (name_h - cfg.preview_icon_size) / 2.0;
+    draw_icon(ctx, assets.icon_name, name_x, icon_y, cfg.preview_icon_size);
+    name_x += cfg.preview_icon_size + cfg.preview_gap_h;
+    name_w -= cfg.preview_icon_size + cfg.preview_gap_h;
+  }
+
+  draw_text(ctx, selected.name, name_x, content_y, name_w,
+            cfg.preview_name_font_family, cfg.preview_name_font_size,
+            cfg.preview_name_font_weight, cfg.preview_name_font_path,
+            cfg.preview_name_color, "left");
+
+  if (!selected.comment.empty()) {
+    double comment_y = content_y + name_h + cfg.preview_gap_v;
+    draw_text(ctx, selected.comment, text_start_x, comment_y, text_w,
+              cfg.preview_comment_font_family, cfg.preview_comment_font_size,
+              cfg.preview_comment_font_weight, cfg.preview_comment_font_path,
+              cfg.preview_comment_color, "left");
+  }
+}
+
+void draw_horizontal_layout(BLContext &ctx, const Config::Config &cfg,
+                             const PreviewAssets &assets,
+                             const Search::SearchResult &selected,
+                             double x, double y, double available_w) {
+  double content_x = x + cfg.preview_padding.left;
+  double content_y = y + cfg.preview_padding.top;
+  double content_w =
+      available_w - cfg.preview_padding.left - cfg.preview_padding.right;
+  double current_y = content_y;
+
+  if (assets.has_preview_image || assets.use_fallback_icon) {
+    double image_size = cfg.preview_image_size;
+
+    if (assets.has_preview_image && !assets.preview_image.is_empty()) {
+      double img_x = content_x + (content_w - assets.preview_image.width()) / 2.0;
+      ctx.blit_image(BLPoint(img_x, current_y), assets.preview_image);
+    } else if (assets.use_fallback_icon && assets.has_icon) {
+      double icon_x = content_x + (content_w - image_size) / 2.0;
+      draw_icon(ctx, assets.icon_name, icon_x, current_y, image_size);
+    }
+
+    current_y += image_size + cfg.preview_gap_v;
+  }
+
+  double name_h = get_text_height(cfg.preview_name_font_family,
+                                  cfg.preview_name_font_size,
+                                  cfg.preview_name_font_weight,
+                                  cfg.preview_name_font_path);
+
+  if (assets.has_icon && assets.has_preview_image && !assets.use_fallback_icon) {
+    BLFont name_font = Gfx::get_font(cfg.preview_name_font_family,
+                                     cfg.preview_name_font_size,
+                                     cfg.preview_name_font_weight,
+                                     cfg.preview_name_font_path);
+    std::string truncated = Gfx::truncate_text(
+        selected.name, name_font,
+        content_w - cfg.preview_icon_size - cfg.preview_gap_h);
+
+    BLGlyphBuffer gb;
+    gb.set_utf8_text(truncated.c_str());
+    name_font.shape(gb);
+    BLTextMetrics tm;
+    name_font.get_text_metrics(gb, tm);
+
+    double unit_w = cfg.preview_icon_size + cfg.preview_gap_h + tm.advance.x;
+    double unit_x = content_x + (content_w - unit_w) / 2.0;
+
+    double icon_y = current_y + (name_h - cfg.preview_icon_size) / 2.0;
+    draw_icon(ctx, assets.icon_name, unit_x, icon_y, cfg.preview_icon_size);
+
+    double text_x = unit_x + cfg.preview_icon_size + cfg.preview_gap_h;
+    BLFontMetrics fm = name_font.metrics();
+    ctx.set_fill_style(Gfx::toBLColor(cfg.preview_name_color));
+    ctx.fill_utf8_text(BLPoint(text_x, current_y + fm.ascent), name_font,
+                       truncated.c_str());
+  } else {
+    draw_text(ctx, selected.name, content_x, current_y, content_w,
+              cfg.preview_name_font_family, cfg.preview_name_font_size,
+              cfg.preview_name_font_weight, cfg.preview_name_font_path,
+              cfg.preview_name_color, "center");
+  }
+
+  current_y += name_h;
+
+  if (!selected.comment.empty()) {
+    current_y += cfg.preview_gap_v;
+    draw_text(ctx, selected.comment, content_x, current_y, content_w,
+              cfg.preview_comment_font_family, cfg.preview_comment_font_size,
+              cfg.preview_comment_font_weight, cfg.preview_comment_font_path,
+              cfg.preview_comment_color, "center");
+  }
+}
 
 } // namespace
 
@@ -371,8 +318,13 @@ double Preview::get_height(const Config::Config &cfg,
     return 0;
   }
   const auto &selected = state.results[state.selected_index];
-  PreviewLayout layout(cfg, selected, 1000.0);
-  return layout.get_total_height();
+  PreviewAssets assets = resolve_assets(cfg, selected);
+
+  if (is_horizontal(cfg.preview_direction)) {
+    return calc_horizontal_height(cfg, assets, selected);
+  } else {
+    return calc_vertical_height(cfg, assets, selected);
+  }
 }
 
 ComponentResult Preview::draw(ComponentContext &context) {
@@ -385,11 +337,28 @@ ComponentResult Preview::draw(ComponentContext &context) {
   }
 
   const auto &selected = state.results[state.selected_index];
-  PreviewLayout layout(context.cfg, selected, context.available_w);
+  const auto &cfg = context.cfg;
+  PreviewAssets assets = resolve_assets(cfg, selected);
 
-  double total_height = layout.get_total_height();
-  if (total_height > 0) {
-    layout.draw(context.ctx, context.x, context.y);
+  double total_height;
+  if (is_horizontal(cfg.preview_direction)) {
+    total_height = calc_horizontal_height(cfg, assets, selected);
+  } else {
+    total_height = calc_vertical_height(cfg, assets, selected);
+  }
+
+  if (cfg.preview_background.a > 0) {
+    context.ctx.set_fill_style(Lawnch::Gfx::toBLColor(cfg.preview_background));
+    context.ctx.fill_rect(context.x, context.y, context.available_w,
+                          total_height);
+  }
+
+  if (is_horizontal(cfg.preview_direction)) {
+    draw_horizontal_layout(context.ctx, cfg, assets, selected, context.x,
+                           context.y, context.available_w);
+  } else {
+    draw_vertical_layout(context.ctx, cfg, assets, selected, context.x,
+                         context.y, context.available_w);
   }
 
   return {context.available_w, total_height};

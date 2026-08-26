@@ -8,6 +8,12 @@
 
 namespace Lawnch::Core::Window::Render::Components {
 
+namespace {
+bool is_horizontal(const std::string &dir) {
+  return dir == "h" || dir == "horizontal";
+}
+} // namespace
+
 void ResultsContainer::update_metrics(const Config::Config &cfg) const {
   BLFont font = Lawnch::Gfx::get_font(cfg.result_item_default_font_family,
                                       cfg.result_item_default_font_size,
@@ -27,9 +33,24 @@ void ResultsContainer::update_metrics(const Config::Config &cfg) const {
   }
 
   double text_gap = 4.0;
-  double item_inner_h = name_h;
-  if (cfg.result_item_comment_enable) {
-    item_inner_h += text_gap + comment_h;
+  bool item_h_mode = is_horizontal(cfg.result_item_direction);
+
+  double item_inner_h = 0;
+  if (item_h_mode) {
+    double icon_h = cfg.result_item_icon_enable
+                        ? (cfg.result_item_icon_size + cfg.result_item_icon_gap)
+                        : 0;
+    item_inner_h = icon_h + name_h;
+    if (cfg.result_item_comment_enable) {
+      item_inner_h += text_gap + comment_h;
+    }
+  } else {
+    double text_h = name_h;
+    if (cfg.result_item_comment_enable) {
+      text_h += text_gap + comment_h;
+    }
+    double icon_h = cfg.result_item_icon_enable ? cfg.result_item_icon_size : 0;
+    item_inner_h = std::max(icon_h, text_h);
   }
 
   cached_item_height =
@@ -121,6 +142,138 @@ void ResultsContainer::draw_result_item(BLContext &ctx,
     ctx.stroke_round_rect(item_rect);
   }
 
+  bool item_h_mode = is_horizontal(cfg.result_item_direction);
+
+  if (item_h_mode) {
+    // horizontal item layout: icon on top, name center, comment bottom
+    double draw_x = draw_x_rect + padding.left;
+    double draw_y = draw_y_rect + padding.top;
+    double draw_w = draw_w_rect - (padding.left + padding.right);
+    double draw_h = draw_h_rect - (padding.top + padding.bottom);
+
+    if (draw_w <= 0 || draw_h <= 0)
+      return;
+
+    double current_y = draw_y;
+
+    if (result.is_pinned) {
+      double pin_size = 14;
+      double pin_x = draw_x_rect + draw_w_rect - padding.right - pin_size;
+      double pin_y = draw_y_rect + padding.top;
+      Icons::Manager::Instance().render_icon(ctx, "view-pin", std::floor(pin_x),
+                                             std::floor(pin_y), pin_size);
+    }
+
+    if (cfg.result_item_icon_enable) {
+      double max_icon_h = draw_h * 0.6;
+      double icon_size = std::min((double)cfg.result_item_icon_size, max_icon_h);
+      double icon_x = std::floor(draw_x + (draw_w - icon_size) / 2.0);
+
+      Icons::Manager::Instance().render_icon(ctx, result.icon, icon_x,
+                                             std::floor(current_y), icon_size);
+      current_y += icon_size + cfg.result_item_icon_gap;
+    }
+
+    ctx.save();
+    ctx.clip_to_rect(BLRect(draw_x, draw_y, draw_w, draw_h));
+
+    double name_y = std::floor(current_y + fm.ascent);
+    double text_x_pos = draw_x + (draw_w / 2.0);
+
+    std::string display_name = result.name;
+    BLGlyphBuffer gb;
+    gb.set_utf8_text(display_name.c_str(), display_name.size());
+    font.shape(gb);
+    BLTextMetrics tm;
+    font.get_text_metrics(gb, tm);
+
+    double final_text_x = text_x_pos - (tm.advance.x / 2.0);
+
+    if (cfg.result_item_highlight_enable && !search_text.empty()) {
+      auto h_color = is_selected ? cfg.result_item_selected_highlight_color
+                                 : cfg.result_item_default_highlight_color;
+      auto h_family = is_selected ? cfg.result_item_selected_highlight_font_family
+                                  : cfg.result_item_default_highlight_font_family;
+      auto h_size = is_selected ? cfg.result_item_selected_highlight_font_size
+                                : cfg.result_item_default_highlight_font_size;
+      auto h_weight = is_selected ? cfg.result_item_selected_highlight_font_weight
+                                  : cfg.result_item_default_highlight_font_weight;
+      auto h_path = is_selected ? cfg.result_item_selected_highlight_font_path
+                                : cfg.result_item_default_highlight_font_path;
+      BLFont highlight_font =
+          Lawnch::Gfx::get_font(h_family, h_size, h_weight, h_path);
+
+      std::string query_term = search_text;
+      if (!query_term.empty() && query_term[0] == ':') {
+        size_t space_pos = query_term.find(' ');
+        if (space_pos != std::string::npos) {
+          query_term = query_term.substr(space_pos + 1);
+        } else {
+          query_term = "";
+        }
+      }
+
+      std::string name_lower = display_name;
+      std::string search_lower = query_term;
+      for (auto &c : name_lower)
+        c = std::tolower(static_cast<unsigned char>(c));
+      for (auto &c : search_lower)
+        c = std::tolower(static_cast<unsigned char>(c));
+
+      std::vector<bool> highlight_mask(display_name.size(), false);
+      size_t search_idx = 0;
+      for (size_t i = 0;
+           i < name_lower.size() && search_idx < search_lower.size(); ++i) {
+        if (name_lower[i] == search_lower[search_idx]) {
+          highlight_mask[i] = true;
+          search_idx++;
+        }
+      }
+
+      double x_pos = final_text_x;
+      for (size_t i = 0; i < display_name.size(); ++i) {
+        std::string ch(1, display_name[i]);
+        BLFont &char_font = highlight_mask[i] ? highlight_font : font;
+        auto char_color = highlight_mask[i] ? h_color : text_color;
+
+        ctx.set_fill_style(Lawnch::Gfx::toBLColor(char_color));
+        ctx.fill_utf8_text(BLPoint(x_pos, name_y), char_font, ch.c_str());
+
+        BLGlyphBuffer char_gb;
+        char_gb.set_utf8_text(ch.c_str());
+        char_font.shape(char_gb);
+        BLTextMetrics char_tm;
+        char_font.get_text_metrics(char_gb, char_tm);
+        x_pos += char_tm.advance.x;
+      }
+    } else {
+      ctx.set_fill_style(Lawnch::Gfx::toBLColor(text_color));
+      ctx.fill_utf8_text(BLPoint(final_text_x, name_y), font,
+                         display_name.c_str());
+    }
+
+    if (cfg.result_item_comment_enable && !result.comment.empty()) {
+      double comment_y = std::floor(name_y + fm.descent + 4.0 + cm.ascent);
+      std::string display_comment =
+          Lawnch::Gfx::truncate_text(result.comment, comment_font, draw_w);
+
+      BLGlyphBuffer cgb;
+      cgb.set_utf8_text(display_comment.c_str(), display_comment.size());
+      comment_font.shape(cgb);
+      BLTextMetrics ctm;
+      comment_font.get_text_metrics(cgb, ctm);
+
+      double comment_x = text_x_pos - (ctm.advance.x / 2.0);
+      ctx.set_fill_style(Lawnch::Gfx::toBLColor(comment_color_cfg));
+      ctx.fill_utf8_text(BLPoint(comment_x, comment_y), comment_font,
+                         display_comment.c_str());
+    }
+
+    ctx.restore();
+    return;
+  }
+
+  // vertical item layout: icon on left, name and comment on right
   double draw_x = draw_x_rect + padding.left;
   double draw_w = draw_w_rect - (padding.left + padding.right);
 
@@ -140,10 +293,12 @@ void ResultsContainer::draw_result_item(BLContext &ctx,
   }
 
   if (result.is_pinned) {
-    double pin_icon_size = current_icon_size > 0 ? current_icon_size * 0.7 : item_h * 0.5;
+    double pin_icon_size =
+        current_icon_size > 0 ? current_icon_size * 0.7 : item_h * 0.5;
     double pin_x = draw_x_rect + draw_w_rect - padding.right - pin_icon_size;
     double pin_y = std::floor(center_y - (pin_icon_size / 2.0));
-    Icons::Manager::Instance().render_icon(ctx, "view-pin", std::floor(pin_x), pin_y, pin_icon_size);
+    Icons::Manager::Instance().render_icon(ctx, "view-pin", std::floor(pin_x),
+                                           pin_y, pin_icon_size);
     draw_w -= (pin_icon_size + cfg.result_item_icon_gap);
   }
 
@@ -205,8 +360,8 @@ void ResultsContainer::draw_result_item(BLContext &ctx,
                                   : cfg.result_item_default_highlight_font_weight;
       auto h_path = is_selected ? cfg.result_item_selected_highlight_font_path
                                 : cfg.result_item_default_highlight_font_path;
-      BLFont highlight_font = Lawnch::Gfx::get_font(
-          h_family, h_size, h_weight, h_path);
+      BLFont highlight_font =
+          Lawnch::Gfx::get_font(h_family, h_size, h_weight, h_path);
 
       std::string query_term = search_text;
       if (!query_term.empty() && query_term[0] == ':') {
@@ -312,8 +467,12 @@ ComponentResult ResultsContainer::draw(ComponentContext &context) {
                        cfg.results_margin.bottom - cfg.results_padding.top -
                        cfg.results_padding.bottom;
 
+  bool results_h_mode = is_horizontal(cfg.results_direction);
+  int cols = results_h_mode ? std::max(1, cfg.results_column) : 1;
+
   int total_results = (int)state.results.size();
-  int visible_count = std::max(1, (int)std::floor(available_h / item_height));
+  int visible_rows = std::max(1, (int)std::floor(available_h / item_height));
+  int visible_count = visible_rows * cols;
 
   bool show_scrollbar =
       cfg.results_scrollbar_enable && total_results > visible_count;
@@ -326,7 +485,9 @@ ComponentResult ResultsContainer::draw(ComponentContext &context) {
 
   if (show_scrollbar) {
     content_w -=
-        (cfg.results_scrollbar_track_width + cfg.results_scrollbar_track_padding.left + cfg.results_scrollbar_track_padding.right);
+        (cfg.results_scrollbar_track_width +
+         cfg.results_scrollbar_track_padding.left +
+         cfg.results_scrollbar_track_padding.right);
   }
 
   int end_index = std::min(total_results, state.scroll_offset + visible_count);
@@ -355,31 +516,38 @@ ComponentResult ResultsContainer::draw(ComponentContext &context) {
   double items_start_y = layout_y + cfg.results_padding.top;
 
   int actual_visible = end_index - state.scroll_offset;
+  int actual_rows = (actual_visible + cols - 1) / cols;
 
   double bottom_offset = 0;
-  if (cfg.results_reverse && actual_visible < visible_count) {
-    int empty_slots = visible_count - actual_visible;
-    bottom_offset = empty_slots * item_height;
+  if (cfg.results_reverse && actual_rows < visible_rows) {
+    int empty_row_slots = visible_rows - actual_rows;
+    bottom_offset = empty_row_slots * item_height;
   }
+
+  double total_gaps_w = (cols - 1) * cfg.results_gap;
+  double item_w = (content_w - total_gaps_w) / cols;
+  double item_h = std::floor(item_height - cfg.results_gap);
 
   for (int i = state.scroll_offset; i < end_index; ++i) {
     const auto &res = state.results[i];
     int rel_i = i - state.scroll_offset;
+    int row = rel_i / cols;
+    int col = rel_i % cols;
 
+    double item_x = content_x + col * (item_w + cfg.results_gap);
     double item_y;
     if (cfg.results_reverse) {
-      int reverse_rel_i = actual_visible - 1 - rel_i;
+      int reverse_row = actual_rows - 1 - row;
       item_y = std::floor(items_start_y + bottom_offset +
-                          reverse_rel_i * item_height);
+                          reverse_row * item_height);
     } else {
-      item_y = std::floor(items_start_y + rel_i * item_height);
+      item_y = std::floor(items_start_y + row * item_height);
     }
 
-    double item_h = std::floor(item_height - cfg.results_gap);
     bool is_sel = (i == state.selected_index);
 
-    draw_result_item(ctx, cfg, res, content_x, item_y, content_w, item_h,
-                     is_sel, state.search_text);
+    draw_result_item(ctx, cfg, res, item_x, item_y, item_w, item_h, is_sel,
+                     state.search_text);
   }
 
   if (show_scrollbar) {
@@ -399,21 +567,27 @@ ComponentResult ResultsContainer::draw(ComponentContext &context) {
           cfg.results_scrollbar_track_radius));
     }
 
-    double ratio = (double)visible_count / total_results;
+    int total_rows = (total_results + cols - 1) / cols;
+    int scroll_row = state.scroll_offset / cols;
+
+    double ratio = (double)visible_rows / total_rows;
     double thumb_h = std::max(20.0, track_h * ratio);
     double thumb_range = track_h - thumb_h;
 
-    double scroll_progress =
-        (double)state.scroll_offset / (total_results - visible_count);
+    double scroll_progress = (total_rows > visible_rows)
+                                 ? (double)scroll_row / (total_rows - visible_rows)
+                                 : 0.0;
     double thumb_y = track_y + (scroll_progress * thumb_range);
 
     double thumb_x = track_x + cfg.results_scrollbar_track_padding.left;
-    double thumb_w = cfg.results_scrollbar_track_width - cfg.results_scrollbar_track_padding.left - cfg.results_scrollbar_track_padding.right;
+    double thumb_w = cfg.results_scrollbar_track_width -
+                     cfg.results_scrollbar_track_padding.left -
+                     cfg.results_scrollbar_track_padding.right;
 
     ctx.set_fill_style(Lawnch::Gfx::toBLColor(cfg.results_scrollbar_thumb_color));
     ctx.fill_round_rect(
-        Lawnch::Gfx::rounded_rect(thumb_x, thumb_y, thumb_w,
-                                   thumb_h, cfg.results_scrollbar_thumb_radius));
+        Lawnch::Gfx::rounded_rect(thumb_x, thumb_y, thumb_w, thumb_h,
+                                  cfg.results_scrollbar_thumb_radius));
   }
 
   return {context.available_w,

@@ -67,6 +67,8 @@ void Manager::Impl::ApplyAppearance(const toml::table &root) {
 
   if (auto *l = getTable(*t, "layout")) {
     config.layout_order = getStrArray(*l, "order", config.layout_order);
+    config.layout_direction =
+        getStr(*l, "direction", config.layout_direction);
     config.layout_preview_side =
         getStr(*l, "preview-side", config.layout_preview_side);
     config.layout_preview_ratio =
@@ -289,6 +291,8 @@ void Manager::Impl::ApplyResults(const toml::table &root) {
 
   auto &tc = config.theme_colors;
 
+  config.results_direction = getStr(*t, "direction", config.results_direction);
+  config.results_column = getInt(*t, "column", config.results_column);
   config.results_margin = getPadding(*t, "margin", config.results_margin);
   config.results_padding = getPadding(*t, "padding", config.results_padding);
   config.results_gap = getInt(*t, "gap", config.results_gap);
@@ -349,6 +353,8 @@ void Manager::Impl::ApplyResultItem(const toml::table &root) {
         getBool(*t, "comment", config.result_item_comment_enable);
     config.result_item_highlight_enable =
         getBool(*t, "highlight", config.result_item_highlight_enable);
+    config.result_item_direction =
+        getStr(*t, "direction", config.result_item_direction);
 
     if (auto inode = (*t)["icon"]; inode) {
       if (auto it = inode.as_table()) {
@@ -651,10 +657,10 @@ void Manager::Impl::ApplyPreview(const toml::table &root) {
 
   if (auto *t = getTable(root, "widget.preview")) {
     config.preview_enable = getBool(*t, "enable", config.preview_enable);
-    config.preview_composition =
-        getStrArray(*t, "composition", config.preview_composition);
+    config.preview_direction =
+        getStr(*t, "direction", config.preview_direction);
     config.preview_image_size =
-        getInt(*t, "image-size", config.preview_image_size);
+        getInt(*t, "preview-image-size", config.preview_image_size);
     config.preview_background =
         getColor(*t, "background", tc, config.preview_background);
     config.preview_padding = getPadding(*t, "padding", config.preview_padding);
@@ -676,8 +682,6 @@ void Manager::Impl::ApplyPreview(const toml::table &root) {
     config.preview_icon_size = getInt(*t, "size", config.preview_icon_size);
     config.preview_icon_fallback =
         getBool(*t, "fallback", config.preview_icon_fallback);
-    config.preview_icon_hide_on_fallback =
-        getBool(*t, "hide-on-fallback", config.preview_icon_hide_on_fallback);
   }
 
   if (auto *t = getTable(root, "widget.preview.name")) {

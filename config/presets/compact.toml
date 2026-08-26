@@ -29,6 +29,7 @@ align           = "left"
 enable          = false
 
 [widget.results]
+direction       = "v"
 margin          = [4, 0, 0, 0]
 padding         = [4, 4, 4, 4]
 gap             = 1
@@ -54,6 +55,7 @@ radius          = 2
 icon            = { size = 16, gap = 6, enable = true }
 comment         = true
 highlight       = true
+direction       = "v"
 
 [widget.results.item.default]
 align           = "left"

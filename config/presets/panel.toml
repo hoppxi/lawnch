@@ -29,6 +29,7 @@ align           = "left"
 enable          = false
 
 [widget.results]
+direction       = "v"
 margin          = [10, 0, 0, 0]
 padding         = [10, 10, 10, 10]
 gap             = 6
@@ -54,6 +55,7 @@ radius          = 2
 icon            = { size = 20, gap = 10, enable = true }
 comment         = true
 highlight       = true
+direction       = "v"
 
 [widget.results.item.default]
 align           = "left"
@@ -74,7 +76,7 @@ comment         = { font = { size = 11, weight = "normal" }, color = "$secondary
 highlight       = { font = { size = 14, weight = "bold" }, color = "$primary" }
 
 [widget.preview]
-enable          = true
+enable          = false
 
 [widget.results.count]
 enable          = true

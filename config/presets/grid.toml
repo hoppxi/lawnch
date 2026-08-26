@@ -1,0 +1,105 @@
+[meta]
+name        = "Grid"
+description = "Multi-column horizontal application grid with top icons"
+
+[appearance.layout]
+order           = ["input", "results_count", "results", "clock"]
+direction       = "v"
+
+[window]
+width           = 680
+height          = 520
+anchor          = ["center"]
+margin          = [0, 0, 0, 0]
+background      = "$surface"
+border          = { radius = 20, width = 1, color = "$outline-variant" }
+exclusive       = false
+ignore-exclusive = false
+keyboard        = "exclusive"
+font            = { family = "sans-serif" }
+
+[widget.input]
+font            = { size = 18, weight = "normal" }
+color           = "$on-surface"
+placeholder     = { text = "Search apps...", color = "$outline" }
+background      = "$surface-container-low"
+border          = { radius = 12, width = 1, color = "$surface-container-highest" }
+caret           = { width = 2.0, color = "$primary" }
+selection       = { background = "$primary-container", color = "$on-surface" }
+padding         = [14, 16, 14, 16]
+margin          = [16, 16, 8, 16]
+align           = "left"
+
+[widget.input.prompt]
+enable          = true
+text            = ">>"
+side            = "left"
+font            = { size = 18, weight = "bold" }
+color           = "$primary"
+background      = "#00000000"
+border          = { radius = 0, width = 0, color = "#00000000" }
+padding         = [14, 0, 14, 16]
+margin          = [0]
+
+[widget.results]
+direction       = "h"
+column          = 4
+margin          = [4, 16, 8, 16]
+padding         = [8, 8, 8, 8]
+gap             = 8
+background      = "#00000000"
+border          = { radius = 12, width = 0, color = "#00000000" }
+scroll          = "follow"
+reverse         = false
+
+[widget.results.scrollbar]
+enable          = true
+
+[widget.results.scrollbar.track]
+width           = 4
+color           = "#00000000"
+padding         = [0]
+margin          = [0]
+radius          = 2
+
+[widget.results.scrollbar.thumb]
+color           = "$primary"
+radius          = 2
+
+[widget.results.item]
+icon            = { size = 36, gap = 8, enable = true }
+comment         = true
+highlight       = true
+direction       = "h"
+
+[widget.results.item.default]
+align           = "center"
+font            = { size = 14, weight = "normal" }
+color           = "$on-surface-variant"
+background      = "$surface-container-low"
+border          = { radius = 12, width = 1, color = "$surface-container-highest" }
+padding         = [12, 8, 10, 8]
+margin          = [0]
+comment         = { font = { size = 11, weight = "normal" }, color = "$outline" }
+highlight       = { font = { size = 14, weight = "bold" }, color = "$primary" }
+
+[widget.results.item.selected]
+color           = "$on-surface"
+background      = "$primary-container"
+border          = { radius = 12, width = 1, color = "$primary" }
+comment         = { font = { size = 11, weight = "normal" }, color = "$on-primary-container" }
+highlight       = { font = { size = 14, weight = "bold" }, color = "$primary" }
+
+[widget.preview]
+enable          = false
+
+[widget.results.count]
+enable          = true
+format          = "{count} items"
+font            = { size = 11, weight = "normal" }
+color           = "$outline"
+align           = "left"
+padding         = [2, 20, 2, 20]
+
+[widget.clock]
+enable          = false

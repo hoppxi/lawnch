@@ -37,7 +37,7 @@ let
 in
 pkgs.stdenv.mkDerivation {
   pname = "lawnch";
-  version = "0.4.0-alpha";
+  version = "0.5.0-alpha";
 
   src = ../.;
 
